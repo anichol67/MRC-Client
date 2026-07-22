@@ -37,6 +37,10 @@
 | 21 | Per-path MRC state display (RTT, ECN rate, loss, cwnd) from control plane | §21 |
 | 22 | Probe-driven path visualization with live state updates and color-coded health | §22 |
 | 23 | Cross-platform offline mode (Mac/Windows) — full GUI without live network | §23 |
+| 24 | Hover tooltips on topology nodes/links (IPv6, SRv6, uSID, interfaces) | §24 |
+| 25 | Hosts connected to all planes in fabric view | §25 |
+| 26 | Unified simulation page with timed run, fabric view, and live failure injection | §26 |
+| 27 | Arista CloudVision-style GUI (dark sidebar nav, blue accents, metric cards) | §27 |
 
 ---
 
@@ -397,6 +401,37 @@ Auto-detection: the tool detects the platform at startup and enables offline mod
 
 ---
 
+## GUI & Visualization Enhancements
+
+### 24. Hover Tooltips on Topology Nodes/Links
+**Decision**: Mouse hover on nodes and links in the Fabric View shows detailed info.
+
+- Nodes: name, role, plane, loopback IPv6, SRv6 locator, uSID value, interfaces
+- Links: interface names on each end, IPv6 addresses on each end, link state
+
+### 25. Hosts Connected to All Planes
+**Decision**: In the Fabric View, MRC emulator hosts are shown connected to leafs across **both planes**, reflecting multi-port NIC behavior (Port = Plane per spec 9.3.2, 11.5). Hosts are positioned below the full fabric, spanning both planes visually.
+
+### 26. Unified Simulation Page
+**Decision**: A `/simulation` page combining timed traffic generation, live fabric view, and failure injection in one view.
+
+- Configurable duration, step interval, collective type, message/chunk size
+- Live fabric SVG showing path state updates during the run
+- EV path state table with color-coded status
+- Inject failure scenarios mid-run and watch EV state transitions
+- Live metrics: cwnd, inflight, RTT, packet/drop/ECN/trim counters
+- Event log showing failures, state changes, CC reactions
+
+### 27. Arista CloudVision-Style GUI
+**Decision**: Restyle the UI to follow Arista CloudVision's design language.
+
+- Fixed dark sidebar navigation with grouped sections (Fabric, Endpoint, Transport, Testing)
+- Dark theme (#0d1117 background, #161b22 cards) with blue accent (#58a6ff)
+- Clean metric cards and status badges
+- Responsive: sidebar collapses to horizontal nav on small screens
+
+---
+
 ## Conversation Log
 
 ### 2026-07-21 — Initial build
@@ -430,6 +465,16 @@ Auto-detection: the tool detects the platform at startup and enables offline mod
   - Per-path MRC state display from control plane (RTT, ECN, loss, cwnd)
   - Probe-driven path visualization with live color-coded health overlay
 - Requirements v1.0 finalized
+
+### 2026-07-22 — GUI and simulation enhancements
+- Added hover tooltips on topology nodes (IPv6, SRv6, uSID) and links (interfaces, addresses)
+- Hosts now shown connected to all planes in fabric view
+- Built unified `/simulation` page: timed traffic run + live fabric view + failure injection
+- Restyled GUI to Arista CloudVision look: dark sidebar nav, blue accents, grouped sections
+- Arista-style switch/server icons in SVG topology
+- Added offline traffic simulation with closed-loop CC feedback
+- Default port changed to 8080
+- Requirements expanded to 27 total
 
 ---
 

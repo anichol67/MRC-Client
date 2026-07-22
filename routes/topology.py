@@ -44,6 +44,17 @@ def topology_viz_page():
     return render_template('topology_viz.html', topo=topo_data, path_states=None)
 
 
+@topology_bp.route('/simulation')
+def simulation_page():
+    from core.collectives import CollectiveType
+    collective_types = [{'value': ct.name, 'label': ct.name.replace('_', ' ').title()} for ct in CollectiveType]
+    gen = _topology_state.get('generator')
+    hosts = [n.name for n in gen.nodes if n.role == 'host'] if gen else []
+    topo_data = gen.to_dict() if gen else None
+    return render_template('simulation.html', collective_types=collective_types,
+                           hosts=hosts, topo=topo_data)
+
+
 @topology_bp.route('/api/topology/generate', methods=['POST'])
 def api_generate():
     data = request.json

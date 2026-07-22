@@ -10,8 +10,16 @@
         min-height: 540px;
     }
     #topo-svg-container svg { display: block; }
-    .node-rect { cursor: pointer; stroke-width: 2; rx: 4; ry: 4; }
-    .node-rect:hover { stroke-width: 3; filter: brightness(1.3); }
+    .node-rect { cursor: pointer; stroke-width: 2; rx: 6; ry: 6; }
+    .node-icon { pointer-events: none; fill: rgba(255,255,255,0.7); }
+    .node-rect:hover { stroke-width: 3; filter: brightness(1.3); cursor: pointer; }
+    .node-tooltip, .link-tooltip {
+        position: absolute; background: #222; color: #eee; border: 1px solid #555;
+        border-radius: 6px; padding: 8px 12px; font-size: 0.78rem; font-family: 'Courier New', monospace;
+        pointer-events: none; z-index: 1000; max-width: 340px; white-space: pre-line;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .node-tooltip strong, .link-tooltip strong { color: #8be9fd; }
     .node-label { font-family: 'Courier New', monospace; font-size: 11px; fill: #fff;
                   pointer-events: none; text-anchor: middle; dominant-baseline: central; }
     .topo-link { cursor: pointer; stroke-linecap: round; }
@@ -55,6 +63,7 @@
     <!-- Left: SVG Diagram (60%) -->
     <div class="col-lg-7 col-xl-7">
         <div id="topo-svg-container"></div>
+        <div id="hover-tooltip" class="node-tooltip" style="display:none;"></div>
         <div class="mt-2 d-flex flex-wrap gap-3">
             <small><span class="legend-swatch" style="background:#3b82f6"></span>Spine</small>
             <small><span class="legend-swatch" style="background:#22c55e"></span>Leaf</small>
@@ -227,31 +236,42 @@
         for (let p = 0; p < planes; p++) {
             for (let s = 0; s < spinesPerPlane; s++) {
                 nodes.push({ name: `spine-p${p}-s${s}`, role: 'spine', plane: p,
-                             loopback_ipv6: `fd00::${p}:${s}:1`, usid: 0x1000 + p*16 + s });
+                             loopback_ipv6: `fd00:${p}:1${s}::1/128`, srv6_locator: `fcbb:${p}:1${s}::/48`,
+                             usid: 0x0010 + p*0x0100 + s,
+                             interfaces: { [`eth1`]: `fd00:${p}:2${0}:1${s}::1/127`, [`eth2`]: `fd00:${p}:2${1}:1${s}::1/127` } });
             }
             for (let l = 0; l < leafsPerPlane; l++) {
                 const leafName = `leaf-p${p}-l${l}`;
                 nodes.push({ name: leafName, role: 'leaf', plane: p,
-                             loopback_ipv6: `fd00::${p}:${l}:2`, usid: 0x2000 + p*16 + l });
-                // Spine-leaf links
+                             loopback_ipv6: `fd00:${p}:2${l}::1/128`, srv6_locator: `fcbb:${p}:2${l}::/48`,
+                             usid: 0x0020 + p*0x0100 + l,
+                             interfaces: { [`eth1`]: `fd00:${p}:2${l}:10::0/127`, [`eth2`]: `fd00:${p}:2${l}:11::0/127` } });
                 for (let s = 0; s < spinesPerPlane; s++) {
                     links.push({ node_a: `spine-p${p}-s${s}`, node_b: leafName,
-                                 iface_a: `eth${l+1}`, iface_b: `eth${s+1}`,
-                                 addr_a: `fd00:${p}:${s}:${l}::0/127`, addr_b: `fd00:${p}:${s}:${l}::1/127` });
-                }
-                // Hosts
-                for (let h = 0; h < hostsPerLeaf; h++) {
-                    const hostName = `host-p${p}-l${l}-h${h}`;
-                    nodes.push({ name: hostName, role: 'host', plane: p,
-                                 loopback_ipv6: `fd00::${p}:${l}:${h}:3`, usid: 0x3000 + p*64 + l*4 + h });
-                    links.push({ node_a: leafName, node_b: hostName,
-                                 iface_a: `eth${10+h}`, iface_b: 'eth0',
-                                 addr_a: `fd00:${p}:${l}:${h}:a::0/127`, addr_b: `fd00:${p}:${l}:${h}:a::1/127` });
+                                 iface_a: `Ethernet${l+1}`, iface_b: `Ethernet${s+1}`,
+                                 addr_a: `fd00:${p}:2${l}:1${s}::1/127`, addr_b: `fd00:${p}:2${l}:1${s}::0/127` });
                 }
             }
         }
 
-        // Generate sample paths between first and last host
+        // Hosts connected to BOTH planes (multi-plane, one host per leaf-index)
+        for (let l = 0; l < leafsPerPlane; l++) {
+            const hostName = `host${l}`;
+            nodes.push({ name: hostName, role: 'host', plane: -1,
+                         loopback_ipv6: `fd00:0:2${l}:ff::1/127`,
+                         srv6_locator: '-', usid: 0,
+                         interfaces: { eth1: `fd00:0:2${l}:ff::1/127`, eth2: `fd00:1:2${l}:ff::1/127` } });
+            // Connect to leaf in plane 0
+            links.push({ node_a: `leaf-p0-l${l}`, node_b: hostName,
+                         iface_a: `Ethernet${spinesPerPlane+1}`, iface_b: 'eth1',
+                         addr_a: `fd00:0:2${l}:ff::0/127`, addr_b: `fd00:0:2${l}:ff::1/127` });
+            // Connect to leaf in plane 1
+            links.push({ node_a: `leaf-p1-l${l}`, node_b: hostName,
+                         iface_a: `Ethernet${spinesPerPlane+1}`, iface_b: 'eth2',
+                         addr_a: `fd00:1:2${l}:ff::0/127`, addr_b: `fd00:1:2${l}:ff::1/127` });
+        }
+
+        // Generate paths between first and last host across both planes
         const hosts = nodes.filter(n => n.role === 'host');
         if (hosts.length >= 2) {
             const src = hosts[0].name, dst = hosts[hosts.length - 1].name;
@@ -264,7 +284,7 @@
                         source_host: src, dest_host: dst,
                         plane: p, spine_index: s,
                         ev_value: evIdx++,
-                        srv6_address: `fcbb::${p}:${s}:1`,
+                        srv6_address: `fcbb:0020:${p}01${s}:${p}02${leafsPerPlane-1}::`,
                         hops: [src, `leaf-p${p}-l0`, `spine-p${p}-s${s}`,
                                `leaf-p${p}-l${leafsPerPlane-1}`, dst]
                     });
@@ -305,14 +325,29 @@
             else planeNodes[p].hosts.push(n);
         });
 
-        const planeIds = Object.keys(planeNodes).map(Number).sort();
+        // Separate hosts that connect to multiple planes (plane == -1 or no plane)
+        const multiPlaneHosts = [];
+        const planeIds = Object.keys(planeNodes).map(Number).sort().filter(p => p >= 0);
+        // Move hosts with plane == -1 out of plane groups
+        if (planeNodes[-1]) {
+            multiPlaneHosts.push(...(planeNodes[-1].hosts || []));
+            delete planeNodes[-1];
+        }
+        // Also check for hosts that appear in links across planes
+        const allHosts = topoData.nodes.filter(n => n.role === 'host');
+        allHosts.forEach(h => {
+            if (h.plane == null || h.plane < 0) {
+                if (!multiPlaneHosts.find(m => m.name === h.name)) multiPlaneHosts.push(h);
+            }
+        });
+
         const numPlanes = planeIds.length || 1;
         const totalW = numPlanes * PLANE_W + (numPlanes - 1) * PLANE_GAP + 2 * PLANE_PAD;
-        const totalH = PLANE_H + 2 * PLANE_PAD;
+        const hostRowH = multiPlaneHosts.length > 0 ? 100 : 0;
+        const totalH = PLANE_H + 2 * PLANE_PAD + hostRowH;
 
         let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 ${totalW} ${totalH}" preserveAspectRatio="xMidYMid meet">`;
 
-        // Store node positions for line drawing
         const nodePos = {};
 
         planeIds.forEach((pid, planeIdx) => {
@@ -320,11 +355,9 @@
             const py = PLANE_PAD;
             const pn = planeNodes[pid];
 
-            // Plane bounding box
             svg += `<rect class="plane-box" x="${px}" y="${py}" width="${PLANE_W}" height="${PLANE_H}"/>`;
             svg += `<text class="plane-label" x="${px + 10}" y="${py + 20}">Plane ${pid}</text>`;
 
-            // Position nodes
             function positionRow(nodeList, yPos) {
                 const count = nodeList.length;
                 if (count === 0) return;
@@ -341,6 +374,15 @@
             positionRow(pn.hosts, Y_HOST);
         });
 
+        // Position multi-plane hosts centered below the full fabric
+        if (multiPlaneHosts.length > 0) {
+            const hostY = PLANE_PAD + PLANE_H + 50;
+            const hostSpacing = totalW / (multiPlaneHosts.length + 1);
+            multiPlaneHosts.forEach((h, i) => {
+                nodePos[h.name] = { x: hostSpacing * (i + 1), y: hostY };
+            });
+        }
+
         // Draw links (as group so we can layer paths on top)
         svg += '<g id="g-links">';
         topoData.links.forEach(l => {
@@ -351,9 +393,16 @@
             const failed = !!failedLinks[key];
             const color = failed ? C.link_failed : C.link_normal;
             const sw = failed ? 3 : 2;
+            const linkTip = encodeURIComponent(JSON.stringify({
+                node_a: l.node_a, node_b: l.node_b,
+                iface_a: l.iface_a || '-', iface_b: l.iface_b || '-',
+                addr_a: l.addr_a || '-', addr_b: l.addr_b || '-',
+            }));
             svg += `<line class="topo-link" x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" ` +
                    `stroke="${color}" stroke-width="${sw}" data-link-key="${key}" ` +
-                   `data-node-a="${l.node_a}" data-node-b="${l.node_b}" ` +
+                   `data-node-a="${l.node_a}" data-node-b="${l.node_b}" data-tip="${linkTip}" ` +
+                   `onmouseenter="window._topoViz.showLinkTip(event, this)" ` +
+                   `onmouseleave="window._topoViz.hideTip()" ` +
                    `onclick="window._topoViz.onLinkClick(this)"/>`;
         });
         svg += '</g>';
@@ -372,14 +421,44 @@
             else                           { fill = C.host_fill;  stroke = C.host_stroke; }
 
             const rx = pos.x - NODE_W / 2, ry = pos.y - NODE_H / 2;
+            const tipData = encodeURIComponent(JSON.stringify({
+                name: node.name, role: node.role, plane: node.plane,
+                loopback_ipv6: node.loopback_ipv6 || '-',
+                srv6_locator: node.srv6_locator || '-',
+                usid: node.usid != null ? '0x' + ('0000' + node.usid.toString(16).toUpperCase()).slice(-4) : '-',
+                interfaces: node.interfaces || {},
+            }));
             svg += `<rect class="node-rect" x="${rx}" y="${ry}" width="${NODE_W}" height="${NODE_H}" ` +
-                   `fill="${fill}" stroke="${stroke}" data-node="${name}" ` +
+                   `fill="${fill}" stroke="${stroke}" data-node="${name}" data-tip="${tipData}" ` +
+                   `onmouseenter="window._topoViz.showNodeTip(event, this)" ` +
+                   `onmouseleave="window._topoViz.hideTip()" ` +
                    `onclick="window._topoViz.onNodeClick('${name}')"/>`;
 
-            // Truncate label if needed
+            // Arista-style icon inside node
+            const iconX = rx + 4, iconY = ry + 8;
+            if (node.role === 'spine' || node.role === 'leaf') {
+                // Switch icon: small rack unit shape
+                svg += `<g class="node-icon" transform="translate(${iconX},${iconY})">` +
+                    `<rect x="0" y="0" width="16" height="4" rx="1" fill="rgba(255,255,255,0.6)"/>` +
+                    `<rect x="0" y="6" width="16" height="4" rx="1" fill="rgba(255,255,255,0.6)"/>` +
+                    `<rect x="0" y="12" width="16" height="4" rx="1" fill="rgba(255,255,255,0.6)"/>` +
+                    `<circle cx="13" cy="2" r="1.2" fill="${fill}"/>` +
+                    `<circle cx="13" cy="8" r="1.2" fill="${fill}"/>` +
+                    `<circle cx="13" cy="14" r="1.2" fill="${fill}"/>` +
+                    `</g>`;
+            } else {
+                // Server/host icon
+                svg += `<g class="node-icon" transform="translate(${iconX},${iconY})">` +
+                    `<rect x="2" y="0" width="12" height="18" rx="2" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>` +
+                    `<line x1="2" y1="6" x2="14" y2="6" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>` +
+                    `<line x1="2" y1="12" x2="14" y2="12" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>` +
+                    `<circle cx="8" cy="15.5" r="1.2" fill="rgba(255,255,255,0.6)"/>` +
+                    `</g>`;
+            }
+
             let label = name;
             if (label.length > 12) label = label.slice(0, 11) + '…';
-            svg += `<text class="node-label" x="${pos.x}" y="${pos.y}">${label}</text>`;
+            svg += `<text class="node-label" x="${pos.x + 6}" y="${pos.y}">${label}</text>`;
         }
         svg += '</g>';
 
@@ -747,10 +826,50 @@
         }
     };
 
+    // ── Tooltip functions ──
+    function showNodeTip(event, el) {
+        const tip = document.getElementById('hover-tooltip');
+        const data = JSON.parse(decodeURIComponent(el.getAttribute('data-tip')));
+        let html = `<strong>${data.name}</strong>\n`;
+        html += `Role: ${data.role}  |  Plane: ${data.plane}\n`;
+        html += `Loopback: ${data.loopback_ipv6}\n`;
+        html += `SRv6 Locator: ${data.srv6_locator}\n`;
+        html += `uSID: ${data.usid}\n`;
+        if (data.interfaces && Object.keys(data.interfaces).length > 0) {
+            html += `\nInterfaces:\n`;
+            for (const [iface, addr] of Object.entries(data.interfaces)) {
+                html += `  ${iface}: ${addr}\n`;
+            }
+        }
+        tip.innerHTML = html;
+        tip.style.display = 'block';
+        tip.style.left = (event.pageX + 15) + 'px';
+        tip.style.top = (event.pageY - 10) + 'px';
+    }
+
+    function showLinkTip(event, el) {
+        const tip = document.getElementById('hover-tooltip');
+        const data = JSON.parse(decodeURIComponent(el.getAttribute('data-tip')));
+        let html = `<strong>${data.node_a} ↔ ${data.node_b}</strong>\n`;
+        html += `\n${data.node_a}:\n  ${data.iface_a}: ${data.addr_a}\n`;
+        html += `\n${data.node_b}:\n  ${data.iface_b}: ${data.addr_b}`;
+        tip.innerHTML = html;
+        tip.style.display = 'block';
+        tip.style.left = (event.pageX + 15) + 'px';
+        tip.style.top = (event.pageY - 10) + 'px';
+    }
+
+    function hideTip() {
+        document.getElementById('hover-tooltip').style.display = 'none';
+    }
+
     // ── Expose to global scope ──
     window._topoViz = {
         onLinkClick: onLinkClick,
         onNodeClick: onNodeClick,
+        showNodeTip: showNodeTip,
+        showLinkTip: showLinkTip,
+        hideTip: hideTip,
         _nodePos: {},
     };
 

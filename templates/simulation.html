@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+{% block title %}Simulation — MRC emu{% endblock %}
+{% block extra_css %}
+<style>
+    #sim-svg-container { background: #1a1a2e; border: 1px solid #333; border-radius: 6px; min-height: 380px; overflow: auto; }
+    .node-rect { cursor: pointer; stroke-width: 2; rx: 6; ry: 6; }
+    .node-rect:hover { stroke-width: 3; filter: brightness(1.3); }
+    .node-label { font-family: 'Courier New', monospace; font-size: 10px; fill: #fff; pointer-events: none; text-anchor: middle; dominant-baseline: central; }
+    .node-icon { pointer-events: none; }
+    .topo-link { cursor: pointer; stroke-linecap: round; }
+    .topo-link:hover { stroke-width: 4; }
+    .path-overlay { pointer-events: none; stroke-linecap: round; }
+    .plane-box { fill: none; stroke: #444; stroke-width: 1; stroke-dasharray: 6 3; rx: 8; }
+    .plane-label { font-size: 12px; fill: #888; font-weight: bold; }
+    .sim-tooltip { position: absolute; background: #222; color: #eee; border: 1px solid #555; border-radius: 6px; padding: 8px 12px; font-size: 0.78rem; font-family: monospace; pointer-events: none; z-index: 1000; white-space: pre-line; display: none; }
+    .sim-tooltip strong { color: #8be9fd; }
+    .ev-row { font-size: 0.8rem; }
+    .ev-row td { padding: 2px 6px; }
+    .state-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+    .sim-metric { font-family: monospace; font-weight: bold; font-size: 1.1rem; }
+    .sim-log { font-family: monospace; font-size: 0.75rem; max-height: 200px; overflow-y: auto; }
+    .running-indicator { animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+</style>
+{% endblock %}
+{% block content %}
+<h4>Simulation</h4>
+<div class="row">
+    <!-- Left: Controls -->
+    <div class="col-md-3">
+        <div class="card mb-2">
+            <div class="card-header">Setup</div>
+            <div class="card-body">
+                <div class="mb-2"><label class="form-label">Collective</label>
+                    <select id="sim-collective" class="form-select form-select-sm">
+                        {% for ct in collective_types %}<option value="{{ ct.value }}">{{ ct.label }}</option>{% endfor %}
+                    </select></div>
+                <div class="mb-2"><label class="form-label">Duration (seconds)</label>
+                    <input type="number" id="sim-duration" class="form-control form-control-sm" value="30"></div>
+                <div class="mb-2"><label class="form-label">Step Interval (ms)</label>
+                    <input type="number" id="sim-interval" class="form-control form-control-sm" value="500"></div>
+                <div class="mb-2"><label class="form-label">Message Size (bytes)</label>
+                    <input type="number" id="sim-msgsize" class="form-control form-control-sm" value="65536"></div>
+                <div class="mb-2"><label class="form-label">Chunk Size</label>
+                    <input type="number" id="sim-chunksize" class="form-control form-control-sm" value="4096"></div>
+                <div class="mb-2"><label class="form-label">Hosts</label>
+                    <div id="sim-hosts">
+                        {% for h in hosts %}
+                        <div class="form-check form-check-inline"><input class="form-check-input sim-host-cb" type="checkbox" value="{{ h }}" checked><label class="form-check-label" style="font-size:0.8rem">{{ h }}</label></div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <button class="btn btn-success btn-sm w-100" id="btn-start" onclick="startSimulation()">Start Simulation</button>
+                <button class="btn btn-danger btn-sm w-100 mt-1" id="btn-stop" onclick="stopSimulation()" disabled>Stop</button>
+            </div>
+        </div>
+        <div class="card mb-2">
+            <div class="card-header">Inject Failure (during run)</div>
+            <div class="card-body">
+                <div class="mb-2"><label class="form-label">Scenario</label>
+                    <select id="fail-scenario" class="form-select form-select-sm">
+                        <option value="">— none —</option>
+                        <option value="single_link">Single Link Failure</option>
+                        <option value="spine_failure">Spine Failure</option>
+                        <option value="plane_failure">Plane Failure</option>
+                        <option value="partial_degradation">Partial Degradation</option>
+                        <option value="link_flap">Link Flap</option>
+                    </select></div>
+                <div class="mb-2"><label class="form-label">Target EV (hex)</label>
+                    <input type="text" id="fail-ev" class="form-control form-control-sm" value="0x0000"></div>
+                <button class="btn btn-warning btn-sm" onclick="injectFailure()">Inject</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="clearFailures()">Clear All</button>
+                <div id="fail-status" class="mt-1" style="font-size:0.8rem;"></div>
+            </div>
+        </div>
+    </div>
+    <!-- Center: Fabric View + EV table -->
+    <div class="col-md-6">
+        <div id="sim-svg-container"></div>
+        <div id="sim-tip" class="sim-tooltip"></div>
+        <div class="card mt-2">
+            <div class="card-header">EV Path State</div>
+            <div class="card-body p-0" style="max-height:220px; overflow-y:auto;">
+                <table class="table table-sm table-dark mb-0">
+                    <thead><tr><th>EV</th><th>State</th><th>Plane</th><th>Spine</th><th>SRv6 Path</th><th>RTT</th></tr></thead>
+                    <tbody id="ev-table-body"><tr><td colspan="6" class="text-muted text-center">Generate topology first</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <!-- Right: Live Metrics -->
+    <div class="col-md-3">
+        <div class="card mb-2">
+            <div class="card-header">Live Metrics <span id="run-indicator"></span></div>
+            <div class="card-body">
+                <div class="row text-center mb-2">
+                    <div class="col-6"><small class="text-muted">CWND</small><div class="sim-metric" id="m-cwnd">—</div></div>
+                    <div class="col-6"><small class="text-muted">Inflight</small><div class="sim-metric" id="m-inflight">—</div></div>
+                </div>
+                <div class="row text-center mb-2">
+                    <div class="col-6"><small class="text-muted">Packets</small><div class="sim-metric" id="m-packets">0</div></div>
+                    <div class="col-6"><small class="text-muted">Dropped</small><div class="sim-metric text-danger" id="m-dropped">0</div></div>
+                </div>
+                <div class="row text-center mb-2">
+                    <div class="col-6"><small class="text-muted">ECN</small><div class="sim-metric text-warning" id="m-ecn">0</div></div>
+                    <div class="col-6"><small class="text-muted">Trimmed</small><div class="sim-metric" id="m-trimmed">0</div></div>
+                </div>
+                <div class="row text-center mb-2">
+                    <div class="col-6"><small class="text-muted">RTT (us)</small><div class="sim-metric" id="m-rtt">—</div></div>
+                    <div class="col-6"><small class="text-muted">Step</small><div class="sim-metric" id="m-step">0/0</div></div>
+                </div>
+                <hr>
+                <small class="text-muted">EV Summary</small>
+                <div id="m-ev-summary" style="font-size:0.85rem;">—</div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">Event Log</div>
+            <div class="card-body p-2">
+                <div class="sim-log" id="event-log"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function() {
+    const C = { spine: '#3b82f6', leaf: '#22c55e', host: '#06b6d4', link: '#555',
+                failed: '#dc3545', GOOD: '#198754', SKIP: '#ffc107', DENIED: '#6c757d', ASSUMED_BAD: '#dc3545' };
+    const NODE_W = 80, NODE_H = 32;
+
+    let topoData = null, nodePos = {}, simTimer = null, stepCount = 0, totalSteps = 0;
+    let failedLinks = {}, highlightedPaths = [], pathStates = [];
+
+    function stateColor(s) { return C[s] || '#444'; }
+
+    // Init: load topology
+    async function init() {
+        {% if topo %}
+        topoData = {{ topo | tojson }};
+        {% else %}
+        // Try to load from API
+        try {
+            const r = await apiCall('/api/topology/generate', 'POST', {
+                num_planes: 2, leafs_per_plane: 4, spines_per_plane: 2,
+                hosts_per_leaf: 1, ipv6_base: 'fd00::/32', srv6_base: 'fcbb::/32'});
+            topoData = r;
+        } catch(e) {
+            topoData = { nodes: [], links: [], paths: {} };
+        }
+        {% endif %}
+        renderFabric();
+    }
+
+    function renderFabric() {
+        if (!topoData || !topoData.nodes) return;
+        const container = document.getElementById('sim-svg-container');
+        const planeNodes = {};
+        const multiHosts = [];
+        topoData.nodes.forEach(n => {
+            const p = n.plane != null ? n.plane : -1;
+            if (n.role === 'host' && p < 0) { multiHosts.push(n); return; }
+            if (p < 0) return;
+            if (!planeNodes[p]) planeNodes[p] = { spines: [], leafs: [], hosts: [] };
+            if (n.role === 'spine') planeNodes[p].spines.push(n);
+            else if (n.role === 'leaf') planeNodes[p].leafs.push(n);
+            else planeNodes[p].hosts.push(n);
+        });
+
+        // Also pick up hosts with plane >= 0 that also have cross-plane links
+        topoData.nodes.filter(n => n.role === 'host' && (n.plane == null || n.plane >= 0)).forEach(h => {
+            const linksToPlanes = new Set();
+            topoData.links.forEach(l => {
+                if (l.node_a === h.name || l.node_b === h.name) {
+                    const other = l.node_a === h.name ? l.node_b : l.node_a;
+                    const otherNode = topoData.nodes.find(n => n.name === other);
+                    if (otherNode && otherNode.plane != null) linksToPlanes.add(otherNode.plane);
+                }
+            });
+            if (linksToPlanes.size > 1 && !multiHosts.find(m => m.name === h.name)) {
+                multiHosts.push(h);
+                // Remove from plane-specific hosts
+                Object.values(planeNodes).forEach(pn => {
+                    pn.hosts = pn.hosts.filter(ph => ph.name !== h.name);
+                });
+            }
+        });
+
+        const planeIds = Object.keys(planeNodes).map(Number).sort();
+        const PW = 680, PH = 340, GAP = 40, PAD = 20;
+        const numPlanes = planeIds.length || 1;
+        const totalW = numPlanes * PW + (numPlanes - 1) * GAP + 2 * PAD;
+        const hostRowH = multiHosts.length > 0 ? 80 : 0;
+        const totalH = PH + 2 * PAD + hostRowH;
+        nodePos = {};
+
+        let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 ${totalW} ${totalH}">`;
+
+        planeIds.forEach((pid, pi) => {
+            const px = PAD + pi * (PW + GAP), py = PAD;
+            const pn = planeNodes[pid];
+            svg += `<rect class="plane-box" x="${px}" y="${py}" width="${PW}" height="${PH}"/>`;
+            svg += `<text class="plane-label" x="${px+8}" y="${py+16}">Plane ${pid}</text>`;
+
+            function row(list, yOff) {
+                if (!list.length) return;
+                const sp = PW / (list.length + 1);
+                list.forEach((n, i) => { nodePos[n.name] = { x: px + sp*(i+1), y: py + yOff }; });
+            }
+            row(pn.spines, 60);
+            row(pn.leafs, 180);
+            row(pn.hosts, 290);
+        });
+
+        if (multiHosts.length > 0) {
+            const hy = PAD + PH + 45;
+            const sp = totalW / (multiHosts.length + 1);
+            multiHosts.forEach((h, i) => { nodePos[h.name] = { x: sp*(i+1), y: hy }; });
+        }
+
+        // Links
+        svg += '<g id="sg-links">';
+        topoData.links.forEach(l => {
+            const pa = nodePos[l.node_a], pb = nodePos[l.node_b];
+            if (!pa || !pb) return;
+            const key = [l.node_a, l.node_b].sort().join('||');
+            const failed = !!failedLinks[key];
+            const tipData = encodeURIComponent(JSON.stringify({ node_a:l.node_a, node_b:l.node_b, iface_a:l.iface_a||'-', iface_b:l.iface_b||'-', addr_a:l.addr_a||'-', addr_b:l.addr_b||'-' }));
+            svg += `<line class="topo-link" x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${failed?C.failed:C.link}" stroke-width="${failed?3:2}" data-key="${key}" data-tip="${tipData}" onmouseenter="simViz.showTip(event,this,'link')" onmouseleave="simViz.hideTip()" onclick="simViz.toggleLink(this)"/>`;
+        });
+        svg += '</g><g id="sg-paths"></g><g id="sg-nodes">';
+
+        // Nodes
+        for (const [name, pos] of Object.entries(nodePos)) {
+            const node = topoData.nodes.find(n => n.name === name);
+            if (!node) continue;
+            let fill = node.role === 'spine' ? C.spine : node.role === 'leaf' ? C.leaf : C.host;
+            const rx = pos.x - NODE_W/2, ry = pos.y - NODE_H/2;
+            const tipData = encodeURIComponent(JSON.stringify({ name:node.name, role:node.role, plane:node.plane, loopback_ipv6:node.loopback_ipv6||'-', srv6_locator:node.srv6_locator||'-', usid:node.usid!=null?'0x'+('0000'+node.usid.toString(16).toUpperCase()).slice(-4):'-' }));
+            svg += `<rect class="node-rect" x="${rx}" y="${ry}" width="${NODE_W}" height="${NODE_H}" fill="${fill}" stroke="${fill}" data-tip="${tipData}" onmouseenter="simViz.showTip(event,this,'node')" onmouseleave="simViz.hideTip()"/>`;
+            let lbl = name.length > 11 ? name.slice(0,10)+'…' : name;
+            svg += `<text class="node-label" x="${pos.x}" y="${pos.y}">${lbl}</text>`;
+        }
+        svg += '</g></svg>';
+        container.innerHTML = svg;
+    }
+
+    function drawPaths() {
+        const g = document.getElementById('sg-paths');
+        if (!g) return;
+        g.innerHTML = '';
+        highlightedPaths.forEach((path, idx) => {
+            const hops = path.hops;
+            if (!hops || hops.length < 2) return;
+            let color = C.GOOD;
+            const ps = pathStates.find(s => s.ev_value_int === path.ev_value || s.ev_value === '0x'+('00000000'+path.ev_value.toString(16)).slice(-8));
+            if (ps) color = stateColor(ps.state);
+            const offset = (idx - (highlightedPaths.length-1)/2) * 4;
+            for (let i = 0; i < hops.length-1; i++) {
+                const pa = nodePos[hops[i]], pb = nodePos[hops[i+1]];
+                if (!pa || !pb) continue;
+                const dx = pb.x-pa.x, dy = pb.y-pa.y, len = Math.sqrt(dx*dx+dy*dy)||1;
+                const nx = -dy/len*offset, ny = dx/len*offset;
+                g.innerHTML += `<line class="path-overlay" x1="${pa.x+nx}" y1="${pa.y+ny}" x2="${pb.x+nx}" y2="${pb.y+ny}" stroke="${color}" stroke-width="4" stroke-opacity="0.85"/>`;
+            }
+        });
+    }
+
+    function updateEVTable() {
+        const tbody = document.getElementById('ev-table-body');
+        if (!highlightedPaths.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-muted text-center">Select hosts to show paths</td></tr>'; return; }
+        let html = '';
+        highlightedPaths.forEach(p => {
+            const ps = pathStates.find(s => s.ev_value_int === p.ev_value);
+            const state = ps ? ps.state : 'GOOD';
+            const rtt = ps ? ps.rtt_us.toFixed(1) : '-';
+            html += `<tr class="ev-row"><td><code>0x${('00000000'+p.ev_value.toString(16).toUpperCase()).slice(-8)}</code></td>` +
+                `<td><span class="state-dot" style="background:${stateColor(state)}"></span>${state}</td>` +
+                `<td>${p.plane}</td><td>${p.spine_index}</td>` +
+                `<td><code style="font-size:0.7rem">${p.srv6_address||'-'}</code></td>` +
+                `<td>${rtt}</td></tr>`;
+        });
+        tbody.innerHTML = html;
+    }
+
+    // Tooltips
+    window.simViz = {
+        showTip(event, el, type) {
+            const tip = document.getElementById('sim-tip');
+            const data = JSON.parse(decodeURIComponent(el.getAttribute('data-tip')));
+            let html = '';
+            if (type === 'node') {
+                html = `<strong>${data.name}</strong>\nRole: ${data.role}  Plane: ${data.plane}\nLoopback: ${data.loopback_ipv6}\nSRv6: ${data.srv6_locator}\nuSID: ${data.usid}`;
+            } else {
+                html = `<strong>${data.node_a} ↔ ${data.node_b}</strong>\n${data.iface_a}: ${data.addr_a}\n${data.iface_b}: ${data.addr_b}`;
+            }
+            tip.innerHTML = html; tip.style.display = 'block';
+            tip.style.left = (event.pageX+12)+'px'; tip.style.top = (event.pageY-10)+'px';
+        },
+        hideTip() { document.getElementById('sim-tip').style.display = 'none'; },
+        toggleLink(el) {
+            const key = el.getAttribute('data-key');
+            if (failedLinks[key]) { delete failedLinks[key]; } else { failedLinks[key] = true; }
+            renderFabric(); drawPaths();
+        },
+    };
+
+    function log(msg) {
+        const el = document.getElementById('event-log');
+        const ts = new Date().toLocaleTimeString();
+        el.innerHTML = `<div>[${ts}] ${msg}</div>` + el.innerHTML;
+        if (el.children.length > 200) el.removeChild(el.lastChild);
+    }
+
+    // Simulation
+    window.startSimulation = async function() {
+        const hosts = [];
+        document.querySelectorAll('.sim-host-cb:checked').forEach(cb => hosts.push(cb.value));
+        if (hosts.length < 2) { alert('Need at least 2 hosts'); return; }
+
+        // Generate plan
+        const r = await apiCall('/api/traffic/generate', 'POST', {
+            collective_type: document.getElementById('sim-collective').value,
+            hosts, message_size: parseInt(document.getElementById('sim-msgsize').value),
+            chunk_size: parseInt(document.getElementById('sim-chunksize').value),
+        });
+        totalSteps = r.num_steps || 0;
+        stepCount = 0;
+
+        // Load paths for first→last host
+        const src = hosts[0], dst = hosts[hosts.length-1];
+        try {
+            const pr = await apiCall(`/api/topology/paths/${encodeURIComponent(src)}`);
+            highlightedPaths = (pr||[]).filter(p => p.dest_host === dst);
+        } catch(e) {
+            // Use topology data paths
+            const key = `${src}->${dst}`;
+            highlightedPaths = (topoData.paths && topoData.paths[key]) || [];
+        }
+
+        document.getElementById('btn-start').disabled = true;
+        document.getElementById('btn-stop').disabled = false;
+        document.getElementById('run-indicator').innerHTML = '<span class="badge bg-success running-indicator">RUNNING</span>';
+        log(`Simulation started: ${r.collective_type || 'collective'}, ${totalSteps} steps, ${hosts.length} hosts`);
+
+        const interval = parseInt(document.getElementById('sim-interval').value) || 500;
+        const duration = parseInt(document.getElementById('sim-duration').value) || 30;
+        const endTime = Date.now() + duration * 1000;
+
+        simTimer = setInterval(async () => {
+            if (Date.now() > endTime) { stopSimulation(); return; }
+            try {
+                const sr = await apiCall('/api/traffic/simulate_step', 'POST');
+                if (sr.error || sr.completed) {
+                    // Reset and loop for continuous run
+                    await apiCall('/api/traffic/simulation_reset', 'POST');
+                    stepCount = 0;
+                    return;
+                }
+                stepCount++;
+                updateMetrics(sr.state, sr.step_result);
+                await refreshPaths();
+                drawPaths();
+                updateEVTable();
+            } catch(e) { log('Step error: ' + e.message); }
+        }, interval);
+    };
+
+    window.stopSimulation = function() {
+        if (simTimer) { clearInterval(simTimer); simTimer = null; }
+        document.getElementById('btn-start').disabled = false;
+        document.getElementById('btn-stop').disabled = true;
+        document.getElementById('run-indicator').innerHTML = '<span class="badge bg-secondary">STOPPED</span>';
+        log('Simulation stopped');
+    };
+
+    function updateMetrics(state, step) {
+        if (state) {
+            document.getElementById('m-cwnd').textContent = state.cwnd || '—';
+            document.getElementById('m-inflight').textContent = state.inflight || '—';
+            document.getElementById('m-rtt').textContent = state.rtt_estimate ? state.rtt_estimate.toFixed(1) : '—';
+            document.getElementById('m-packets').textContent = state.total_packets || 0;
+            document.getElementById('m-dropped').textContent = state.total_dropped || 0;
+            document.getElementById('m-ecn').textContent = state.total_ecn || 0;
+            document.getElementById('m-trimmed').textContent = state.total_trimmed || 0;
+            if (state.ev_state_summary) {
+                const s = state.ev_state_summary;
+                document.getElementById('m-ev-summary').innerHTML =
+                    `<span style="color:${C.GOOD}">GOOD:${s.GOOD||0}</span> <span style="color:${C.SKIP}">SKIP:${s.SKIP||0}</span> <span style="color:${C.ASSUMED_BAD}">BAD:${s.ASSUMED_BAD||0}</span>`;
+            }
+        }
+        document.getElementById('m-step').textContent = `${stepCount}/${totalSteps}`;
+        if (step) {
+            if (step.total_dropped > 0) log(`Step ${step.step}: ${step.total_dropped} dropped`);
+            if (step.total_ecn_marked > 0) log(`Step ${step.step}: ${step.total_ecn_marked} ECN marked`);
+        }
+    }
+
+    async function refreshPaths() {
+        try {
+            const r = await apiCall('/api/pathstate');
+            if (r && r.paths) pathStates = r.paths;
+        } catch(e) {
+            // Simulate from highlighted paths
+            pathStates = highlightedPaths.map(p => ({
+                ev_value: '0x'+('00000000'+p.ev_value.toString(16)).slice(-8),
+                ev_value_int: p.ev_value, state: 'GOOD', rtt_us: 100+Math.random()*50,
+                ecn_rate: 0, loss_rate: 0, sack_count: 0, nack_count: 0, probe_count: 0
+            }));
+        }
+    }
+
+    // Failure injection during run
+    window.injectFailure = async function() {
+        const scenario = document.getElementById('fail-scenario').value;
+        if (!scenario) return;
+        let ev = document.getElementById('fail-ev').value;
+        ev = ev.startsWith('0x') ? parseInt(ev, 16) : parseInt(ev);
+        try {
+            await apiCall(`/api/faults/scenarios/${scenario}/run`, 'POST', { ev_value: ev, ev_values: [ev] });
+            document.getElementById('fail-status').innerHTML = `<span class="text-warning">${scenario} injected for EV 0x${ev.toString(16)}</span>`;
+            log(`FAILURE: ${scenario} on EV 0x${ev.toString(16).toUpperCase()}`);
+        } catch(e) {
+            document.getElementById('fail-status').innerHTML = '<span class="text-info">Simulated locally</span>';
+            log(`FAILURE (simulated): ${scenario}`);
+        }
+    };
+
+    window.clearFailures = async function() {
+        try { await apiCall('/api/faults/clear', 'POST'); } catch(e) {}
+        failedLinks = {};
+        renderFabric(); drawPaths();
+        document.getElementById('fail-status').innerHTML = '<span class="text-success">Cleared</span>';
+        log('All failures cleared');
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+{% endblock %}
