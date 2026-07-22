@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Fault Injection — MRC emu{% endblock %}
+{% block content %}
+<h4>Fault Injection & Congestion Simulation</h4>
+<div class="row">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header">Add Fault Rule</div>
+            <div class="card-body">
+                <div class="mb-2"><label class="form-label">Type</label>
+                    <select id="ft-type" class="form-select form-select-sm" onchange="updateFaultFields()">
+                        <option value="DROP_RATE">Drop by Rate</option>
+                        <option value="DROP_PSN">Drop by PSN</option>
+                        <option value="DROP_EV">Drop by EV (path failure)</option>
+                        <option value="ECN_MARK">ECN Marking</option>
+                        <option value="TRIM">Trim Simulation</option>
+                        <option value="DELAY">Delay Injection</option>
+                    </select></div>
+                <div id="rate-fields">
+                    <div class="mb-2"><label class="form-label">Drop Rate (0.0-1.0)</label>
+                        <input type="number" id="ft-droprate" class="form-control form-control-sm" value="0.1" step="0.01" min="0" max="1"></div>
+                </div>
+                <div id="psn-fields" style="display:none">
+                    <div class="mb-2"><label class="form-label">PSNs (comma-separated)</label>
+                        <input type="text" id="ft-psns" class="form-control form-control-sm" placeholder="10,20,30"></div>
+                </div>
+                <div id="ev-fields" style="display:none">
+                    <div class="mb-2"><label class="form-label">EV Values (hex, comma-separated)</label>
+                        <input type="text" id="ft-evs" class="form-control form-control-sm" placeholder="0x0000,0x0001"></div>
+                </div>
+                <div id="ecn-fields" style="display:none">
+                    <div class="mb-2"><label class="form-label">ECN Rate (0.0-1.0)</label>
+                        <input type="number" id="ft-ecnrate" class="form-control form-control-sm" value="0.5" step="0.01" min="0" max="1"></div>
+                    <div class="mb-2"><label class="form-label">ECN EVs (hex, comma-separated, or empty for all)</label>
+                        <input type="text" id="ft-ecnevs" class="form-control form-control-sm" placeholder="0x0000"></div>
+                    <div class="mb-2"><label class="form-label">M Flag</label>
+                        <select id="ft-mflag" class="form-select form-select-sm">
+                            <option value="1">SKIP_ONCE</option>
+                            <option value="2">ALWAYS_SKIP</option>
+                        </select></div>
+                </div>
+                <div id="trim-fields" style="display:none">
+                    <div class="mb-2"><label class="form-label">Trim Rate (0.0-1.0)</label>
+                        <input type="number" id="ft-trimrate" class="form-control form-control-sm" value="0.2" step="0.01" min="0" max="1"></div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="ft-lasthop">
+                        <label class="form-check-label" for="ft-lasthop">Last-hop trim</label>
+                    </div>
+                </div>
+                <div id="delay-fields" style="display:none">
+                    <div class="mb-2"><label class="form-label">Delay (microseconds)</label>
+                        <input type="number" id="ft-delay" class="form-control form-control-sm" value="500"></div>
+                </div>
+                <div class="mb-2"><label class="form-label">Description</label>
+                    <input type="text" id="ft-desc" class="form-control form-control-sm" placeholder="Test scenario"></div>
+                <button class="btn btn-sm btn-danger" onclick="addRule()">Add Rule</button>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">Failure Scenarios</div>
+            <div class="card-body">
+                <div class="mb-2"><label class="form-label">Scenario</label>
+                    <select id="sc-type" class="form-select form-select-sm">
+                        <option value="single_link">Single Link Failure</option>
+                        <option value="spine_failure">Spine Failure</option>
+                        <option value="plane_failure">Plane Failure</option>
+                        <option value="partial_degradation">Partial Degradation</option>
+                        <option value="link_flap">Link Flap</option>
+                    </select></div>
+                <div class="mb-2"><label class="form-label">EV Value (for single link/path)</label>
+                    <input type="text" id="sc-ev" class="form-control form-control-sm" value="0x0000"></div>
+                <div class="mb-2"><label class="form-label">EV Values (comma-sep, for spine/plane)</label>
+                    <input type="text" id="sc-evs" class="form-control form-control-sm" placeholder="0x0000,0x0001"></div>
+                <button class="btn btn-sm btn-warning me-1" onclick="runScenario()">Load</button>
+                <button class="btn btn-sm btn-success me-1" onclick="stepScenario()">Step</button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="resetScenario()">Reset</button>
+                <div id="sc-result" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between">
+                <span>Active Rules</span>
+                <button class="btn btn-sm btn-outline-danger" onclick="clearRules()">Clear All</button>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm" id="rules-table">
+                    <thead><tr><th>ID</th><th>Type</th><th>Details</th><th>Enabled</th><th></th></tr></thead>
+                    <tbody id="rules-body"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header d-flex justify-content-between">
+                <span>Statistics</span>
+                <button class="btn btn-sm btn-outline-secondary" onclick="resetStats()">Reset</button>
+            </div>
+            <div class="card-body"><pre id="stats-output">—</pre></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function updateFaultFields() {
+    const t = document.getElementById('ft-type').value;
+    ['rate','psn','ev','ecn','trim','delay'].forEach(f =>
+        document.getElementById(f+'-fields').style.display = 'none');
+    const map = {DROP_RATE:'rate', DROP_PSN:'psn', DROP_EV:'ev', ECN_MARK:'ecn', TRIM:'trim', DELAY:'delay'};
+    document.getElementById((map[t]||'rate')+'-fields').style.display = 'block';
+}
+async function addRule() {
+    const t = document.getElementById('ft-type').value;
+    const body = { fault_type: t, description: document.getElementById('ft-desc').value };
+    if (t === 'DROP_RATE') body.drop_rate = parseFloat(document.getElementById('ft-droprate').value);
+    if (t === 'DROP_PSN') body.drop_psns = document.getElementById('ft-psns').value.split(',').map(Number);
+    if (t === 'DROP_EV') body.drop_evs = document.getElementById('ft-evs').value.split(',').map(s=>s.trim());
+    if (t === 'ECN_MARK') {
+        body.ecn_rate = parseFloat(document.getElementById('ft-ecnrate').value);
+        const evs = document.getElementById('ft-ecnevs').value.trim();
+        if (evs) body.ecn_evs = evs.split(',').map(s=>s.trim());
+        body.ecn_m_flag = parseInt(document.getElementById('ft-mflag').value);
+    }
+    if (t === 'TRIM') { body.trim_rate = parseFloat(document.getElementById('ft-trimrate').value); body.trim_lasthop = document.getElementById('ft-lasthop').checked; }
+    if (t === 'DELAY') body.delay_us = parseFloat(document.getElementById('ft-delay').value);
+    await apiCall('/api/faults/rules', 'POST', body);
+    refreshRules();
+}
+async function refreshRules() {
+    const r = await apiCall('/api/faults/rules');
+    const tbody = document.getElementById('rules-body');
+    tbody.innerHTML = '';
+    (r.rules || []).forEach(rule => {
+        tbody.innerHTML += `<tr>
+            <td>${rule.fault_id}</td><td>${rule.fault_type}</td><td><small>${rule.description}</small></td>
+            <td>${rule.enabled ? '✓' : '—'}</td>
+            <td><button class="btn btn-sm btn-outline-danger" onclick="removeRule(${rule.fault_id})">Del</button></td></tr>`;
+    });
+    const s = await apiCall('/api/faults/stats');
+    document.getElementById('stats-output').textContent = JSON.stringify(s, null, 2);
+}
+async function removeRule(id) { await apiCall(`/api/faults/rules/${id}`, 'DELETE'); refreshRules(); }
+async function clearRules() { await apiCall('/api/faults/clear', 'POST'); refreshRules(); }
+async function resetStats() { await apiCall('/api/faults/stats/reset', 'POST'); refreshRules(); }
+async function runScenario() {
+    let ev = document.getElementById('sc-ev').value;
+    ev = ev.startsWith('0x') ? parseInt(ev, 16) : parseInt(ev);
+    const evsStr = document.getElementById('sc-evs').value.trim();
+    const evs = evsStr ? evsStr.split(',').map(s => parseInt(s.trim().startsWith('0x') ? s.trim() : '0x'+s.trim(), 16)) : [];
+    const r = await apiCall(`/api/faults/scenarios/${document.getElementById('sc-type').value}/run`, 'POST',
+        {ev_value: ev, ev_values: evs});
+    document.getElementById('sc-result').innerHTML = `<div class="alert alert-info p-1">${r.current_scenario?.name || 'Loaded'}</div>`;
+    refreshRules();
+}
+async function stepScenario() {
+    const r = await apiCall('/api/faults/scenarios/step', 'POST');
+    document.getElementById('sc-result').innerHTML = `<div class="alert alert-info p-1">Step ${r.current_step || 0} — ${r.has_more ? 'more' : 'done'}</div>`;
+    refreshRules();
+}
+async function resetScenario() { await apiCall('/api/faults/scenarios/reset', 'POST'); refreshRules(); }
+refreshRules();
+</script>
+{% endblock %}

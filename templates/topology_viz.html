@@ -1,0 +1,761 @@
+{% extends "base.html" %}
+{% block title %}Topology Visualization — MRC Emulator{% endblock %}
+{% block extra_css %}
+<style>
+    #topo-svg-container {
+        background: #1a1a2e;
+        border: 1px solid #333;
+        border-radius: 6px;
+        overflow: auto;
+        min-height: 540px;
+    }
+    #topo-svg-container svg { display: block; }
+    .node-rect { cursor: pointer; stroke-width: 2; rx: 4; ry: 4; }
+    .node-rect:hover { stroke-width: 3; filter: brightness(1.3); }
+    .node-label { font-family: 'Courier New', monospace; font-size: 11px; fill: #fff;
+                  pointer-events: none; text-anchor: middle; dominant-baseline: central; }
+    .topo-link { cursor: pointer; stroke-linecap: round; }
+    .topo-link:hover { stroke-width: 4; filter: brightness(1.5); }
+    .path-overlay { pointer-events: none; stroke-linecap: round; }
+    .plane-box { fill: none; stroke: #444; stroke-width: 1; stroke-dasharray: 6 3; rx: 8; ry: 8; }
+    .plane-label { font-size: 13px; fill: #888; font-weight: bold; }
+    .state-badge { display: inline-block; padding: 2px 8px; border-radius: 4px;
+                   font-size: 0.8rem; font-weight: 600; color: #fff; }
+    .state-GOOD { background-color: #198754; }
+    .state-SKIP { background-color: #ffc107; color: #000; }
+    .state-DENIED { background-color: #6c757d; }
+    .state-ASSUMED_BAD { background-color: #dc3545; }
+    .state-UNKNOWN { background-color: #444; }
+    #path-state-table th, #path-state-table td { font-size: 0.82rem; vertical-align: middle; }
+    .legend-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px;
+                     margin-right: 4px; vertical-align: middle; }
+    .ctrl-section { margin-bottom: 0.75rem; }
+    .ctrl-section .card-header { padding: 0.4rem 0.75rem; font-size: 0.9rem; }
+    .ctrl-section .card-body { padding: 0.6rem 0.75rem; }
+    .counter-val { font-family: 'Courier New', monospace; font-weight: bold; }
+    .poll-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+                      margin-right: 6px; }
+    .poll-on { background: #198754; animation: pulse 1s infinite; }
+    .poll-off { background: #6c757d; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h4 class="mb-0">Topology Visualization</h4>
+    <div>
+        <span class="poll-indicator" id="poll-dot"></span>
+        <small class="text-muted" id="poll-status">Polling off</small>
+        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="togglePolling()" id="btn-poll-toggle">Start Polling</button>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left: SVG Diagram (60%) -->
+    <div class="col-lg-7 col-xl-7">
+        <div id="topo-svg-container"></div>
+        <div class="mt-2 d-flex flex-wrap gap-3">
+            <small><span class="legend-swatch" style="background:#3b82f6"></span>Spine</small>
+            <small><span class="legend-swatch" style="background:#22c55e"></span>Leaf</small>
+            <small><span class="legend-swatch" style="background:#06b6d4"></span>Host</small>
+            <small><span class="legend-swatch" style="background:#555"></span>Link (normal)</small>
+            <small><span class="legend-swatch" style="background:#dc3545"></span>Link (failed)</small>
+            <small><span class="legend-swatch" style="background:#198754"></span>GOOD</small>
+            <small><span class="legend-swatch" style="background:#ffc107"></span>SKIP</small>
+            <small><span class="legend-swatch" style="background:#6c757d"></span>DENIED</small>
+            <small><span class="legend-swatch" style="background:#dc3545; border: 1px dashed #fff;"></span>ASSUMED_BAD</small>
+        </div>
+    </div>
+
+    <!-- Right: Controls (40%) -->
+    <div class="col-lg-5 col-xl-5">
+        <!-- Source / Dest selector -->
+        <div class="card ctrl-section">
+            <div class="card-header">Path Selection</div>
+            <div class="card-body">
+                <div class="row g-2 mb-2">
+                    <div class="col-5">
+                        <label class="form-label mb-1" style="font-size:0.82rem">Source Host</label>
+                        <select id="sel-src" class="form-select form-select-sm"></select>
+                    </div>
+                    <div class="col-5">
+                        <label class="form-label mb-1" style="font-size:0.82rem">Destination Host</label>
+                        <select id="sel-dst" class="form-select form-select-sm"></select>
+                    </div>
+                    <div class="col-2 d-flex align-items-end">
+                        <button class="btn btn-sm btn-primary w-100" onclick="showPaths()">Show</button>
+                    </div>
+                </div>
+                <div id="path-info" class="text-muted" style="font-size:0.82rem">Select source and destination hosts, then click Show.</div>
+            </div>
+        </div>
+
+        <!-- Path State Table -->
+        <div class="card ctrl-section">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Path State (EV Table)</span>
+                <button class="btn btn-outline-info btn-sm py-0 px-2" onclick="refreshPathState()" style="font-size:0.75rem">Refresh</button>
+            </div>
+            <div class="card-body p-0" style="max-height: 260px; overflow-y: auto;">
+                <table class="table table-sm table-hover mb-0" id="path-state-table">
+                    <thead class="sticky-top" style="background:#212529">
+                        <tr>
+                            <th>EV</th><th>State</th><th>RTT (us)</th>
+                            <th>ECN %</th><th>Loss %</th>
+                            <th>SACK</th><th>NACK</th><th>Probes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="path-state-body">
+                        <tr><td colspan="8" class="text-muted text-center">No path state data</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Failure Scenarios -->
+        <div class="card ctrl-section">
+            <div class="card-header">Failure Scenarios</div>
+            <div class="card-body">
+                <div class="row g-2 mb-2">
+                    <div class="col-8">
+                        <select id="sel-scenario" class="form-select form-select-sm">
+                            <option value="">-- Select Scenario --</option>
+                            <option value="single_link">Single Link Failure</option>
+                            <option value="spine_node">Spine Node Failure</option>
+                            <option value="full_plane">Full Plane Failure</option>
+                            <option value="leaf_pair">Dual Leaf Failure</option>
+                            <option value="cascade">Cascading Failures</option>
+                        </select>
+                    </div>
+                    <div class="col-4">
+                        <div class="btn-group btn-group-sm w-100">
+                            <button class="btn btn-warning" onclick="runScenario()">Run</button>
+                            <button class="btn btn-outline-warning" onclick="stepScenario()">Step</button>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline-danger" onclick="resetScenario()">Reset All Faults</button>
+                <div id="scenario-status" class="mt-1" style="font-size:0.82rem"></div>
+            </div>
+        </div>
+
+        <!-- Probe Controls -->
+        <div class="card ctrl-section">
+            <div class="card-header">Probe Controls</div>
+            <div class="card-body">
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <button class="btn btn-sm btn-success w-100" onclick="probeAllPaths()">Probe All Paths</button>
+                    </div>
+                    <div class="col-6">
+                        <div class="input-group input-group-sm">
+                            <input type="number" id="probe-interval" class="form-control" value="5" min="1" max="60" style="max-width:60px">
+                            <span class="input-group-text">sec</span>
+                            <button class="btn btn-outline-success" onclick="togglePeriodicProbe()" id="btn-periodic">Start</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="probe-summary" style="font-size:0.82rem">
+                    <span class="text-muted">No probe results yet.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    // ── Color constants ──
+    const C = {
+        GOOD:        '#198754',
+        SKIP:        '#ffc107',
+        DENIED:      '#6c757d',
+        ASSUMED_BAD: '#dc3545',
+        UNKNOWN:     '#444',
+        link_normal: '#555',
+        link_failed: '#dc3545',
+        spine_fill:  '#3b82f6',
+        leaf_fill:   '#22c55e',
+        host_fill:   '#06b6d4',
+        spine_stroke:'#2563eb',
+        leaf_stroke: '#16a34a',
+        host_stroke: '#0891b2',
+    };
+
+    function stateColor(state) {
+        return C[state] || C.UNKNOWN;
+    }
+
+    // ── Topology data from Flask (or simulated) ──
+    let topoData = null;
+    let pathStates = [];
+    let failedLinks = {};          // linkKey -> faultRuleId
+    let highlightedPaths = [];     // array of path objects currently shown
+    let pollingTimer = null;
+    let periodicProbeTimer = null;
+
+    // ── SVG constants ──
+    const PLANE_W = 780, PLANE_H = 480, PLANE_GAP = 50, PLANE_PAD = 30;
+    const NODE_W = 90, NODE_H = 36;
+    const Y_SPINE = 80, Y_LEAF = 240, Y_HOST = 400;
+
+    // ── Initialize ──
+    function init() {
+        {% if topo %}
+        topoData = {{ topo | tojson }};
+        {% else %}
+        topoData = generateSimulatedTopology();
+        {% endif %}
+
+        {% if path_states %}
+        pathStates = {{ path_states | tojson }};
+        {% endif %}
+
+        populateHostSelectors();
+        renderSVG();
+        renderPathStateTable();
+    }
+
+    // ── Simulated topology for offline mode ──
+    function generateSimulatedTopology() {
+        const nodes = [], links = [], paths = {};
+        const planes = 2, spinesPerPlane = 2, leafsPerPlane = 4, hostsPerLeaf = 1;
+
+        for (let p = 0; p < planes; p++) {
+            for (let s = 0; s < spinesPerPlane; s++) {
+                nodes.push({ name: `spine-p${p}-s${s}`, role: 'spine', plane: p,
+                             loopback_ipv6: `fd00::${p}:${s}:1`, usid: 0x1000 + p*16 + s });
+            }
+            for (let l = 0; l < leafsPerPlane; l++) {
+                const leafName = `leaf-p${p}-l${l}`;
+                nodes.push({ name: leafName, role: 'leaf', plane: p,
+                             loopback_ipv6: `fd00::${p}:${l}:2`, usid: 0x2000 + p*16 + l });
+                // Spine-leaf links
+                for (let s = 0; s < spinesPerPlane; s++) {
+                    links.push({ node_a: `spine-p${p}-s${s}`, node_b: leafName,
+                                 iface_a: `eth${l+1}`, iface_b: `eth${s+1}`,
+                                 addr_a: `fd00:${p}:${s}:${l}::0/127`, addr_b: `fd00:${p}:${s}:${l}::1/127` });
+                }
+                // Hosts
+                for (let h = 0; h < hostsPerLeaf; h++) {
+                    const hostName = `host-p${p}-l${l}-h${h}`;
+                    nodes.push({ name: hostName, role: 'host', plane: p,
+                                 loopback_ipv6: `fd00::${p}:${l}:${h}:3`, usid: 0x3000 + p*64 + l*4 + h });
+                    links.push({ node_a: leafName, node_b: hostName,
+                                 iface_a: `eth${10+h}`, iface_b: 'eth0',
+                                 addr_a: `fd00:${p}:${l}:${h}:a::0/127`, addr_b: `fd00:${p}:${l}:${h}:a::1/127` });
+                }
+            }
+        }
+
+        // Generate sample paths between first and last host
+        const hosts = nodes.filter(n => n.role === 'host');
+        if (hosts.length >= 2) {
+            const src = hosts[0].name, dst = hosts[hosts.length - 1].name;
+            const key = `${src}->${dst}`;
+            paths[key] = [];
+            let evIdx = 0;
+            for (let p = 0; p < planes; p++) {
+                for (let s = 0; s < spinesPerPlane; s++) {
+                    paths[key].push({
+                        source_host: src, dest_host: dst,
+                        plane: p, spine_index: s,
+                        ev_value: evIdx++,
+                        srv6_address: `fcbb::${p}:${s}:1`,
+                        hops: [src, `leaf-p${p}-l0`, `spine-p${p}-s${s}`,
+                               `leaf-p${p}-l${leafsPerPlane-1}`, dst]
+                    });
+                }
+            }
+        }
+
+        return { nodes, links, paths: paths };
+    }
+
+    // ── Populate host dropdowns ──
+    function populateHostSelectors() {
+        const hosts = topoData.nodes.filter(n => n.role === 'host');
+        const srcSel = document.getElementById('sel-src');
+        const dstSel = document.getElementById('sel-dst');
+        srcSel.innerHTML = '<option value="">-- source --</option>';
+        dstSel.innerHTML = '<option value="">-- dest --</option>';
+        hosts.forEach(h => {
+            srcSel.innerHTML += `<option value="${h.name}">${h.name}</option>`;
+            dstSel.innerHTML += `<option value="${h.name}">${h.name}</option>`;
+        });
+    }
+
+    // ── Link key helper ──
+    function linkKey(a, b) {
+        return a < b ? `${a}||${b}` : `${b}||${a}`;
+    }
+
+    // ── SVG rendering ──
+    function renderSVG() {
+        const container = document.getElementById('topo-svg-container');
+        const planeNodes = {};
+        topoData.nodes.forEach(n => {
+            const p = n.plane != null ? n.plane : 0;
+            if (!planeNodes[p]) planeNodes[p] = { spines: [], leafs: [], hosts: [] };
+            if (n.role === 'spine') planeNodes[p].spines.push(n);
+            else if (n.role === 'leaf') planeNodes[p].leafs.push(n);
+            else planeNodes[p].hosts.push(n);
+        });
+
+        const planeIds = Object.keys(planeNodes).map(Number).sort();
+        const numPlanes = planeIds.length || 1;
+        const totalW = numPlanes * PLANE_W + (numPlanes - 1) * PLANE_GAP + 2 * PLANE_PAD;
+        const totalH = PLANE_H + 2 * PLANE_PAD;
+
+        let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 ${totalW} ${totalH}" preserveAspectRatio="xMidYMid meet">`;
+
+        // Store node positions for line drawing
+        const nodePos = {};
+
+        planeIds.forEach((pid, planeIdx) => {
+            const px = PLANE_PAD + planeIdx * (PLANE_W + PLANE_GAP);
+            const py = PLANE_PAD;
+            const pn = planeNodes[pid];
+
+            // Plane bounding box
+            svg += `<rect class="plane-box" x="${px}" y="${py}" width="${PLANE_W}" height="${PLANE_H}"/>`;
+            svg += `<text class="plane-label" x="${px + 10}" y="${py + 20}">Plane ${pid}</text>`;
+
+            // Position nodes
+            function positionRow(nodeList, yPos) {
+                const count = nodeList.length;
+                if (count === 0) return;
+                const spacing = PLANE_W / (count + 1);
+                nodeList.forEach((n, i) => {
+                    const cx = px + spacing * (i + 1);
+                    const cy = py + yPos;
+                    nodePos[n.name] = { x: cx, y: cy };
+                });
+            }
+
+            positionRow(pn.spines, Y_SPINE);
+            positionRow(pn.leafs, Y_LEAF);
+            positionRow(pn.hosts, Y_HOST);
+        });
+
+        // Draw links (as group so we can layer paths on top)
+        svg += '<g id="g-links">';
+        topoData.links.forEach(l => {
+            const pa = nodePos[l.node_a];
+            const pb = nodePos[l.node_b];
+            if (!pa || !pb) return;
+            const key = linkKey(l.node_a, l.node_b);
+            const failed = !!failedLinks[key];
+            const color = failed ? C.link_failed : C.link_normal;
+            const sw = failed ? 3 : 2;
+            svg += `<line class="topo-link" x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" ` +
+                   `stroke="${color}" stroke-width="${sw}" data-link-key="${key}" ` +
+                   `data-node-a="${l.node_a}" data-node-b="${l.node_b}" ` +
+                   `onclick="window._topoViz.onLinkClick(this)"/>`;
+        });
+        svg += '</g>';
+
+        // Path overlay group (filled by showPaths)
+        svg += '<g id="g-path-overlay"></g>';
+
+        // Draw nodes
+        svg += '<g id="g-nodes">';
+        for (const [name, pos] of Object.entries(nodePos)) {
+            const node = topoData.nodes.find(n => n.name === name);
+            if (!node) continue;
+            let fill, stroke;
+            if (node.role === 'spine')     { fill = C.spine_fill; stroke = C.spine_stroke; }
+            else if (node.role === 'leaf') { fill = C.leaf_fill;  stroke = C.leaf_stroke; }
+            else                           { fill = C.host_fill;  stroke = C.host_stroke; }
+
+            const rx = pos.x - NODE_W / 2, ry = pos.y - NODE_H / 2;
+            svg += `<rect class="node-rect" x="${rx}" y="${ry}" width="${NODE_W}" height="${NODE_H}" ` +
+                   `fill="${fill}" stroke="${stroke}" data-node="${name}" ` +
+                   `onclick="window._topoViz.onNodeClick('${name}')"/>`;
+
+            // Truncate label if needed
+            let label = name;
+            if (label.length > 12) label = label.slice(0, 11) + '…';
+            svg += `<text class="node-label" x="${pos.x}" y="${pos.y}">${label}</text>`;
+        }
+        svg += '</g>';
+
+        svg += '</svg>';
+        container.innerHTML = svg;
+
+        // Store positions globally for path overlay
+        window._topoViz._nodePos = nodePos;
+    }
+
+    // ── Link click: toggle failure ──
+    function onLinkClick(el) {
+        const key = el.getAttribute('data-link-key');
+        const nodeA = el.getAttribute('data-node-a');
+        const nodeB = el.getAttribute('data-node-b');
+
+        if (failedLinks[key]) {
+            // Restore link
+            apiCall(`/api/faults/rules/${failedLinks[key]}`, 'DELETE')
+                .then(() => {
+                    delete failedLinks[key];
+                    renderSVG();
+                    drawPathOverlays();
+                })
+                .catch(() => {
+                    // In offline mode, just toggle visually
+                    delete failedLinks[key];
+                    renderSVG();
+                    drawPathOverlays();
+                });
+        } else {
+            // Fail link
+            apiCall('/api/faults/rules', 'POST', {
+                type: 'link_failure',
+                node_a: nodeA,
+                node_b: nodeB,
+                action: 'drop'
+            })
+            .then(r => {
+                failedLinks[key] = r.rule_id || `local-${Date.now()}`;
+                renderSVG();
+                drawPathOverlays();
+            })
+            .catch(() => {
+                // Offline: simulate
+                failedLinks[key] = `local-${Date.now()}`;
+                renderSVG();
+                drawPathOverlays();
+            });
+        }
+    }
+
+    // ── Node click ──
+    function onNodeClick(name) {
+        const node = topoData.nodes.find(n => n.name === name);
+        if (!node) return;
+        if (node.role === 'host') {
+            const srcSel = document.getElementById('sel-src');
+            const dstSel = document.getElementById('sel-dst');
+            if (!srcSel.value) {
+                srcSel.value = name;
+            } else if (!dstSel.value && srcSel.value !== name) {
+                dstSel.value = name;
+            } else {
+                srcSel.value = name;
+                dstSel.value = '';
+            }
+        }
+    }
+
+    // ── Show paths between selected hosts ──
+    window.showPaths = async function() {
+        const src = document.getElementById('sel-src').value;
+        const dst = document.getElementById('sel-dst').value;
+        if (!src || !dst) {
+            document.getElementById('path-info').innerHTML =
+                '<span class="text-warning">Select both source and destination.</span>';
+            return;
+        }
+        if (src === dst) {
+            document.getElementById('path-info').innerHTML =
+                '<span class="text-warning">Source and destination must differ.</span>';
+            return;
+        }
+
+        highlightedPaths = [];
+
+        // Try from topo data first
+        const key = `${src}->${dst}`;
+        if (topoData.paths && topoData.paths[key]) {
+            highlightedPaths = topoData.paths[key];
+        }
+
+        // Also try API
+        try {
+            const r = await apiCall(`/api/topology/paths/${encodeURIComponent(src)}`);
+            if (r && r.paths) {
+                const matching = r.paths.filter(p => p.dest_host === dst);
+                if (matching.length > 0) highlightedPaths = matching;
+            }
+        } catch(e) { /* offline, use cached */ }
+
+        if (highlightedPaths.length === 0) {
+            document.getElementById('path-info').innerHTML =
+                `<span class="text-warning">No paths found from ${src} to ${dst}.</span>`;
+        } else {
+            document.getElementById('path-info').innerHTML =
+                `<span class="text-info">${highlightedPaths.length} path(s) found.</span>`;
+        }
+        drawPathOverlays();
+        refreshPathState();
+    };
+
+    // ── Draw path overlays on SVG ──
+    function drawPathOverlays() {
+        const overlay = document.getElementById('g-path-overlay');
+        if (!overlay) return;
+        overlay.innerHTML = '';
+        const pos = window._topoViz._nodePos;
+        if (!pos) return;
+
+        highlightedPaths.forEach((path, idx) => {
+            const hops = path.hops;
+            if (!hops || hops.length < 2) return;
+
+            // Determine path color from state
+            let color = C.GOOD;
+            const ps = pathStates.find(s =>
+                s.ev_value === path.ev_value ||
+                s.ev_value === '0x' + ('00000000' + path.ev_value.toString(16)).slice(-8)
+            );
+            if (ps) color = stateColor(ps.state);
+
+            // Offset parallel paths slightly
+            const offset = (idx - (highlightedPaths.length - 1) / 2) * 4;
+
+            for (let i = 0; i < hops.length - 1; i++) {
+                const pa = pos[hops[i]];
+                const pb = pos[hops[i + 1]];
+                if (!pa || !pb) continue;
+
+                // Perpendicular offset for parallel paths
+                const dx = pb.x - pa.x, dy = pb.y - pa.y;
+                const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                const nx = -dy / len * offset, ny = dx / len * offset;
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('class', 'path-overlay');
+                line.setAttribute('x1', pa.x + nx);
+                line.setAttribute('y1', pa.y + ny);
+                line.setAttribute('x2', pb.x + nx);
+                line.setAttribute('y2', pb.y + ny);
+                line.setAttribute('stroke', color);
+                line.setAttribute('stroke-width', '4');
+                line.setAttribute('stroke-opacity', '0.85');
+                overlay.appendChild(line);
+            }
+        });
+    }
+
+    // ── Path state table ──
+    function renderPathStateTable() {
+        const tbody = document.getElementById('path-state-body');
+        if (!pathStates || pathStates.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-muted text-center">No path state data</td></tr>';
+            return;
+        }
+        let html = '';
+        pathStates.forEach(ps => {
+            const ev = typeof ps.ev_value === 'number'
+                ? '0x' + ('00000000' + ps.ev_value.toString(16).toUpperCase()).slice(-8)
+                : ps.ev_value;
+            const state = ps.state || 'UNKNOWN';
+            html += `<tr>
+                <td><code>${ev}</code></td>
+                <td><span class="state-badge state-${state}">${state}</span></td>
+                <td class="counter-val">${ps.rtt_us != null ? ps.rtt_us.toFixed(1) : '-'}</td>
+                <td>${ps.ecn_rate != null ? (ps.ecn_rate * 100).toFixed(1) : '-'}</td>
+                <td>${ps.loss_rate != null ? (ps.loss_rate * 100).toFixed(1) : '-'}</td>
+                <td class="counter-val">${ps.sack_count != null ? ps.sack_count : '-'}</td>
+                <td class="counter-val">${ps.nack_count != null ? ps.nack_count : '-'}</td>
+                <td class="counter-val">${ps.probe_count != null ? ps.probe_count : '-'}</td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+    }
+
+    // ── Refresh path state from API ──
+    window.refreshPathState = async function() {
+        try {
+            const r = await apiCall('/api/pathstate');
+            if (r && r.paths) {
+                pathStates = r.paths;
+                renderPathStateTable();
+                drawPathOverlays();
+            }
+        } catch(e) {
+            // Offline: generate simulated data if we have highlighted paths
+            if (highlightedPaths.length > 0 && pathStates.length === 0) {
+                const states = ['GOOD', 'GOOD', 'SKIP', 'GOOD'];
+                pathStates = highlightedPaths.map((p, i) => ({
+                    ev_value: p.ev_value,
+                    state: states[i % states.length],
+                    rtt_us: 100 + Math.random() * 100,
+                    ecn_rate: Math.random() * 0.01,
+                    loss_rate: 0,
+                    sack_count: Math.floor(Math.random() * 50),
+                    nack_count: 0,
+                    probe_count: Math.floor(Math.random() * 10),
+                    last_update: Date.now() / 1000
+                }));
+                renderPathStateTable();
+                drawPathOverlays();
+            }
+        }
+    };
+
+    // ── Polling ──
+    window.togglePolling = function() {
+        const dot = document.getElementById('poll-dot');
+        const status = document.getElementById('poll-status');
+        const btn = document.getElementById('btn-poll-toggle');
+
+        if (pollingTimer) {
+            clearInterval(pollingTimer);
+            pollingTimer = null;
+            dot.className = 'poll-indicator poll-off';
+            status.textContent = 'Polling off';
+            btn.textContent = 'Start Polling';
+            btn.classList.remove('btn-secondary');
+            btn.classList.add('btn-outline-secondary');
+        } else {
+            pollingTimer = setInterval(pollUpdate, 2000);
+            dot.className = 'poll-indicator poll-on';
+            status.textContent = 'Polling (2s)';
+            btn.textContent = 'Stop Polling';
+            btn.classList.remove('btn-outline-secondary');
+            btn.classList.add('btn-secondary');
+            pollUpdate();
+        }
+    };
+
+    async function pollUpdate() {
+        try {
+            const r = await apiCall('/api/pathstate');
+            if (r && r.paths) {
+                pathStates = r.paths;
+                renderPathStateTable();
+                drawPathOverlays();
+            }
+        } catch(e) { /* silent in poll */ }
+    }
+
+    // ── Failure scenarios ──
+    window.runScenario = async function() {
+        const scenario = document.getElementById('sel-scenario').value;
+        if (!scenario) {
+            document.getElementById('scenario-status').innerHTML =
+                '<span class="text-warning">Select a scenario first.</span>';
+            return;
+        }
+        try {
+            const r = await apiCall(`/api/faults/scenarios/${scenario}/run`, 'POST');
+            document.getElementById('scenario-status').innerHTML =
+                `<span class="text-success">Scenario "${scenario}" running. ${r.faults_injected || ''}</span>`;
+            // Refresh topology state
+            setTimeout(() => { refreshPathState(); }, 500);
+        } catch(e) {
+            // Offline simulation
+            simulateScenarioOffline(scenario);
+        }
+    };
+
+    window.stepScenario = async function() {
+        const scenario = document.getElementById('sel-scenario').value;
+        if (!scenario) return;
+        try {
+            const r = await apiCall(`/api/faults/scenarios/${scenario}/run`, 'POST', { step: true });
+            document.getElementById('scenario-status').innerHTML =
+                `<span class="text-info">Stepped scenario: ${r.description || scenario}</span>`;
+            setTimeout(() => { refreshPathState(); }, 500);
+        } catch(e) {
+            simulateScenarioOffline(scenario);
+        }
+    };
+
+    function simulateScenarioOffline(scenario) {
+        // Pick links to fail based on scenario
+        const links = topoData.links;
+        let toFail = [];
+        if (scenario === 'single_link' && links.length > 0) {
+            toFail = [links[0]];
+        } else if (scenario === 'spine_node') {
+            const spine = topoData.nodes.find(n => n.role === 'spine');
+            if (spine) toFail = links.filter(l => l.node_a === spine.name || l.node_b === spine.name);
+        } else if (scenario === 'full_plane') {
+            const plane0Links = links.filter(l => {
+                const na = topoData.nodes.find(n => n.name === l.node_a);
+                return na && na.plane === 0;
+            });
+            toFail = plane0Links;
+        } else if (scenario === 'leaf_pair') {
+            const leafs = topoData.nodes.filter(n => n.role === 'leaf').slice(0, 2);
+            toFail = links.filter(l =>
+                leafs.some(lf => l.node_a === lf.name || l.node_b === lf.name)
+            );
+        } else if (scenario === 'cascade') {
+            toFail = links.slice(0, Math.min(3, links.length));
+        }
+        toFail.forEach(l => {
+            const key = linkKey(l.node_a, l.node_b);
+            failedLinks[key] = `sim-${Date.now()}`;
+        });
+        renderSVG();
+        drawPathOverlays();
+        document.getElementById('scenario-status').innerHTML =
+            `<span class="text-info">Simulated "${scenario}": ${toFail.length} link(s) failed.</span>`;
+    }
+
+    window.resetScenario = async function() {
+        // Remove all fault rules
+        const promises = Object.entries(failedLinks).map(([key, ruleId]) => {
+            if (!ruleId.startsWith('local-') && !ruleId.startsWith('sim-')) {
+                return apiCall(`/api/faults/rules/${ruleId}`, 'DELETE').catch(() => {});
+            }
+            return Promise.resolve();
+        });
+        await Promise.all(promises);
+        failedLinks = {};
+        renderSVG();
+        drawPathOverlays();
+        document.getElementById('scenario-status').innerHTML =
+            '<span class="text-success">All faults cleared.</span>';
+    };
+
+    // ── Probe controls ──
+    window.probeAllPaths = async function() {
+        const summary = document.getElementById('probe-summary');
+        summary.innerHTML = '<span class="text-info">Probing all paths...</span>';
+        try {
+            const r = await apiCall('/api/probing/probe_all', 'POST');
+            summary.innerHTML = `<span class="text-success">Probed ${r.count || 'all'} paths. ` +
+                `Reachable: ${r.reachable || '-'}, Unreachable: ${r.unreachable || '-'}</span>`;
+        } catch(e) {
+            summary.innerHTML = '<span class="text-warning">Probe sent (offline mode).</span>';
+        }
+        setTimeout(() => refreshPathState(), 1000);
+    };
+
+    window.togglePeriodicProbe = function() {
+        const btn = document.getElementById('btn-periodic');
+        if (periodicProbeTimer) {
+            clearInterval(periodicProbeTimer);
+            periodicProbeTimer = null;
+            btn.textContent = 'Start';
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-success');
+        } else {
+            const interval = parseInt(document.getElementById('probe-interval').value) || 5;
+            periodicProbeTimer = setInterval(() => probeAllPaths(), interval * 1000);
+            btn.textContent = 'Stop';
+            btn.classList.remove('btn-outline-success');
+            btn.classList.add('btn-success');
+            probeAllPaths();
+        }
+    };
+
+    // ── Expose to global scope ──
+    window._topoViz = {
+        onLinkClick: onLinkClick,
+        onNodeClick: onNodeClick,
+        _nodePos: {},
+    };
+
+    // ── Boot ──
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+{% endblock %}

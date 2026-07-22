@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Traffic — MRC Emulator{% endblock %}
+{% block content %}
+<h4>NCCL Collective Traffic</h4>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Configure Collective</div>
+            <div class="card-body">
+                <div class="mb-2"><label class="form-label">Collective Type</label>
+                    <select id="tr-type" class="form-select form-select-sm" onchange="updateTrafficFields()">
+                        {% for ct in collective_types %}
+                        <option value="{{ ct.value }}">{{ ct.label }}</option>
+                        {% endfor %}
+                    </select></div>
+                <div class="mb-2"><label class="form-label">Message Size (bytes)</label>
+                    <input type="number" id="tr-msgsize" class="form-control form-control-sm" value="1048576"></div>
+                <div class="mb-2"><label class="form-label">Chunk Size (bytes)</label>
+                    <input type="number" id="tr-chunksize" class="form-control form-control-sm" value="4096"></div>
+                <div id="root-field" style="display:none">
+                    <div class="mb-2"><label class="form-label">Root Host (Broadcast)</label>
+                        <select id="tr-root" class="form-select form-select-sm">
+                            {% for h in hosts %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+                        </select></div>
+                </div>
+                <div class="mb-2"><label class="form-label">Participating Hosts</label>
+                    <div id="host-checkboxes">
+                        {% for h in hosts %}
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input host-cb" type="checkbox" value="{{ h }}" id="cb-{{ h }}" checked>
+                            <label class="form-check-label" for="cb-{{ h }}">{{ h }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if not hosts %}
+                    <small class="text-muted">Generate a topology first to populate hosts.</small>
+                    {% endif %}
+                </div>
+                <div class="mb-2"><label class="form-label">Custom Ring Order (optional, comma-separated)</label>
+                    <input type="text" id="tr-ring" class="form-control form-control-sm" placeholder="p0-host0,p0-host2,p1-host1,..."></div>
+                <button class="btn btn-primary btn-sm" onclick="generatePlan()">Generate Flow Plan</button>
+            </div>
+        </div>
+        {% if orchestrator %}
+        <div class="card">
+            <div class="card-header">Execution Control</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <strong>Step {{ orchestrator.get_progress().current_step + 1 }} / {{ orchestrator.get_progress().total_steps }}</strong>
+                    <div class="progress mt-1"><div class="progress-bar" style="width: {{ orchestrator.get_progress().percent }}%">{{ orchestrator.get_progress().percent }}%</div></div>
+                </div>
+                <button class="btn btn-sm btn-success me-1" onclick="advanceStep()">Next Step</button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="resetPlan()">Reset</button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="col-md-8">
+        {% if plan %}
+        <div class="card">
+            <div class="card-header">
+                Flow Plan: {{ plan.collective_type }} — {{ plan.num_steps }} steps, {{ plan.total_flows }} flows, {{ plan.total_bytes }} bytes
+            </div>
+            <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                {% for step_num in range(plan.num_steps) %}
+                <div class="mb-2">
+                    <strong>Step {{ step_num }}</strong>
+                    <table class="table table-sm mb-0">
+                        <thead><tr><th>Source</th><th>Dest</th><th>Chunk</th><th>Size</th><th>Description</th></tr></thead>
+                        <tbody>
+                        {% for flow in plan.steps[step_num] %}
+                        <tr>
+                            <td>{{ flow.src_host }}</td>
+                            <td>{{ flow.dst_host }}</td>
+                            <td>{{ flow.chunk_id }}</td>
+                            <td>{{ flow.data_size }}B</td>
+                            <td><small class="text-muted">{{ flow.description }}</small></td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="text-muted">Select a collective and generate a flow plan.</div>
+        {% endif %}
+        <div class="card mt-2">
+            <div class="card-header">Current Step Flows</div>
+            <div class="card-body"><pre id="step-output">—</pre></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function updateTrafficFields() {
+    const t = document.getElementById('tr-type').value;
+    document.getElementById('root-field').style.display = t === 'BROADCAST' ? 'block' : 'none';
+}
+async function generatePlan() {
+    const hosts = [];
+    document.querySelectorAll('.host-cb:checked').forEach(cb => hosts.push(cb.value));
+    const ringStr = document.getElementById('tr-ring').value.trim();
+    const ringOrder = ringStr ? ringStr.split(',').map(s => s.trim()) : [];
+    const r = await apiCall('/api/traffic/generate', 'POST', {
+        collective_type: document.getElementById('tr-type').value,
+        hosts: hosts,
+        message_size: parseInt(document.getElementById('tr-msgsize').value),
+        chunk_size: parseInt(document.getElementById('tr-chunksize').value),
+        root_host: document.getElementById('tr-root')?.value || hosts[0],
+        ring_order: ringOrder,
+    });
+    if (r.error) { alert(r.error); return; }
+    location.reload();
+}
+async function advanceStep() {
+    const r = await apiCall('/api/traffic/advance', 'POST');
+    document.getElementById('step-output').textContent = JSON.stringify(r, null, 2);
+    if (!r.has_more) alert('Collective complete!');
+}
+async function resetPlan() {
+    await apiCall('/api/traffic/reset', 'POST');
+    location.reload();
+}
+updateTrafficFields();
+</script>
+{% endblock %}

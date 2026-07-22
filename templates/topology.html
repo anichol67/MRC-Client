@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Topology — MRC Emulator{% endblock %}
+{% block content %}
+<h4>Fabric Topology</h4>
+<ul class="nav nav-tabs mb-3" role="tablist">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-generate">Generate (Offline)</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-provision">Provision (Live)</a></li>
+</ul>
+<div class="tab-content">
+    <!-- Generate Tab -->
+    <div class="tab-pane fade show active" id="tab-generate">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">Topology Parameters</div>
+                    <div class="card-body">
+                        <div class="row g-2 mb-2">
+                            <div class="col-6"><label class="form-label">Planes</label>
+                                <input type="number" id="topo-planes" class="form-control form-control-sm" value="2"></div>
+                            <div class="col-6"><label class="form-label">Leafs / Plane</label>
+                                <input type="number" id="topo-leafs" class="form-control form-control-sm" value="4"></div>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6"><label class="form-label">Spines / Plane</label>
+                                <input type="number" id="topo-spines" class="form-control form-control-sm" value="2"></div>
+                            <div class="col-6"><label class="form-label">Hosts / Leaf</label>
+                                <input type="number" id="topo-hosts" class="form-control form-control-sm" value="1"></div>
+                        </div>
+                        <div class="mb-2"><label class="form-label">IPv6 Base Prefix</label>
+                            <input type="text" id="topo-ipv6" class="form-control form-control-sm" value="fd00::/32"></div>
+                        <div class="mb-2"><label class="form-label">SRv6 Locator Base</label>
+                            <input type="text" id="topo-srv6" class="form-control form-control-sm" value="fcbb::/32"></div>
+                        <div class="mb-2"><label class="form-label">cEOS Image</label>
+                            <input type="text" id="topo-ceos" class="form-control form-control-sm" value="ceos:latest"></div>
+                        <div class="mb-2"><label class="form-label">MRC Emulator Image</label>
+                            <input type="text" id="topo-mrc" class="form-control form-control-sm" value="mrc-emulator:latest"></div>
+                        <button class="btn btn-primary btn-sm" onclick="generateTopology()">Generate</button>
+                    </div>
+                </div>
+                {% if topo %}
+                <div class="card">
+                    <div class="card-header">Downloads</div>
+                    <div class="card-body">
+                        <a href="/api/topology/clab_yaml" class="btn btn-sm btn-outline-primary me-2">Download .clab.yml</a>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="downloadConfigs()">Download EOS Configs</button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-8" id="topo-output">
+                {% if topo %}
+                <div class="card">
+                    <div class="card-header">Nodes ({{ topo.nodes|length }})</div>
+                    <div class="card-body">
+                        <table class="table table-sm">
+                            <thead><tr><th>Name</th><th>Role</th><th>Plane</th><th>Loopback</th><th>SRv6 Locator</th><th>uSID</th></tr></thead>
+                            <tbody>
+                            {% for n in topo.nodes %}
+                            <tr>
+                                <td><strong>{{ n.name }}</strong></td>
+                                <td><span class="badge {{ 'bg-primary' if n.role == 'spine' else 'bg-success' if n.role == 'leaf' else 'bg-info' }}">{{ n.role }}</span></td>
+                                <td>{{ n.plane }}</td>
+                                <td><code>{{ n.loopback_ipv6 }}</code></td>
+                                <td><code>{{ n.srv6_locator }}</code></td>
+                                <td><code>0x{{ '%04X' % n.usid }}</code></td>
+                            </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">Links ({{ topo.links|length }})</div>
+                    <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-sm">
+                            <thead><tr><th>Node A</th><th>Iface</th><th>Address</th><th>Node B</th><th>Iface</th><th>Address</th></tr></thead>
+                            <tbody>
+                            {% for l in topo.links %}
+                            <tr>
+                                <td>{{ l.node_a }}</td><td>{{ l.iface_a }}</td><td><code>{{ l.addr_a }}</code></td>
+                                <td>{{ l.node_b }}</td><td>{{ l.iface_b }}</td><td><code>{{ l.addr_b }}</code></td>
+                            </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% if topo.paths %}
+                <div class="card">
+                    <div class="card-header">EV↔SRv6 Path Mappings (sample)</div>
+                    <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-sm">
+                            <thead><tr><th>Source</th><th>Dest</th><th>Plane</th><th>Spine</th><th>EV</th><th>SRv6 Address</th></tr></thead>
+                            <tbody>
+                            {% for key, path_list in topo.paths.items() %}
+                            {% for p in path_list %}
+                            <tr>
+                                <td>{{ p.source_host }}</td><td>{{ p.dest_host }}</td>
+                                <td>{{ p.plane }}</td><td>{{ p.spine_index }}</td>
+                                <td><code>0x{{ '%08X' % p.ev_value }}</code></td>
+                                <td><code>{{ p.srv6_address }}</code></td>
+                            </tr>
+                            {% endfor %}
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-muted">Configure parameters and click Generate to create the topology.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Provision Tab -->
+    <div class="tab-pane fade" id="tab-provision">
+        <div class="row">
+            <div class="col-md-5">
+                <div class="card">
+                    <div class="card-header">Switch Management IPs</div>
+                    <div class="card-body">
+                        {% if topo %}
+                        <div class="mb-2">
+                            <label class="form-label">eAPI Credentials</label>
+                            <div class="row g-1">
+                                <div class="col"><input type="text" id="prov-user" class="form-control form-control-sm" value="admin" placeholder="Username"></div>
+                                <div class="col"><input type="password" id="prov-pass" class="form-control form-control-sm" value="admin" placeholder="Password"></div>
+                            </div>
+                        </div>
+                        {% for n in topo.nodes if n.role != 'host' %}
+                        <div class="row g-1 mb-1 align-items-center">
+                            <div class="col-4"><small><strong>{{ n.name }}</strong> <span class="badge {{ 'bg-primary' if n.role == 'spine' else 'bg-success' }}">{{ n.role }}</span></small></div>
+                            <div class="col-5"><input type="text" class="form-control form-control-sm mgmt-ip" data-node="{{ n.name }}" value="{{ mgmt_ips.get(n.name, '') }}" placeholder="mgmt IPv4"></div>
+                            <div class="col-3">
+                                <button class="btn btn-sm btn-outline-info" onclick="testNode('{{ n.name }}')">Test</button>
+                                <button class="btn btn-sm btn-outline-warning" onclick="provisionNode('{{ n.name }}')">Push</button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <hr>
+                        <button class="btn btn-sm btn-info me-1" onclick="saveManagementIPs()">Save IPs</button>
+                        <button class="btn btn-sm btn-warning me-1" onclick="testAll()">Test All</button>
+                        <button class="btn btn-sm btn-danger" onclick="provisionAll()">Provision All</button>
+                        {% else %}
+                        <div class="text-muted">Generate a topology first (use the Generate tab).</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-7">
+                <div class="card">
+                    <div class="card-header">Provisioning Results</div>
+                    <div class="card-body"><pre id="prov-results" style="max-height: 400px; overflow-y: auto;">—</pre></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function generateTopology() {
+    const r = await apiCall('/api/topology/generate', 'POST', {
+        num_planes: parseInt(document.getElementById('topo-planes').value),
+        leafs_per_plane: parseInt(document.getElementById('topo-leafs').value),
+        spines_per_plane: parseInt(document.getElementById('topo-spines').value),
+        hosts_per_leaf: parseInt(document.getElementById('topo-hosts').value),
+        ipv6_base: document.getElementById('topo-ipv6').value,
+        srv6_base: document.getElementById('topo-srv6').value,
+        ceos_image: document.getElementById('topo-ceos').value,
+        mrc_image: document.getElementById('topo-mrc').value,
+    });
+    location.reload();
+}
+async function downloadConfigs() {
+    const r = await apiCall('/api/topology/configs');
+    const blob = new Blob([JSON.stringify(r, null, 2)], {type: 'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'eos-configs.json'; a.click();
+}
+function collectManagementIPs() {
+    const nodes = {};
+    document.querySelectorAll('.mgmt-ip').forEach(el => {
+        if (el.value) nodes[el.dataset.node] = el.value;
+    });
+    return nodes;
+}
+async function saveManagementIPs() {
+    await apiCall('/api/topology/management_ips', 'POST', {nodes: collectManagementIPs()});
+    alert('Saved');
+}
+async function testAll() {
+    await saveManagementIPs();
+    const r = await apiCall('/api/topology/provision', 'POST', {
+        action: 'test', target: 'all',
+        username: document.getElementById('prov-user').value,
+        password: document.getElementById('prov-pass').value,
+    });
+    document.getElementById('prov-results').textContent = JSON.stringify(r, null, 2);
+}
+async function provisionAll() {
+    await saveManagementIPs();
+    const r = await apiCall('/api/topology/provision', 'POST', {
+        action: 'provision', target: 'all',
+        username: document.getElementById('prov-user').value,
+        password: document.getElementById('prov-pass').value,
+    });
+    document.getElementById('prov-results').textContent = JSON.stringify(r, null, 2);
+}
+async function testNode(name) {
+    await saveManagementIPs();
+    const r = await apiCall('/api/topology/provision', 'POST', {
+        action: 'test', target: name,
+        username: document.getElementById('prov-user').value,
+        password: document.getElementById('prov-pass').value,
+    });
+    document.getElementById('prov-results').textContent = JSON.stringify(r, null, 2);
+}
+async function provisionNode(name) {
+    await saveManagementIPs();
+    const r = await apiCall('/api/topology/provision', 'POST', {
+        action: 'provision', target: name,
+        username: document.getElementById('prov-user').value,
+        password: document.getElementById('prov-pass').value,
+    });
+    document.getElementById('prov-results').textContent = JSON.stringify(r, null, 2);
+}
+</script>
+{% endblock %}

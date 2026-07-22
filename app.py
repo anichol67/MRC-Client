@@ -1,17 +1,17 @@
 """
-OCP MRC End-Host Emulator — Flask Application
+MRC emu — OCP MRC End-Host Emulator v1.0
 
 Web-based GUI for configuring and operating an MRC endpoint emulator.
-Run with: python app.py
-Access at: http://<host>:5000
+Run with: python3 app.py
+Access at: http://<host>:5001
 """
 
 from flask import Flask
 from config import Config
 
+from core.runtime import detect_runtime, get_network_manager, RuntimeMode
 from core.ev_engine import EVProfileManager
 from core.qp_manager import QPManager
-from core.network_config import NetworkConfigManager
 from core.congestion import QPCCManager
 from core.probing import ProbeManager
 
@@ -20,9 +20,13 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    runtime = detect_runtime()
+    app.runtime = runtime
+    app.config['OFFLINE_MODE'] = runtime.mode == RuntimeMode.OFFLINE
+
     app.ev_manager = EVProfileManager()
     app.qp_manager = QPManager()
-    app.net_manager = NetworkConfigManager()
+    app.net_manager = get_network_manager(runtime)
     app.cc_manager = QPCCManager()
     app.probe_manager = ProbeManager()
 
@@ -33,6 +37,10 @@ def create_app() -> Flask:
     from routes.packets import packets_bp
     from routes.cc import cc_bp
     from routes.probing import probing_bp
+    from routes.topology import topology_bp
+    from routes.traffic import traffic_bp
+    from routes.faults import faults_bp
+    from routes.pathstate import pathstate_bp
 
     app.register_blueprint(host_bp)
     app.register_blueprint(network_bp)
@@ -41,6 +49,12 @@ def create_app() -> Flask:
     app.register_blueprint(packets_bp)
     app.register_blueprint(cc_bp)
     app.register_blueprint(probing_bp)
+    app.register_blueprint(topology_bp)
+    app.register_blueprint(traffic_bp)
+    app.register_blueprint(faults_bp)
+    app.register_blueprint(pathstate_bp)
+
+    print(f'MRC emu v1.0 — {runtime.mode.name} mode ({runtime.reason})')
 
     return app
 
