@@ -50,7 +50,12 @@
                     <div class="progress mt-1"><div class="progress-bar" style="width: {{ orchestrator.get_progress().percent }}%">{{ orchestrator.get_progress().percent }}%</div></div>
                 </div>
                 <button class="btn btn-sm btn-success me-1" onclick="advanceStep()">Next Step</button>
-                <button class="btn btn-sm btn-outline-secondary" onclick="resetPlan()">Reset</button>
+                <button class="btn btn-sm btn-outline-secondary me-1" onclick="resetPlan()">Reset</button>
+                <hr class="my-2">
+                <strong class="d-block mb-1">Offline Simulation</strong>
+                <button class="btn btn-sm btn-info me-1" onclick="simulateStep()">Simulate Step</button>
+                <button class="btn btn-sm btn-warning me-1" onclick="simulateAll()">Simulate All</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="resetSimulation()">Reset Simulation</button>
             </div>
         </div>
         {% endif %}
@@ -88,7 +93,35 @@
         {% endif %}
         <div class="card mt-2">
             <div class="card-header">Current Step Flows</div>
-            <div class="card-body"><pre id="step-output">—</pre></div>
+            <div class="card-body"><pre id="step-output">&mdash;</pre></div>
+        </div>
+        <div class="card mt-2">
+            <div class="card-header">Simulation Results</div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-md-3"><strong>cwnd:</strong> <span id="sim-cwnd">&mdash;</span></div>
+                    <div class="col-md-3"><strong>inflight:</strong> <span id="sim-inflight">&mdash;</span></div>
+                    <div class="col-md-3"><strong>RTT est:</strong> <span id="sim-rtt">&mdash;</span></div>
+                    <div class="col-md-3"><strong>Step:</strong> <span id="sim-step">&mdash;</span></div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-3"><strong>Packets:</strong> <span id="sim-packets">&mdash;</span></div>
+                    <div class="col-md-3"><strong>Dropped:</strong> <span id="sim-dropped">&mdash;</span></div>
+                    <div class="col-md-3"><strong>Trimmed:</strong> <span id="sim-trimmed">&mdash;</span></div>
+                    <div class="col-md-3"><strong>ECN:</strong> <span id="sim-ecn">&mdash;</span></div>
+                </div>
+                <div class="mb-2">
+                    <strong>EV State Summary:</strong> <span id="sim-ev-summary">&mdash;</span>
+                </div>
+                <div class="mb-2">
+                    <strong>cwnd Timeline:</strong>
+                    <pre id="sim-timeline" style="max-height:120px; overflow-y:auto; font-size:0.8em;">&mdash;</pre>
+                </div>
+                <div>
+                    <strong>Recent Packet Summaries:</strong>
+                    <pre id="sim-packets-log" style="max-height:200px; overflow-y:auto; font-size:0.8em;">&mdash;</pre>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -123,6 +156,51 @@ async function advanceStep() {
 async function resetPlan() {
     await apiCall('/api/traffic/reset', 'POST');
     location.reload();
+}
+function updateSimDisplay(state) {
+    if (!state) return;
+    document.getElementById('sim-cwnd').textContent = state.cwnd != null ? state.cwnd : '—';
+    document.getElementById('sim-inflight').textContent = state.inflight != null ? state.inflight : '—';
+    document.getElementById('sim-rtt').textContent = state.rtt_estimate != null ? state.rtt_estimate + ' us' : '—';
+    document.getElementById('sim-step').textContent = state.steps_completed != null ? state.steps_completed : '—';
+    document.getElementById('sim-packets').textContent = state.total_packets != null ? state.total_packets : '—';
+    document.getElementById('sim-dropped').textContent = state.total_dropped != null ? state.total_dropped : '—';
+    document.getElementById('sim-trimmed').textContent = state.total_trimmed != null ? state.total_trimmed : '—';
+    document.getElementById('sim-ecn').textContent = state.total_ecn != null ? state.total_ecn : '—';
+    if (state.ev_state_summary && Object.keys(state.ev_state_summary).length > 0) {
+        const parts = Object.entries(state.ev_state_summary).map(([k, v]) => k + ':' + v);
+        document.getElementById('sim-ev-summary').textContent = parts.join('  ');
+    } else {
+        document.getElementById('sim-ev-summary').textContent = 'N/A (no EV profile)';
+    }
+    if (state.timeline && state.timeline.length > 0) {
+        const lines = state.timeline.map(t => 'Step ' + t.step + ': cwnd=' + t.cwnd + ' inflight=' + t.inflight);
+        document.getElementById('sim-timeline').textContent = lines.join('\n');
+    }
+    if (state.last_step && state.last_step.flows) {
+        const summaries = state.last_step.flows.slice(-10).map(f =>
+            f.packet_summary + ' => ' + f.response_type +
+            (f.cwnd_after != null ? ' cwnd=' + f.cwnd_after : '')
+        );
+        document.getElementById('sim-packets-log').textContent = summaries.join('\n');
+    }
+}
+async function simulateStep() {
+    const r = await apiCall('/api/traffic/simulate_step', 'POST');
+    if (r.error) { alert(r.error); return; }
+    updateSimDisplay(r.state);
+    if (r.completed) alert('All steps simulated!');
+}
+async function simulateAll() {
+    const r = await apiCall('/api/traffic/simulate_all', 'POST');
+    if (r.error) { alert(r.error); return; }
+    updateSimDisplay(r.state);
+    alert('Simulation complete! ' + r.state.total_packets + ' packets simulated.');
+}
+async function resetSimulation() {
+    const r = await apiCall('/api/traffic/simulation_reset', 'POST');
+    if (r.error) { alert(r.error); return; }
+    updateSimDisplay(r.state);
 }
 updateTrafficFields();
 </script>
