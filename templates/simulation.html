@@ -69,7 +69,7 @@
     <!-- Left: Controls (narrow) -->
     <div class="col-md-3 col-lg-2">
         <div class="card mb-2">
-            <div class="card-header">Setup</div>
+            <div class="card-header d-flex justify-content-between align-items-center">Setup <button class="btn btn-sm btn-link text-muted p-0" onclick="toggleCard(this)">−</button></div>
             <div class="card-body">
                 <div class="mb-2"><label class="form-label">Collective</label>
                     <select id="sim-collective" class="form-select form-select-sm">
@@ -92,7 +92,7 @@
             </div>
         </div>
         <div class="card mb-2">
-            <div class="card-header">Inject Failure</div>
+            <div class="card-header d-flex justify-content-between align-items-center">Inject Failure <button class="btn btn-sm btn-link text-muted p-0" onclick="toggleCard(this)">−</button></div>
             <div class="card-body">
                 <div class="mb-2"><label class="form-label">Scenario</label>
                     <select id="fail-scenario" class="form-select form-select-sm">
@@ -140,7 +140,7 @@
         </div>
         <div id="sim-tip" class="sim-tooltip"></div>
         <div class="card mt-2">
-            <div class="card-header">EV Path State</div>
+            <div class="card-header d-flex justify-content-between align-items-center">EV Path State <button class="btn btn-sm btn-link text-muted p-0" onclick="toggleCard(this)">−</button></div>
             <div class="card-body p-0" style="max-height:200px; overflow-y:auto;">
                 <table class="table table-sm mb-0">
                     <thead><tr><th>EV</th><th>State</th><th>Plane</th><th>Spine</th><th>SRv6 Path</th><th>RTT</th></tr></thead>
@@ -153,7 +153,7 @@
     <!-- Right: Metrics -->
     <div class="col-md-3 col-lg-3">
         <div class="card mb-2">
-            <div class="card-header">Metrics <span id="run-indicator"></span></div>
+            <div class="card-header d-flex justify-content-between align-items-center">Metrics <span id="run-indicator"></span> <button class="btn btn-sm btn-link text-muted p-0" onclick="toggleCard(this)">−</button></div>
             <div class="card-body">
                 <div class="row text-center mb-2">
                     <div class="col-6"><small class="text-muted">CWND</small><div class="sim-metric" id="m-cwnd">—</div></div>
@@ -177,7 +177,7 @@
             </div>
         </div>
         <div class="card">
-            <div class="card-header">Event Log</div>
+            <div class="card-header d-flex justify-content-between align-items-center">Event Log <button class="btn btn-sm btn-link text-muted p-0" onclick="toggleCard(this)">−</button></div>
             <div class="card-body p-2"><div class="sim-log" id="event-log"></div></div>
         </div>
     </div>
@@ -611,22 +611,41 @@
         }
     }
 
-    // ── Failure injection with topology highlighting ──
+    // ── Collapsible cards ──
+    window.toggleCard = function(btn) {
+        const body = btn.closest('.card').querySelector('.card-body');
+        if (body.style.display === 'none') {
+            body.style.display = ''; btn.textContent = '−';
+        } else {
+            body.style.display = 'none'; btn.textContent = '+';
+        }
+    };
+
+    // ── Failure injection — pushes DROP_EV to backend + updates local state ──
     window.injectFailure = async function() {
         const scenario = document.getElementById('fail-scenario').value;
         if (!scenario) return;
         let ev = document.getElementById('fail-ev').value;
         ev = ev.startsWith('0x') ? parseInt(ev, 16) : parseInt(ev);
+
+        // Push fault rule to backend so simulator sees it
+        try {
+            await apiCall('/api/faults/rules', 'POST', {
+                fault_type: 'DROP_EV', drop_evs: [ev], description: `${scenario} EV=0x${ev.toString(16)}`
+            });
+        } catch(e) {}
+
+        // Also try scenario endpoint
         try {
             await apiCall(`/api/faults/scenarios/${scenario}/run`, 'POST', {ev_value:ev, ev_values:[ev]});
         } catch(e) {}
 
-        // Highlight failure on topology: find links associated with the EV
+        // Mark affected paths as ASSUMED_BAD in local state
         const affectedNodes = [];
+        const failedPath = highlightedPaths.find(p => p.ev_value === ev);
         highlightedPaths.forEach(p => {
             if (p.ev_value === ev && p.hops) {
                 p.hops.forEach(h => { if (!affectedNodes.includes(h)) affectedNodes.push(h); });
-                // Fail the spine links in this path
                 for (let i = 0; i < p.hops.length-1; i++) {
                     const key = [p.hops[i], p.hops[i+1]].sort().join('||');
                     failedLinks[key] = true;
@@ -634,18 +653,57 @@
             }
         });
 
-        renderFabric(); drawPaths();
+        // Update pathStates locally to reflect the failure
+        pathStates.forEach(ps => {
+            if (ps.ev_value_int === ev || ps.ev_value === '0x'+('00000000'+ev.toString(16)).slice(-8)) {
+                ps.state = 'ASSUMED_BAD';
+            }
+        });
+
+        renderFabric(); drawPaths(); updateEVTable();
         flashFailure(affectedNodes);
-        document.getElementById('fail-status').innerHTML = `<span style="color:${C.failed}">${scenario} on EV 0x${ev.toString(16).toUpperCase()}</span>`;
-        log(`<span style="color:${C.failed}">FAILURE: ${scenario} on EV 0x${ev.toString(16).toUpperCase()}</span>`);
+
+        // Log failure details
+        const evHex = '0x' + ('00000000'+ev.toString(16).toUpperCase()).slice(-8);
+        log(`<span style="color:${C.failed}">FAILURE: ${scenario} on EV ${evHex}</span>`);
+        if (failedPath) {
+            log(`<span style="color:${C.failed}">  Path down: ${failedPath.hops.join(' → ')}</span>`);
+        }
+
+        // Log which paths are still active
+        const activePaths = highlightedPaths.filter(p => {
+            const ps = pathStates.find(s => s.ev_value_int === p.ev_value);
+            return !ps || ps.state === 'GOOD' || ps.state === 'SKIP';
+        });
+        if (activePaths.length > 0) {
+            log(`<span style="color:${C.GOOD}">Active paths (${activePaths.length}):</span>`);
+            activePaths.forEach(p => {
+                const evH = '0x'+('00000000'+p.ev_value.toString(16).toUpperCase()).slice(-8);
+                log(`<span style="color:${C.GOOD}">  ${evH} plane=${p.plane} spine=${p.spine_index}: ${p.hops.join(' → ')}</span>`);
+            });
+        } else {
+            log(`<span style="color:${C.failed}">  WARNING: No active paths remaining!</span>`);
+        }
+
+        document.getElementById('fail-status').innerHTML = `<span style="color:${C.failed}">${scenario} — EV ${evHex} → ASSUMED_BAD</span>`;
     };
 
     window.clearFailures = async function() {
         try { await apiCall('/api/faults/clear', 'POST'); } catch(e) {}
         failedLinks = {};
-        renderFabric(); drawPaths();
-        document.getElementById('fail-status').innerHTML = '<span style="color:#238636">Cleared</span>';
-        log('<span style="color:#238636">All failures cleared</span>');
+
+        // Restore all path states to GOOD
+        pathStates.forEach(ps => { ps.state = 'GOOD'; });
+
+        renderFabric(); drawPaths(); updateEVTable();
+        document.getElementById('fail-status').innerHTML = '<span style="color:#238636">Cleared — all paths restored</span>';
+        log('<span style="color:#238636">All failures cleared — paths restored to GOOD</span>');
+
+        // Log all active paths
+        highlightedPaths.forEach(p => {
+            const evH = '0x'+('00000000'+p.ev_value.toString(16).toUpperCase()).slice(-8);
+            log(`<span style="color:${C.GOOD}">  Restored: ${evH} plane=${p.plane} → ${p.hops.join(' → ')}</span>`);
+        });
     };
 
     document.addEventListener('DOMContentLoaded', init);
