@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Congestion Control — MRC Emulator{% endblock %}
+{% block content %}
+<h4>NSCC Congestion Control</h4>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Create QPCC</div>
+            <div class="card-body">
+                <div class="mb-2"><label class="form-label">Target Queue Delay (us)</label>
+                    <input type="number" id="cc-tqd" class="form-control form-control-sm" value="10" step="0.1"></div>
+                <div class="mb-2"><label class="form-label">Initial CWND (bytes)</label>
+                    <input type="number" id="cc-icwnd" class="form-control form-control-sm" value="65536"></div>
+                <div class="mb-2"><label class="form-label">Min CWND</label>
+                    <input type="number" id="cc-mincwnd" class="form-control form-control-sm" value="4096"></div>
+                <div class="mb-2"><label class="form-label">Max CWND</label>
+                    <input type="number" id="cc-maxcwnd" class="form-control form-control-sm" value="16777216"></div>
+                <div class="mb-2"><label class="form-label">AI Increment</label>
+                    <input type="number" id="cc-ai" class="form-control form-control-sm" value="4096"></div>
+                <div class="mb-2"><label class="form-label">MD Factor</label>
+                    <input type="number" id="cc-md" class="form-control form-control-sm" value="0.5" step="0.05"></div>
+                <button class="btn btn-sm btn-primary" onclick="createQPCC()">Create QPCC</button>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">Simulate ACK</div>
+            <div class="card-body">
+                <div class="mb-2"><label class="form-label">QPCC ID</label>
+                    <input type="number" id="sim-id" class="form-control form-control-sm" value="0"></div>
+                <div class="mb-2"><label class="form-label">Rcvd Bytes (256B units)</label>
+                    <input type="number" id="sim-bytes" class="form-control form-control-sm" value="4"></div>
+                <div class="mb-2"><label class="form-label">ECN Marked</label>
+                    <select id="sim-ecn" class="form-select form-select-sm"><option value="false">No</option><option value="true">Yes</option></select></div>
+                <div class="mb-2"><label class="form-label">Rcv CWND Penalty (0-127)</label>
+                    <input type="number" id="sim-pen" class="form-control form-control-sm" value="0" min="0" max="127"></div>
+                <button class="btn btn-sm btn-warning" onclick="simulateAck()">Simulate</button>
+                <div id="sim-result" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        {% for qpcc in qpccs %}
+        <div class="card">
+            <div class="card-header">QPCC {{ qpcc.qpcc_id }} — <span class="badge bg-info">{{ qpcc.schedule_state }}</span></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Window State</h6>
+                        <table class="table table-sm">
+                            <tr><td>CWND</td><td><strong>{{ qpcc.window.cwnd }}</strong> bytes</td></tr>
+                            <tr><td>Inflight</td><td>{{ qpcc.window.inflight }} bytes</td></tr>
+                            <tr><td>RTT Estimate</td><td>{{ '%.1f' % qpcc.window.rtt_estimate }} us</td></tr>
+                            <tr><td>Min RTT</td><td>{{ '%.1f' % qpcc.window.min_rtt }} us</td></tr>
+                            <tr><td>Prev Rcvd Bytes</td><td>{{ qpcc.window.prev_rcvd_bytes }}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Config</h6>
+                        <table class="table table-sm">
+                            <tr><td>Target QDelay</td><td>{{ qpcc.config.target_qdelay }} us</td></tr>
+                            <tr><td>AI Increment</td><td>{{ qpcc.config.ai_increment }} B</td></tr>
+                            <tr><td>MD Factor</td><td>{{ qpcc.config.md_factor }}</td></tr>
+                            <tr><td>CWND Range</td><td>[{{ qpcc.config.min_cwnd }}, {{ qpcc.config.max_cwnd }}]</td></tr>
+                        </table>
+                        <h6>Mapped QPs</h6>
+                        <span>{{ qpcc.qp_ids or 'None' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% if not qpccs %}<div class="text-muted">No QPCCs created yet.</div>{% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function createQPCC() {
+    await apiCall('/api/cc/qpccs', 'POST', {
+        target_qdelay: parseFloat(document.getElementById('cc-tqd').value),
+        initial_cwnd: parseInt(document.getElementById('cc-icwnd').value),
+        min_cwnd: parseInt(document.getElementById('cc-mincwnd').value),
+        max_cwnd: parseInt(document.getElementById('cc-maxcwnd').value),
+        ai_increment: parseInt(document.getElementById('cc-ai').value),
+        md_factor: parseFloat(document.getElementById('cc-md').value),
+    });
+    location.reload();
+}
+async function simulateAck() {
+    const r = await apiCall(`/api/cc/qpccs/${document.getElementById('sim-id').value}/simulate_ack`, 'POST', {
+        rcvd_bytes: parseInt(document.getElementById('sim-bytes').value),
+        ecn_marked: document.getElementById('sim-ecn').value === 'true',
+        rcv_cwnd_pen: parseInt(document.getElementById('sim-pen').value),
+    });
+    document.getElementById('sim-result').innerHTML = r.error
+        ? `<div class="alert alert-danger p-1">${r.error}</div>`
+        : `<div class="alert alert-info p-1">CWND: ${r.window?.cwnd || '?'} | Inflight: ${r.window?.inflight || '?'}</div>`;
+}
+</script>
+{% endblock %}

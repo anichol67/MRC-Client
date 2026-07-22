@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Packet Builder — MRC Emulator{% endblock %}
+{% block content %}
+<h4>MRC Packet Builder</h4>
+<div class="row">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header">Build Packet</div>
+            <div class="card-body">
+                <div class="row g-2 mb-2">
+                    <div class="col-6"><label class="form-label">Opcode</label>
+                        <select id="pkt-opcode" class="form-select form-select-sm" onchange="updateFields()">
+                            {% for op in opcodes %}
+                            <option value="{{ op.value }}">{{ op.hex }} {{ op.name }}</option>
+                            {% endfor %}
+                        </select></div>
+                    <div class="col-6"><label class="form-label">EV Format</label>
+                        <select id="pkt-evfmt" class="form-select form-select-sm">
+                            <option value="ECMP">ECMP</option>
+                            <option value="STRUCTURED_EV">Structured EV</option>
+                            <option value="SRV6_USID">SRv6</option>
+                        </select></div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-6"><label class="form-label">Source IPv6</label>
+                        <input type="text" id="pkt-src" class="form-control form-control-sm" value="::1"></div>
+                    <div class="col-6"><label class="form-label">Dest IPv6</label>
+                        <input type="text" id="pkt-dst" class="form-control form-control-sm" value="::1"></div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-6"><label class="form-label">Source MAC</label>
+                        <input type="text" id="pkt-smac" class="form-control form-control-sm" value="00:00:00:00:00:01"></div>
+                    <div class="col-6"><label class="form-label">Dest MAC</label>
+                        <input type="text" id="pkt-dmac" class="form-control form-control-sm" value="00:00:00:00:00:02"></div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-4"><label class="form-label">Src QPN</label>
+                        <input type="number" id="pkt-sqpn" class="form-control form-control-sm" value="3"></div>
+                    <div class="col-4"><label class="form-label">Dst QPN</label>
+                        <input type="number" id="pkt-dqpn" class="form-control form-control-sm" value="3"></div>
+                    <div class="col-4"><label class="form-label">EV Value</label>
+                        <input type="text" id="pkt-ev" class="form-control form-control-sm" value="0" placeholder="0x1234"></div>
+                </div>
+                <div id="write-fields">
+                    <div class="row g-2 mb-2">
+                        <div class="col-4"><label class="form-label">PSN</label>
+                            <input type="number" id="pkt-psn" class="form-control form-control-sm" value="0"></div>
+                        <div class="col-4"><label class="form-label">MSN</label>
+                            <input type="number" id="pkt-msn" class="form-control form-control-sm" value="0"></div>
+                        <div class="col-4"><label class="form-label">RQMSN</label>
+                            <input type="number" id="pkt-rqmsn" class="form-control form-control-sm" value="0"></div>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="form-label">VA (hex)</label>
+                            <input type="text" id="pkt-va" class="form-control form-control-sm" value="0"></div>
+                        <div class="col-3"><label class="form-label">R_Key</label>
+                            <input type="text" id="pkt-rkey" class="form-control form-control-sm" value="0"></div>
+                        <div class="col-3"><label class="form-label">DMA Len</label>
+                            <input type="number" id="pkt-dmalen" class="form-control form-control-sm" value="64"></div>
+                    </div>
+                    <div class="mb-2"><label class="form-label">Payload (hex)</label>
+                        <input type="text" id="pkt-payload" class="form-control form-control-sm" placeholder="deadbeef..."></div>
+                </div>
+                <div id="sack-fields" style="display:none">
+                    <div class="row g-2 mb-2">
+                        <div class="col-4"><label class="form-label">CACK PSN</label>
+                            <input type="number" id="pkt-cack" class="form-control form-control-sm" value="0"></div>
+                        <div class="col-4"><label class="form-label">ACK Offset</label>
+                            <input type="number" id="pkt-ackoff" class="form-control form-control-sm" value="0"></div>
+                        <div class="col-4"><label class="form-label">SACK Offset</label>
+                            <input type="number" id="pkt-sackoff" class="form-control form-control-sm" value="0"></div>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="form-label">SACK Bitmap (hex)</label>
+                            <input type="text" id="pkt-bitmap" class="form-control form-control-sm" value="0"></div>
+                        <div class="col-3"><label class="form-label">MPR</label>
+                            <input type="number" id="pkt-mpr" class="form-control form-control-sm" value="1"></div>
+                        <div class="col-3"><label class="form-label">M Flag</label>
+                            <select id="pkt-mflag" class="form-select form-select-sm">
+                                <option value="0">NONE</option><option value="1">SKIP</option><option value="2">ALWAYS_SKIP</option>
+                            </select></div>
+                    </div>
+                </div>
+                <div id="nack-fields" style="display:none">
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="form-label">NACK PSN</label>
+                            <input type="number" id="pkt-npsn" class="form-control form-control-sm" value="0"></div>
+                        <div class="col-6"><label class="form-label">NACK Reason</label>
+                            <select id="pkt-nreason" class="form-select form-select-sm">
+                                <option value="1">TRIMMED</option><option value="2">TRIMMED_LASTHOP</option>
+                                <option value="6">NO_BITMAP</option><option value="7">NO_PKT_BUFFER</option>
+                                <option value="10">NO_RESOURCE</option><option value="11">PSN_OOR_WINDOW</option>
+                                <option value="25">UNEXP_EVENT</option>
+                            </select></div>
+                    </div>
+                </div>
+                <div id="probe-fields" style="display:none">
+                    <div class="mb-2"><label class="form-label">Probe ID</label>
+                        <input type="number" id="pkt-probeid" class="form-control form-control-sm" value="1"></div>
+                </div>
+                <button class="btn btn-primary" onclick="buildPacket()">Build Packet</button>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header">Packet Output</div>
+            <div class="card-body">
+                <div id="pkt-output" class="hex-dump" style="min-height: 200px;">Build a packet to see output here.</div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">Decoded Headers</div>
+            <div class="card-body"><pre id="pkt-decoded" style="max-height: 400px; overflow-y: auto;">—</pre></div>
+        </div>
+        <div class="card">
+            <div class="card-header">Packet History (last 50)</div>
+            <div class="card-body">
+                <table class="table table-sm"><thead><tr><th>Opcode</th><th>Summary</th><th>Size</th></tr></thead>
+                <tbody>
+                {% for h in history %}
+                <tr><td><code>{{ h.opcode }}</code></td><td>{{ h.summary }}</td><td>{{ h.size }}B</td></tr>
+                {% endfor %}
+                </tbody></table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function updateFields() {
+    const op = parseInt(document.getElementById('pkt-opcode').value);
+    document.getElementById('write-fields').style.display = (op >= 0xC6 && op <= 0xCB) ? 'block' : 'none';
+    document.getElementById('sack-fields').style.display = op === 0xDC ? 'block' : 'none';
+    document.getElementById('nack-fields').style.display = op === 0xDD ? 'block' : 'none';
+    document.getElementById('probe-fields').style.display = (op === 0xDE || op === 0xD8) ? 'block' : 'none';
+}
+async function buildPacket() {
+    let ev = document.getElementById('pkt-ev').value;
+    ev = ev.startsWith('0x') ? parseInt(ev, 16) : parseInt(ev);
+    const body = {
+        opcode: parseInt(document.getElementById('pkt-opcode').value),
+        src_ipv6: document.getElementById('pkt-src').value,
+        dst_ipv6: document.getElementById('pkt-dst').value,
+        src_mac: document.getElementById('pkt-smac').value,
+        dst_mac: document.getElementById('pkt-dmac').value,
+        src_qpn: parseInt(document.getElementById('pkt-sqpn').value),
+        dst_qpn: parseInt(document.getElementById('pkt-dqpn').value),
+        ev_value: ev,
+        ev_format: document.getElementById('pkt-evfmt').value,
+        psn: parseInt(document.getElementById('pkt-psn').value || '0'),
+        msn: parseInt(document.getElementById('pkt-msn').value || '0'),
+        rqmsn: parseInt(document.getElementById('pkt-rqmsn').value || '0'),
+        va: parseInt(document.getElementById('pkt-va').value || '0'),
+        r_key: parseInt(document.getElementById('pkt-rkey').value || '0'),
+        dmalen: parseInt(document.getElementById('pkt-dmalen').value || '64'),
+        payload: document.getElementById('pkt-payload').value || '',
+        cack_psn: parseInt(document.getElementById('pkt-cack').value || '0'),
+        ack_psn_offset: parseInt(document.getElementById('pkt-ackoff').value || '0'),
+        sack_offset: parseInt(document.getElementById('pkt-sackoff').value || '0'),
+        sack_bitmap: parseInt(document.getElementById('pkt-bitmap').value || '0'),
+        mpr: parseInt(document.getElementById('pkt-mpr').value || '1'),
+        m_flag: parseInt(document.getElementById('pkt-mflag').value || '0'),
+        nack_psn: parseInt(document.getElementById('pkt-npsn').value || '0'),
+        nack_reason: parseInt(document.getElementById('pkt-nreason').value || '1'),
+        probe_id: parseInt(document.getElementById('pkt-probeid').value || '1'),
+    };
+    const r = await apiCall('/api/packets/build', 'POST', body);
+    if (r.error) {
+        document.getElementById('pkt-output').textContent = 'Error: ' + r.error;
+    } else {
+        document.getElementById('pkt-output').textContent = r.hex_dump;
+        document.getElementById('pkt-decoded').textContent = JSON.stringify(r, null, 2);
+    }
+}
+updateFields();
+</script>
+{% endblock %}

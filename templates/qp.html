@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Queue Pairs — MRC Emulator{% endblock %}
+{% block content %}
+<h4>MRC Queue Pairs</h4>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Create QP</div>
+            <div class="card-body">
+                <div class="mb-2"><label class="form-label">Source IPv6</label>
+                    <input type="text" id="qp-src" class="form-control form-control-sm" value="::1"></div>
+                <div class="mb-2"><label class="form-label">Source MAC</label>
+                    <input type="text" id="qp-mac" class="form-control form-control-sm" value="00:00:00:00:00:00"></div>
+                <div class="mb-2"><label class="form-label">Max PSN Range (x128 pkts)</label>
+                    <input type="number" id="qp-mpr" class="form-control form-control-sm" value="128"></div>
+                <div class="mb-2"><label class="form-label">Max WriteIMM Inflight</label>
+                    <input type="number" id="qp-wimm" class="form-control form-control-sm" value="32"></div>
+                <button class="btn btn-sm btn-primary" onclick="createQP()">Create</button>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">Modify QP State</div>
+            <div class="card-body">
+                <div class="mb-2"><label class="form-label">QPN</label>
+                    <input type="number" id="mod-qpn" class="form-control form-control-sm" value="3"></div>
+                <div class="mb-2"><label class="form-label">Target State</label>
+                    <select id="mod-state" class="form-select form-select-sm">
+                        <option value="INIT">INIT</option>
+                        <option value="RTR">RTR</option>
+                        <option value="RTS">RTS</option>
+                    </select></div>
+                <div id="rtr-fields" style="display:none">
+                    <div class="mb-2"><label class="form-label">Dest QPN</label>
+                        <input type="number" id="mod-dqpn" class="form-control form-control-sm" value="3"></div>
+                    <div class="mb-2"><label class="form-label">RQ PSN</label>
+                        <input type="number" id="mod-rqpsn" class="form-control form-control-sm" value="0"></div>
+                    <div class="mb-2"><label class="form-label">Dest IPv6</label>
+                        <input type="text" id="mod-dipv6" class="form-control form-control-sm" value="::1"></div>
+                    <div class="mb-2"><label class="form-label">Dest MAC</label>
+                        <input type="text" id="mod-dmac" class="form-control form-control-sm" value="00:00:00:00:00:00"></div>
+                </div>
+                <div id="rts-fields" style="display:none">
+                    <div class="mb-2"><label class="form-label">SQ PSN</label>
+                        <input type="number" id="mod-sqpsn" class="form-control form-control-sm" value="0"></div>
+                </div>
+                <button class="btn btn-sm btn-warning" onclick="modifyQP()">Modify</button>
+                <div id="mod-result" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        {% for qp in qps %}
+        <div class="card">
+            <div class="card-header d-flex justify-content-between">
+                <span>QPN {{ qp.qpn }} — <span class="badge {{ 'bg-success' if qp.state == 'RTS' else 'bg-secondary' }}">{{ qp.state }}</span></span>
+                <button class="btn btn-sm btn-outline-danger" onclick="destroyQP({{ qp.qpn }})">Destroy</button>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <small><strong>Source:</strong> {{ qp.src_ipv6 }} ({{ qp.src_mac }})</small><br>
+                        <small><strong>Dest:</strong> {{ qp.dst_ipv6 }} ({{ qp.dst_mac }}) QPN={{ qp.dest_qpn }}</small><br>
+                        <small><strong>MPR:</strong> {{ qp.max_psn_range }} | <strong>WIMM:</strong> {{ qp.max_wimm_inflight }}</small>
+                    </div>
+                    <div class="col-md-6">
+                        <small><strong>Requestor:</strong> unack={{ qp.requestor.unack_psn }} max_sent={{ qp.requestor.max_psn_sent }}</small><br>
+                        <small><strong>Responder:</strong> cack={{ qp.responder.cack_psn }} max_rcv={{ qp.responder.max_rcv_psn }}</small><br>
+                        <small><strong>EV Profile:</strong> {{ qp.ev_profile_id or 'None' }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% if not qps %}
+        <div class="text-muted">No queue pairs created yet.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.getElementById('mod-state').addEventListener('change', function() {
+    document.getElementById('rtr-fields').style.display = this.value === 'RTR' ? 'block' : 'none';
+    document.getElementById('rts-fields').style.display = this.value === 'RTS' ? 'block' : 'none';
+});
+async function createQP() {
+    await apiCall('/api/qp', 'POST', {
+        src_ipv6: document.getElementById('qp-src').value,
+        src_mac: document.getElementById('qp-mac').value,
+        max_psn_range: parseInt(document.getElementById('qp-mpr').value),
+        max_wimm_inflight: parseInt(document.getElementById('qp-wimm').value),
+    });
+    location.reload();
+}
+async function modifyQP() {
+    const body = {target_state: document.getElementById('mod-state').value};
+    if (body.target_state === 'RTR') {
+        body.dest_qpn = parseInt(document.getElementById('mod-dqpn').value);
+        body.rq_psn = parseInt(document.getElementById('mod-rqpsn').value);
+        body.dst_ipv6 = document.getElementById('mod-dipv6').value;
+        body.dst_mac = document.getElementById('mod-dmac').value;
+    } else if (body.target_state === 'RTS') {
+        body.sq_psn = parseInt(document.getElementById('mod-sqpsn').value);
+    }
+    const r = await apiCall(`/api/qp/${document.getElementById('mod-qpn').value}`, 'PUT', body);
+    document.getElementById('mod-result').innerHTML = r.error
+        ? `<div class="alert alert-danger p-1">${r.error}</div>`
+        : `<div class="alert alert-success p-1">QP now in ${r.state}</div>`;
+}
+async function destroyQP(qpn) { await apiCall(`/api/qp/${qpn}`, 'DELETE'); location.reload(); }
+</script>
+{% endblock %}

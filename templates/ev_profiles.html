@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}EV Profiles — MRC Emulator{% endblock %}
+{% block content %}
+<h4>Entropy Value (EV) Profiles</h4>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Create EV Profile</div>
+            <div class="card-body">
+                <div class="mb-2"><label class="form-label">Name</label>
+                    <input type="text" id="prof-name" class="form-control form-control-sm" placeholder="My Profile"></div>
+                <div class="mb-2"><label class="form-label">Mode</label>
+                    <select id="prof-mode" class="form-select form-select-sm">
+                        <option value="EXPLICIT">EXPLICIT</option>
+                        <option value="GENERATED">GENERATED</option>
+                        <option value="AUTO">AUTO</option>
+                    </select></div>
+                <div class="mb-2"><label class="form-label">Format</label>
+                    <select id="prof-format" class="form-select form-select-sm">
+                        <option value="ECMP">ECMP (UDP src port)</option>
+                        <option value="STRUCTURED_EV">Structured EV (32-bit)</option>
+                        <option value="SRV6_USID">SRv6 uSID</option>
+                        <option value="SRV6_USID_SRH">SRv6 uSID + SRH</option>
+                    </select></div>
+                <button class="btn btn-sm btn-primary" onclick="createProfile()">Create</button>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">Add EV to Profile</div>
+            <div class="card-body">
+                <div class="mb-2"><label class="form-label">Profile ID</label>
+                    <input type="number" id="add-ev-pid" class="form-control form-control-sm" value="1"></div>
+                <div class="mb-2"><label class="form-label">EV Value (decimal or 0x hex)</label>
+                    <input type="text" id="add-ev-val" class="form-control form-control-sm" placeholder="0x1234"></div>
+                <button class="btn btn-sm btn-primary" onclick="addEV()">Add EV</button>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">Generate EVs (Structured EV)</div>
+            <div class="card-body">
+                <div class="mb-2"><label class="form-label">Profile ID</label>
+                    <input type="number" id="gen-pid" class="form-control form-control-sm" value="1"></div>
+                <div id="hop-fields">
+                    <div class="hop-field mb-2 p-2 border rounded">
+                        <strong>Hop 0</strong>
+                        <div class="row g-1">
+                            <div class="col"><input type="number" class="form-control form-control-sm hop-width" placeholder="Width" value="10"></div>
+                            <div class="col"><input type="number" class="form-control form-control-sm hop-min" placeholder="Min" value="0"></div>
+                            <div class="col"><input type="number" class="form-control form-control-sm hop-max" placeholder="Max" value="7"></div>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary mb-2" onclick="addHopField()">+ Add Hop</button>
+                <div class="mb-2"><label class="form-label">Count</label>
+                    <input type="number" id="gen-count" class="form-control form-control-sm" value="64"></div>
+                <button class="btn btn-sm btn-success" onclick="generateEVs()">Generate</button>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div id="profiles-list">
+        {% for prof in profiles %}
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><strong>{{ prof.name }}</strong> (ID: {{ prof.profile_id }}) — {{ prof.mode }} / {{ prof.ev_format }}</span>
+                <span>
+                    <span class="badge bg-success">{{ prof.active_count }} active</span>
+                    <span class="badge bg-secondary">{{ prof.total_count }} total</span>
+                    <button class="btn btn-sm btn-outline-danger ms-2" onclick="deleteProfile({{ prof.profile_id }})">Delete</button>
+                </span>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead><tr><th>#</th><th>Value</th><th>Hex</th><th>State</th><th>Actions</th></tr></thead>
+                    <tbody>
+                    {% for ev in prof.ev_universe %}
+                    <tr>
+                        <td>{{ loop.index0 }}</td>
+                        <td>{{ ev.value }}</td>
+                        <td><code>0x{{ '%08X' % ev.value }}</code></td>
+                        <td>
+                            {% if ev.state == 0 %}<span class="badge badge-good">GOOD</span>
+                            {% elif ev.state == 1 %}<span class="badge badge-denied">DENIED</span>
+                            {% elif ev.state == 2 %}<span class="badge badge-skip">SKIP</span>
+                            {% else %}<span class="badge badge-bad">ASSUMED_BAD</span>{% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger" onclick="setEVState({{ prof.profile_id }}, {{ loop.index0 }}, 'deny')">Deny</button>
+                            <button class="btn btn-sm btn-outline-success" onclick="setEVState({{ prof.profile_id }}, {{ loop.index0 }}, 'enable')">Enable</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+let hopCount = 1;
+function addHopField() {
+    const div = document.createElement('div');
+    div.className = 'hop-field mb-2 p-2 border rounded';
+    div.innerHTML = `<strong>Hop ${hopCount++}</strong>
+        <div class="row g-1">
+            <div class="col"><input type="number" class="form-control form-control-sm hop-width" placeholder="Width" value="8"></div>
+            <div class="col"><input type="number" class="form-control form-control-sm hop-min" placeholder="Min" value="0"></div>
+            <div class="col"><input type="number" class="form-control form-control-sm hop-max" placeholder="Max" value="3"></div>
+        </div>`;
+    document.getElementById('hop-fields').appendChild(div);
+}
+async function createProfile() {
+    await apiCall('/api/ev/profiles', 'POST', {
+        name: document.getElementById('prof-name').value,
+        mode: document.getElementById('prof-mode').value,
+        ev_format: document.getElementById('prof-format').value,
+    });
+    location.reload();
+}
+async function deleteProfile(pid) {
+    await apiCall(`/api/ev/profiles/${pid}`, 'DELETE');
+    location.reload();
+}
+async function addEV() {
+    const pid = document.getElementById('add-ev-pid').value;
+    let val = document.getElementById('add-ev-val').value;
+    val = val.startsWith('0x') ? parseInt(val, 16) : parseInt(val);
+    await apiCall(`/api/ev/profiles/${pid}/evs`, 'POST', {value: val});
+    location.reload();
+}
+async function setEVState(pid, idx, action) {
+    await apiCall(`/api/ev/profiles/${pid}/evs/${idx}/state`, 'POST', {action});
+    location.reload();
+}
+async function generateEVs() {
+    const hops = [];
+    document.querySelectorAll('.hop-field').forEach(el => {
+        hops.push({
+            width_bits: parseInt(el.querySelector('.hop-width').value),
+            min_value: parseInt(el.querySelector('.hop-min').value),
+            max_value: parseInt(el.querySelector('.hop-max').value),
+        });
+    });
+    await apiCall(`/api/ev/profiles/${document.getElementById('gen-pid').value}/generate`, 'POST', {
+        hop_fields: hops, count: parseInt(document.getElementById('gen-count').value),
+    });
+    location.reload();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,4 @@
+flask>=3.0
+flask-socketio>=5.3
+scapy>=2.5
+pyroute2>=0.7

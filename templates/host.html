@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Host Configuration — MRC Emulator{% endblock %}
+{% block content %}
+<h4>Host Configuration</h4>
+{% if not privileged %}
+<div class="alert alert-warning">Running without root privileges. Network modifications are read-only. Run with sudo for full control.</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">Network Interfaces</div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead><tr><th>Name</th><th>Index</th><th>MAC</th><th>MTU</th><th>State</th><th>IPv6 Addresses</th></tr></thead>
+                    <tbody>
+                    {% for iface in interfaces %}
+                    <tr>
+                        <td><strong>{{ iface.name }}</strong></td>
+                        <td>{{ iface.index }}</td>
+                        <td><code>{{ iface.mac }}</code></td>
+                        <td>{{ iface.mtu }}</td>
+                        <td><span class="badge {{ 'bg-success' if iface.state == 'UP' else 'bg-secondary' }}">{{ iface.state }}</span></td>
+                        <td>
+                            {% for addr in iface.ipv6_addrs %}
+                            <code>{{ addr }}</code><br>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Add IPv6 Address</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <label class="form-label">Interface</label>
+                    <select id="addr-iface" class="form-select form-select-sm">
+                        {% for iface in interfaces %}
+                        <option value="{{ iface.name }}">{{ iface.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">IPv6 Address (CIDR)</label>
+                    <input type="text" id="addr-ipv6" class="form-control form-control-sm" placeholder="fd00::1/64">
+                </div>
+                <button class="btn btn-sm btn-primary" onclick="addAddress()">Add</button>
+                <div id="addr-result" class="mt-2"></div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">RoCE Settings</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <label class="form-label">UDP Destination Port</label>
+                    <input type="number" class="form-control form-control-sm" value="4971" disabled>
+                </div>
+                <small class="text-muted">Per MRC spec, default RoCE port is 4971 (configurable).</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function addAddress() {
+    const result = await apiCall('/api/host/address', 'POST', {
+        interface: document.getElementById('addr-iface').value,
+        address: document.getElementById('addr-ipv6').value,
+    });
+    document.getElementById('addr-result').innerHTML = result.error
+        ? `<div class="alert alert-danger p-1">${result.error}</div>`
+        : '<div class="alert alert-success p-1">Added. Refresh to see.</div>';
+}
+</script>
+{% endblock %}
