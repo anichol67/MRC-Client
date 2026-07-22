@@ -427,8 +427,19 @@ Auto-detection: the tool detects the platform at startup and enables offline mod
 
 - Fixed dark sidebar navigation with grouped sections (Fabric, Endpoint, Transport, Testing)
 - Dark theme (#0d1117 background, #161b22 cards) with blue accent (#58a6ff)
+- CloudVision tile-style nodes: rounded rectangles with colored sidebar stripe, device name, role, uSID, status dot
 - Clean metric cards and status badges
 - Responsive: sidebar collapses to horizontal nav on small screens
+
+### 28. Topology Zoom & Pan
+**Decision**: SVG topology view supports scroll-to-zoom and drag-to-pan for navigating large fabrics.
+
+### 29. Failure Highlighting on Topology
+**Decision**: When a failure is injected during simulation, the affected links and nodes are visually highlighted:
+- Failed links pulse red with animation
+- Affected nodes get a red failure flash overlay that fades out
+- Status dots on CloudVision tiles turn red for nodes involved in the failure
+- Failed paths change color in the path overlay (ASSUMED_BAD = red)
 
 ---
 
