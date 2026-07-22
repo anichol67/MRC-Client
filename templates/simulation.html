@@ -2,10 +2,11 @@
 {% block title %}Simulation — MRC emu{% endblock %}
 {% block extra_css %}
 <style>
-    #sim-svg-container { background: #1a1a2e; border: 1px solid #333; border-radius: 6px; min-height: 380px; overflow: auto; }
-    .node-rect { cursor: pointer; stroke-width: 2; rx: 6; ry: 6; }
+    #sim-svg-container { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; min-height: 580px; overflow: auto; }
+    .node-rect { cursor: pointer; stroke-width: 2; rx: 8; ry: 8; }
     .node-rect:hover { stroke-width: 3; filter: brightness(1.3); }
-    .node-label { font-family: 'Courier New', monospace; font-size: 10px; fill: #fff; pointer-events: none; text-anchor: middle; dominant-baseline: central; }
+    .node-label { font-family: -apple-system, 'Segoe UI', sans-serif; font-size: 11px; fill: #e6edf3; pointer-events: none; text-anchor: middle; dominant-baseline: central; font-weight: 600; }
+    .node-role-label { font-family: -apple-system, sans-serif; font-size: 8px; fill: rgba(255,255,255,0.5); pointer-events: none; text-anchor: middle; }
     .node-icon { pointer-events: none; }
     .topo-link { cursor: pointer; stroke-linecap: round; }
     .topo-link:hover { stroke-width: 4; }
@@ -76,6 +77,23 @@
     </div>
     <!-- Center: Fabric View + EV table -->
     <div class="col-md-6">
+        <div class="d-flex gap-2 mb-2 align-items-end">
+            <div class="flex-grow-1">
+                <label class="form-label mb-0" style="font-size:0.75rem; color:#8b949e;">Source Host</label>
+                <select id="sim-src" class="form-select form-select-sm">
+                    <option value="">— click node or select —</option>
+                    {% for h in hosts %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="flex-grow-1">
+                <label class="form-label mb-0" style="font-size:0.75rem; color:#8b949e;">Destination Host</label>
+                <select id="sim-dst" class="form-select form-select-sm">
+                    <option value="">— click node or select —</option>
+                    {% for h in hosts %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+                </select>
+            </div>
+            <button class="btn btn-sm btn-outline-primary" onclick="showSimPaths()">Show Paths</button>
+        </div>
         <div id="sim-svg-container"></div>
         <div id="sim-tip" class="sim-tooltip"></div>
         <div class="card mt-2">
@@ -126,9 +144,10 @@
 {% block extra_js %}
 <script>
 (function() {
-    const C = { spine: '#3b82f6', leaf: '#22c55e', host: '#06b6d4', link: '#555',
-                failed: '#dc3545', GOOD: '#198754', SKIP: '#ffc107', DENIED: '#6c757d', ASSUMED_BAD: '#dc3545' };
-    const NODE_W = 80, NODE_H = 32;
+    const C = { spine: '#2563eb', leaf: '#16a34a', host: '#0891b2', link: '#484f58',
+                failed: '#da3633', GOOD: '#238636', SKIP: '#d29922', DENIED: '#484f58', ASSUMED_BAD: '#da3633',
+                spine_stroke: '#3b82f6', leaf_stroke: '#22c55e', host_stroke: '#06b6d4' };
+    const NODE_W = 120, NODE_H = 52;
 
     let topoData = null, nodePos = {}, simTimer = null, stepCount = 0, totalSteps = 0;
     let failedLinks = {}, highlightedPaths = [], pathStates = [];
@@ -188,7 +207,7 @@
         });
 
         const planeIds = Object.keys(planeNodes).map(Number).sort();
-        const PW = 680, PH = 340, GAP = 40, PAD = 20;
+        const PW = 900, PH = 480, GAP = 60, PAD = 30;
         const numPlanes = planeIds.length || 1;
         const totalW = numPlanes * PW + (numPlanes - 1) * GAP + 2 * PAD;
         const hostRowH = multiHosts.length > 0 ? 80 : 0;
@@ -231,16 +250,57 @@
         });
         svg += '</g><g id="sg-paths"></g><g id="sg-nodes">';
 
-        // Nodes
+        // Nodes with Arista-style icons
         for (const [name, pos] of Object.entries(nodePos)) {
             const node = topoData.nodes.find(n => n.name === name);
             if (!node) continue;
             let fill = node.role === 'spine' ? C.spine : node.role === 'leaf' ? C.leaf : C.host;
+            let stroke = node.role === 'spine' ? C.spine_stroke : node.role === 'leaf' ? C.leaf_stroke : C.host_stroke;
             const rx = pos.x - NODE_W/2, ry = pos.y - NODE_H/2;
-            const tipData = encodeURIComponent(JSON.stringify({ name:node.name, role:node.role, plane:node.plane, loopback_ipv6:node.loopback_ipv6||'-', srv6_locator:node.srv6_locator||'-', usid:node.usid!=null?'0x'+('0000'+node.usid.toString(16).toUpperCase()).slice(-4):'-' }));
-            svg += `<rect class="node-rect" x="${rx}" y="${ry}" width="${NODE_W}" height="${NODE_H}" fill="${fill}" stroke="${fill}" data-tip="${tipData}" onmouseenter="simViz.showTip(event,this,'node')" onmouseleave="simViz.hideTip()"/>`;
-            let lbl = name.length > 11 ? name.slice(0,10)+'…' : name;
-            svg += `<text class="node-label" x="${pos.x}" y="${pos.y}">${lbl}</text>`;
+            const tipData = encodeURIComponent(JSON.stringify({
+                name:node.name, role:node.role, plane:node.plane,
+                loopback_ipv6:node.loopback_ipv6||'-', srv6_locator:node.srv6_locator||'-',
+                usid:node.usid!=null?'0x'+('0000'+node.usid.toString(16).toUpperCase()).slice(-4):'-',
+                interfaces:node.interfaces||{}
+            }));
+
+            // Node background
+            svg += `<rect class="node-rect" x="${rx}" y="${ry}" width="${NODE_W}" height="${NODE_H}" ` +
+                   `fill="${fill}" stroke="${stroke}" data-node="${name}" data-tip="${tipData}" ` +
+                   `onmouseenter="simViz.showTip(event,this,'node')" onmouseleave="simViz.hideTip()" ` +
+                   `onclick="simViz.selectHost('${name}','${node.role}')"/>`;
+
+            // Arista switch icon (rack unit style) or server icon
+            const ix = rx + 6, iy = ry + 10;
+            if (node.role === 'spine' || node.role === 'leaf') {
+                svg += `<g class="node-icon" transform="translate(${ix},${iy})">` +
+                    `<rect x="0" y="0" width="22" height="5" rx="1.5" fill="rgba(255,255,255,0.55)"/>` +
+                    `<rect x="0" y="7" width="22" height="5" rx="1.5" fill="rgba(255,255,255,0.55)"/>` +
+                    `<rect x="0" y="14" width="22" height="5" rx="1.5" fill="rgba(255,255,255,0.45)"/>` +
+                    `<circle cx="18" cy="2.5" r="1.5" fill="#0f0"/>` +
+                    `<circle cx="18" cy="9.5" r="1.5" fill="#0f0"/>` +
+                    `<circle cx="18" cy="16.5" r="1.5" fill="${fill}"/>` +
+                    `<rect x="2" y="1.5" width="3" height="2" rx="0.5" fill="rgba(0,0,0,0.3)"/>` +
+                    `<rect x="6" y="1.5" width="3" height="2" rx="0.5" fill="rgba(0,0,0,0.3)"/>` +
+                    `<rect x="10" y="1.5" width="3" height="2" rx="0.5" fill="rgba(0,0,0,0.3)"/>` +
+                    `</g>`;
+            } else {
+                svg += `<g class="node-icon" transform="translate(${ix},${iy})">` +
+                    `<rect x="3" y="0" width="16" height="28" rx="3" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>` +
+                    `<line x1="3" y1="8" x2="19" y2="8" stroke="rgba(255,255,255,0.3)" stroke-width="0.8"/>` +
+                    `<line x1="3" y1="16" x2="19" y2="16" stroke="rgba(255,255,255,0.3)" stroke-width="0.8"/>` +
+                    `<circle cx="11" cy="4" r="1.5" fill="#0f0"/>` +
+                    `<circle cx="11" cy="12" r="1.5" fill="#0f0"/>` +
+                    `<circle cx="11" cy="24" r="2" fill="rgba(255,255,255,0.4)"/>` +
+                    `</g>`;
+            }
+
+            // Node label (offset right of icon)
+            let lbl = name.length > 14 ? name.slice(0,13)+'…' : name;
+            svg += `<text class="node-label" x="${pos.x + 10}" y="${pos.y - 5}">${lbl}</text>`;
+            // Role sublabel
+            const roleLabel = node.role.charAt(0).toUpperCase() + node.role.slice(1);
+            svg += `<text class="node-role-label" x="${pos.x + 10}" y="${pos.y + 10}">${roleLabel}</text>`;
         }
         svg += '</g></svg>';
         container.innerHTML = svg;
@@ -284,8 +344,50 @@
         tbody.innerHTML = html;
     }
 
+    // Host selection via SVG click
+    function selectHost(name, role) {
+        if (role !== 'host') return;
+        const srcSel = document.getElementById('sim-src');
+        const dstSel = document.getElementById('sim-dst');
+        if (!srcSel.value) {
+            srcSel.value = name;
+        } else if (!dstSel.value && srcSel.value !== name) {
+            dstSel.value = name;
+            showSimPaths();
+        } else {
+            srcSel.value = name;
+            dstSel.value = '';
+            highlightedPaths = [];
+            drawPaths();
+            updateEVTable();
+        }
+    }
+
+    window.showSimPaths = async function() {
+        const src = document.getElementById('sim-src').value;
+        const dst = document.getElementById('sim-dst').value;
+        if (!src || !dst || src === dst) { highlightedPaths = []; drawPaths(); updateEVTable(); return; }
+
+        highlightedPaths = [];
+        const key = `${src}->${dst}`;
+        if (topoData.paths && topoData.paths[key]) highlightedPaths = topoData.paths[key];
+
+        try {
+            const r = await apiCall(`/api/topology/paths/${encodeURIComponent(src)}`);
+            if (r && Array.isArray(r)) {
+                const matching = r.filter(p => p.dest_host === dst);
+                if (matching.length > 0) highlightedPaths = matching;
+            }
+        } catch(e) {}
+
+        await refreshPaths();
+        drawPaths();
+        updateEVTable();
+    };
+
     // Tooltips
     window.simViz = {
+        selectHost: selectHost,
         showTip(event, el, type) {
             const tip = document.getElementById('sim-tip');
             const data = JSON.parse(decodeURIComponent(el.getAttribute('data-tip')));
