@@ -2,264 +2,240 @@
 {% block title %}Simulation — MRC emu{% endblock %}
 {% block extra_css %}
 <style>
-    /* Topology container with zoom */
-    #sim-svg-container {
-        background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
-        overflow: hidden; position: relative; cursor: grab;
-        height: 70vh; min-height: 500px;
-    }
+    /* Top control bar */
+    .ctrl-bar { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 10px 16px; margin-bottom: 12px; }
+    .ctrl-bar .ctrl-group { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; }
+    .ctrl-bar label { font-size: 0.72rem; color: #8b949e; margin-bottom: 0; white-space: nowrap; }
+    .ctrl-bar input, .ctrl-bar select { max-width: 110px; }
+    .ctrl-bar .btn { font-size: 0.78rem; }
+
+    /* Metrics bar */
+    .metrics-bar { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 8px 16px; margin-bottom: 12px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+    .metric-item { text-align: center; }
+    .metric-item small { display: block; font-size: 0.65rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1rem; color: #e6edf3; }
+    .metric-val.danger { color: #da3633; }
+    .metric-val.warning { color: #d29922; }
+
+    /* Topology container — full width, tall */
+    #sim-svg-container { background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+                         overflow: hidden; position: relative; cursor: grab; width: 100%; height: 60vh; min-height: 450px; }
     #sim-svg-container.grabbing { cursor: grabbing; }
-    #sim-svg-container svg { display: block; }
 
     /* CloudVision tile nodes */
     .cv-tile { cursor: pointer; }
-    .cv-tile:hover .cv-tile-bg { filter: brightness(1.2); }
+    .cv-tile:hover .cv-tile-bg { filter: brightness(1.25); }
     .cv-tile-bg { rx: 6; ry: 6; }
-    .cv-tile-stripe { rx: 6; ry: 6; }
-    .cv-tile-name { font-family: -apple-system, 'Segoe UI', sans-serif; font-size: 12px;
-                    fill: #e6edf3; font-weight: 600; }
-    .cv-tile-role { font-family: -apple-system, sans-serif; font-size: 9px; fill: #8b949e; }
-    .cv-tile-usid { font-family: 'JetBrains Mono', monospace; font-size: 8px; fill: #58a6ff; }
-    .cv-status-dot { }
-    .cv-selected { stroke: #f0e68c !important; stroke-width: 3 !important; stroke-dasharray: 4 2; }
+    .cv-tile-name { font-family: -apple-system, sans-serif; font-size: 11px; fill: #e6edf3; font-weight: 600; }
+    .cv-tile-role { font-family: -apple-system, sans-serif; font-size: 8.5px; fill: #8b949e; }
+    .cv-tile-usid { font-family: monospace; font-size: 8px; fill: #58a6ff; }
+    .cv-selected { stroke: #f0e68c !important; stroke-width: 3 !important; stroke-dasharray: 5 2; }
 
     /* Links */
-    .topo-link { cursor: pointer; stroke-linecap: round; transition: stroke 0.2s; }
-    .topo-link:hover { stroke-width: 5; filter: brightness(1.5); }
+    .topo-link { cursor: pointer; stroke-linecap: round; }
+    .topo-link:hover { stroke-width: 5; }
     .link-failed { stroke: #da3633 !important; stroke-width: 4 !important; }
     .link-failed-pulse { animation: failPulse 1s infinite; }
-    @keyframes failPulse { 0%,100% { stroke-opacity:1; } 50% { stroke-opacity:0.4; } }
+    @keyframes failPulse { 0%,100%{stroke-opacity:1} 50%{stroke-opacity:0.3} }
     .path-overlay { pointer-events: none; stroke-linecap: round; }
-
-    /* Plane boxes */
-    .plane-box { fill: rgba(22,27,34,0.6); stroke: #30363d; stroke-width: 1; rx: 10; ry: 10; }
+    .plane-box { fill: rgba(22,27,34,0.5); stroke: #30363d; stroke-width: 1; rx: 10; }
     .plane-label { font-size: 14px; fill: #8b949e; font-weight: 700; letter-spacing: 1px; }
-
-    /* Failure flash overlay */
-    .failure-flash { fill: rgba(218,54,51,0.15); rx: 10; animation: flashFade 2s ease-out forwards; }
-    @keyframes flashFade { 0% { opacity:1; } 100% { opacity:0; } }
+    .failure-flash { fill: rgba(218,54,51,0.2); rx: 10; animation: flashFade 2s ease-out forwards; }
+    @keyframes flashFade { 0%{opacity:1} 100%{opacity:0} }
 
     /* Tooltip */
-    .sim-tooltip { position: absolute; background: #161b22; color: #e6edf3; border: 1px solid #30363d;
-                   border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; font-family: -apple-system, monospace;
-                   pointer-events: none; z-index: 1000; white-space: pre-line; display: none;
-                   box-shadow: 0 8px 24px rgba(0,0,0,0.5); max-width: 360px; }
-    .sim-tooltip strong { color: #58a6ff; }
-    .sim-tooltip code { color: #79c0ff; font-size: 0.75rem; }
+    .sim-tooltip { position:absolute; background:#161b22; color:#e6edf3; border:1px solid #30363d;
+                   border-radius:8px; padding:10px 14px; font-size:0.78rem; font-family:monospace;
+                   pointer-events:none; z-index:1000; white-space:pre-line; display:none;
+                   box-shadow:0 8px 24px rgba(0,0,0,0.5); max-width:360px; }
+    .sim-tooltip strong { color:#58a6ff; }
+    .sim-tooltip code { color:#79c0ff; }
 
-    /* Zoom controls */
-    .zoom-controls { position: absolute; top: 10px; right: 10px; z-index: 10; }
-    .zoom-controls button { background: #161b22; border: 1px solid #30363d; color: #c9d1d9;
-                            width: 32px; height: 32px; font-size: 1.1rem; cursor: pointer; }
-    .zoom-controls button:hover { background: #1c2129; }
+    .zoom-controls { position:absolute; top:10px; right:10px; z-index:10; display:flex; flex-direction:column; gap:2px; }
+    .zoom-controls button { background:#161b22; border:1px solid #30363d; color:#c9d1d9; width:30px; height:30px; font-size:1rem; cursor:pointer; }
+    .zoom-controls button:hover { background:#1c2129; }
 
-    /* Metrics */
-    .ev-row { font-size: 0.8rem; }
-    .ev-row td { padding: 3px 6px; }
-    .state-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
-    .sim-metric { font-family: 'JetBrains Mono', monospace; font-weight: bold; font-size: 1.1rem; }
-    .sim-log { font-family: monospace; font-size: 0.75rem; max-height: 200px; overflow-y: auto; }
-    .running-indicator { animation: pulse 1s infinite; }
-    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+    /* Bottom panels */
+    .bottom-panels { display: flex; gap: 12px; margin-top: 12px; }
+    .bottom-panels .card { flex: 1; min-width: 0; }
+    .ev-row td { padding: 3px 6px; font-size: 0.78rem; }
+    .state-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; }
+    .sim-log { font-family:monospace; font-size:0.72rem; max-height:180px; overflow-y:auto; }
+    .collapse-btn { font-size:0.8rem; color:#8b949e; cursor:pointer; background:none; border:none; padding:0; }
+    .collapse-btn:hover { color:#e6edf3; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .running-pulse { animation: pulse 1s infinite; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="cv-page-header">Simulation</div>
-<div class="row">
-    <!-- Left: Controls (narrow) -->
-    <div class="col-md-3 col-lg-2">
-        <div class="card mb-2">
-            <div class="card-header d-flex justify-content-between align-items-center">Setup <button class="btn btn-sm btn-link text-muted p-0" onclick="toggleCard(this)">−</button></div>
-            <div class="card-body">
-                <div class="mb-2"><label class="form-label">Collective</label>
-                    <select id="sim-collective" class="form-select form-select-sm">
-                        {% for ct in collective_types %}<option value="{{ ct.value }}">{{ ct.label }}</option>{% endfor %}
-                    </select></div>
-                <div class="mb-2"><label class="form-label">Duration (s)</label>
-                    <input type="number" id="sim-duration" class="form-control form-control-sm" value="30"></div>
-                <div class="mb-2"><label class="form-label">Step Interval (ms)</label>
-                    <input type="number" id="sim-interval" class="form-control form-control-sm" value="500"></div>
-                <div class="mb-2"><label class="form-label">Msg Size</label>
-                    <input type="number" id="sim-msgsize" class="form-control form-control-sm" value="65536"></div>
-                <div class="mb-2"><label class="form-label">Chunk Size</label>
-                    <input type="number" id="sim-chunksize" class="form-control form-control-sm" value="4096"></div>
-                <div class="mb-2"><label class="form-label">Hosts</label>
-                    <div id="sim-hosts">{% for h in hosts %}
-                        <div class="form-check"><input class="form-check-input sim-host-cb" type="checkbox" value="{{ h }}" checked><label class="form-check-label" style="font-size:0.78rem">{{ h }}</label></div>
-                    {% endfor %}</div></div>
-                <button class="btn btn-success btn-sm w-100" id="btn-start" onclick="startSimulation()">Start</button>
-                <button class="btn btn-danger btn-sm w-100 mt-1" id="btn-stop" onclick="stopSimulation()" disabled>Stop</button>
-            </div>
+<div class="cv-page-header d-flex justify-content-between align-items-center">
+    Simulation <span id="run-indicator"></span>
+    <button class="collapse-btn" onclick="document.getElementById('ctrl-bar').style.display = document.getElementById('ctrl-bar').style.display==='none'?'':'none'">Controls ▾</button>
+</div>
+
+<!-- Top: Controls bar (collapsible, horizontal) -->
+<div class="ctrl-bar" id="ctrl-bar">
+    <div class="d-flex flex-wrap align-items-end gap-2">
+        <div class="ctrl-group">
+            <div><label>Collective</label><select id="sim-collective" class="form-select form-select-sm">
+                {% for ct in collective_types %}<option value="{{ ct.value }}">{{ ct.label }}</option>{% endfor %}
+            </select></div>
+            <div><label>Duration (s)</label><input type="number" id="sim-duration" class="form-control form-control-sm" value="30"></div>
+            <div><label>Interval (ms)</label><input type="number" id="sim-interval" class="form-control form-control-sm" value="500"></div>
+            <div><label>Msg Size</label><input type="number" id="sim-msgsize" class="form-control form-control-sm" value="65536"></div>
+            <div><label>Chunk</label><input type="number" id="sim-chunksize" class="form-control form-control-sm" value="4096"></div>
         </div>
-        <div class="card mb-2">
-            <div class="card-header d-flex justify-content-between align-items-center">Inject Failure <button class="btn btn-sm btn-link text-muted p-0" onclick="toggleCard(this)">−</button></div>
-            <div class="card-body">
-                <div class="mb-2"><label class="form-label">Scenario</label>
-                    <select id="fail-scenario" class="form-select form-select-sm">
-                        <option value="">— none —</option>
-                        <option value="single_link">Single Link</option>
-                        <option value="spine_failure">Spine Down</option>
-                        <option value="plane_failure">Plane Down</option>
-                        <option value="partial_degradation">Degradation</option>
-                        <option value="link_flap">Link Flap</option>
-                    </select></div>
-                <div class="mb-2"><label class="form-label">Target EV</label>
-                    <input type="text" id="fail-ev" class="form-control form-control-sm" value="0x0000"></div>
-                <button class="btn btn-warning btn-sm w-100" onclick="injectFailure()">Inject</button>
-                <button class="btn btn-outline-secondary btn-sm w-100 mt-1" onclick="clearFailures()">Clear All</button>
-                <div id="fail-status" class="mt-1" style="font-size:0.75rem;"></div>
-            </div>
+        <div class="ctrl-group">
+            <button class="btn btn-success btn-sm" id="btn-start" onclick="startSimulation()">Start</button>
+            <button class="btn btn-danger btn-sm" id="btn-stop" onclick="stopSimulation()" disabled>Stop</button>
+        </div>
+        <div class="ctrl-group">
+            <div><label>Failure</label><select id="fail-scenario" class="form-select form-select-sm">
+                <option value="">—</option><option value="single_link">Link</option><option value="spine_failure">Spine</option>
+                <option value="plane_failure">Plane</option><option value="partial_degradation">Degrade</option><option value="link_flap">Flap</option>
+            </select></div>
+            <div><label>EV</label><input type="text" id="fail-ev" class="form-control form-control-sm" value="0x0000" style="max-width:90px"></div>
+            <button class="btn btn-warning btn-sm" onclick="injectFailure()">Inject</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="clearFailures()">Clear</button>
+        </div>
+        <div class="ctrl-group">
+            <div><label>Source</label><select id="sim-src" class="form-select form-select-sm">
+                <option value="">—</option>{% for h in hosts %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+            </select></div>
+            <div><label>Destination</label><select id="sim-dst" class="form-select form-select-sm">
+                <option value="">—</option>{% for h in hosts %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+            </select></div>
+            <button class="btn btn-outline-primary btn-sm" onclick="showSimPaths()">Paths</button>
+        </div>
+        <div class="ctrl-group">
+            <label>Hosts</label>
+            {% for h in hosts %}<label class="form-check-label ms-1" style="font-size:0.72rem"><input class="form-check-input sim-host-cb" type="checkbox" value="{{ h }}" checked> {{ h }}</label>{% endfor %}
         </div>
     </div>
+    <div id="fail-status" class="mt-1" style="font-size:0.72rem;"></div>
+</div>
 
-    <!-- Center: Fabric View (large) -->
-    <div class="col-md-6 col-lg-7">
-        <div class="d-flex gap-2 mb-2 align-items-end">
-            <div class="flex-grow-1">
-                <label class="form-label mb-0" style="font-size:0.72rem; color:#8b949e;">Source</label>
-                <select id="sim-src" class="form-select form-select-sm">
-                    <option value="">— click node —</option>
-                    {% for h in hosts %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
-                </select>
-            </div>
-            <div class="flex-grow-1">
-                <label class="form-label mb-0" style="font-size:0.72rem; color:#8b949e;">Destination</label>
-                <select id="sim-dst" class="form-select form-select-sm">
-                    <option value="">— click node —</option>
-                    {% for h in hosts %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
-                </select>
-            </div>
-            <button class="btn btn-sm btn-outline-primary" onclick="showSimPaths()">Paths</button>
+<!-- Metrics bar -->
+<div class="metrics-bar" id="metrics-bar">
+    <div class="metric-item"><small>CWND</small><div class="metric-val" id="m-cwnd">—</div></div>
+    <div class="metric-item"><small>Inflight</small><div class="metric-val" id="m-inflight">—</div></div>
+    <div class="metric-item"><small>Packets</small><div class="metric-val" id="m-packets">0</div></div>
+    <div class="metric-item"><small>Dropped</small><div class="metric-val danger" id="m-dropped">0</div></div>
+    <div class="metric-item"><small>ECN</small><div class="metric-val warning" id="m-ecn">0</div></div>
+    <div class="metric-item"><small>Trimmed</small><div class="metric-val" id="m-trimmed">0</div></div>
+    <div class="metric-item"><small>RTT (us)</small><div class="metric-val" id="m-rtt">—</div></div>
+    <div class="metric-item"><small>Step</small><div class="metric-val" id="m-step">0/0</div></div>
+    <div class="metric-item"><small>EV State</small><div id="m-ev-summary" style="font-size:0.78rem;">—</div></div>
+</div>
+
+<!-- Topology view — full width -->
+<div id="sim-svg-container">
+    <div class="zoom-controls">
+        <button onclick="simZoom(1.2)" title="Zoom in">+</button>
+        <button onclick="simZoom(0.8)" title="Zoom out">−</button>
+        <button onclick="simZoomReset()" title="Reset">⟲</button>
+    </div>
+</div>
+<div id="sim-tip" class="sim-tooltip"></div>
+
+<!-- Bottom panels: EV table + Event log -->
+<div class="bottom-panels">
+    <div class="card" style="flex:2;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            EV Path State <button class="collapse-btn" onclick="togglePanel(this)">−</button>
         </div>
-        <div id="sim-svg-container">
-            <div class="zoom-controls">
-                <button onclick="simZoom(1.2)" title="Zoom in">+</button>
-                <button onclick="simZoom(0.8)" title="Zoom out">−</button>
-                <button onclick="simZoomReset()" title="Reset">⟲</button>
-            </div>
-        </div>
-        <div id="sim-tip" class="sim-tooltip"></div>
-        <div class="card mt-2">
-            <div class="card-header d-flex justify-content-between align-items-center">EV Path State <button class="btn btn-sm btn-link text-muted p-0" onclick="toggleCard(this)">−</button></div>
-            <div class="card-body p-0" style="max-height:200px; overflow-y:auto;">
-                <table class="table table-sm mb-0">
-                    <thead><tr><th>EV</th><th>State</th><th>Plane</th><th>Spine</th><th>SRv6 Path</th><th>RTT</th></tr></thead>
-                    <tbody id="ev-table-body"><tr><td colspan="6" class="text-muted text-center">Select hosts to show paths</td></tr></tbody>
-                </table>
-            </div>
+        <div class="card-body p-0" style="max-height:220px; overflow-y:auto;">
+            <table class="table table-sm mb-0">
+                <thead><tr><th>EV</th><th>State</th><th>Plane</th><th>Spine</th><th>SRv6 Path</th><th>RTT</th></tr></thead>
+                <tbody id="ev-table-body"><tr><td colspan="6" class="text-muted text-center">Select hosts to show paths</td></tr></tbody>
+            </table>
         </div>
     </div>
-
-    <!-- Right: Metrics -->
-    <div class="col-md-3 col-lg-3">
-        <div class="card mb-2">
-            <div class="card-header d-flex justify-content-between align-items-center">Metrics <span id="run-indicator"></span> <button class="btn btn-sm btn-link text-muted p-0" onclick="toggleCard(this)">−</button></div>
-            <div class="card-body">
-                <div class="row text-center mb-2">
-                    <div class="col-6"><small class="text-muted">CWND</small><div class="sim-metric" id="m-cwnd">—</div></div>
-                    <div class="col-6"><small class="text-muted">Inflight</small><div class="sim-metric" id="m-inflight">—</div></div>
-                </div>
-                <div class="row text-center mb-2">
-                    <div class="col-6"><small class="text-muted">Packets</small><div class="sim-metric" id="m-packets">0</div></div>
-                    <div class="col-6"><small class="text-muted">Dropped</small><div class="sim-metric text-danger" id="m-dropped">0</div></div>
-                </div>
-                <div class="row text-center mb-2">
-                    <div class="col-6"><small class="text-muted">ECN</small><div class="sim-metric text-warning" id="m-ecn">0</div></div>
-                    <div class="col-6"><small class="text-muted">Trimmed</small><div class="sim-metric" id="m-trimmed">0</div></div>
-                </div>
-                <div class="row text-center mb-2">
-                    <div class="col-6"><small class="text-muted">RTT (us)</small><div class="sim-metric" id="m-rtt">—</div></div>
-                    <div class="col-6"><small class="text-muted">Step</small><div class="sim-metric" id="m-step">0/0</div></div>
-                </div>
-                <hr>
-                <small class="text-muted">EV Summary</small>
-                <div id="m-ev-summary" style="font-size:0.85rem;">—</div>
-            </div>
+    <div class="card" style="flex:1;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            Event Log <button class="collapse-btn" onclick="togglePanel(this)">−</button>
         </div>
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">Event Log <button class="btn btn-sm btn-link text-muted p-0" onclick="toggleCard(this)">−</button></div>
-            <div class="card-body p-2"><div class="sim-log" id="event-log"></div></div>
-        </div>
+        <div class="card-body p-2"><div class="sim-log" id="event-log"></div></div>
     </div>
 </div>
 {% endblock %}
 {% block extra_js %}
 <script>
 (function() {
-    // Colors
     const C = {
-        spine: '#1c2d5e', spine_stripe: '#3b82f6', spine_text: '#93c5fd',
-        leaf: '#14332a', leaf_stripe: '#22c55e', leaf_text: '#86efac',
-        host: '#143040', host_stripe: '#06b6d4', host_text: '#67e8f9',
-        link: '#30363d', failed: '#da3633',
-        GOOD: '#238636', SKIP: '#d29922', DENIED: '#484f58', ASSUMED_BAD: '#da3633',
+        spine:'#1c2d5e', spine_stripe:'#3b82f6', spine_text:'#93c5fd',
+        leaf:'#14332a', leaf_stripe:'#22c55e', leaf_text:'#86efac',
+        host:'#143040', host_stripe:'#06b6d4', host_text:'#67e8f9',
+        link:'#30363d', failed:'#da3633',
+        GOOD:'#238636', SKIP:'#d29922', DENIED:'#484f58', ASSUMED_BAD:'#da3633',
     };
     const TILE_W = 140, TILE_H = 56;
-
     let topoData = null, nodePos = {}, simTimer = null, stepCount = 0, totalSteps = 0;
     let failedLinks = {}, highlightedPaths = [], pathStates = [];
     let selectedSrc = '', selectedDst = '';
     let zoomLevel = 1, panX = 0, panY = 0, isPanning = false, panStartX = 0, panStartY = 0;
-    let svgBaseW = 1800, svgBaseH = 700;
 
     function stateColor(s) { return C[s] || '#484f58'; }
 
-    // ── Init ──
+    // Panel collapse
+    window.togglePanel = function(btn) {
+        const body = btn.closest('.card').querySelector('.card-body');
+        if (body.style.display === 'none') { body.style.display = ''; btn.textContent = '−'; }
+        else { body.style.display = 'none'; btn.textContent = '+'; }
+    };
+
+    // Init
     async function init() {
         {% if topo %}
         topoData = {{ topo | tojson }};
         {% else %}
-        try {
-            topoData = await apiCall('/api/topology/generate', 'POST', {
-                num_planes:2, leafs_per_plane:4, spines_per_plane:2, hosts_per_leaf:1,
-                ipv6_base:'fd00::/32', srv6_base:'fcbb::/32'});
-        } catch(e) { topoData = {nodes:[], links:[], paths:{}}; }
+        try { topoData = await apiCall('/api/topology/generate', 'POST', {
+            num_planes:2, leafs_per_plane:4, spines_per_plane:2, hosts_per_leaf:1,
+            ipv6_base:'fd00::/32', srv6_base:'fcbb::/32'}); } catch(e) { topoData = {nodes:[],links:[],paths:{}}; }
         {% endif %}
+        // Ensure hosts are multi-plane: mark any single-plane host as plane=-1
+        ensureMultiPlaneHosts();
         renderFabric();
         setupZoomPan();
     }
 
-    // ── Zoom & Pan ──
+    function ensureMultiPlaneHosts() {
+        if (!topoData || !topoData.nodes) return;
+        topoData.nodes.forEach(n => {
+            if (n.role !== 'host') return;
+            const planes = new Set();
+            topoData.links.forEach(l => {
+                if (l.node_a === n.name || l.node_b === n.name) {
+                    const other = l.node_a === n.name ? l.node_b : l.node_a;
+                    const otherNode = topoData.nodes.find(x => x.name === other);
+                    if (otherNode && otherNode.plane != null && otherNode.plane >= 0) planes.add(otherNode.plane);
+                }
+            });
+            if (planes.size > 1) n.plane = -1;
+        });
+    }
+
+    // Zoom & Pan
     function setupZoomPan() {
-        const container = document.getElementById('sim-svg-container');
-        container.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            simZoom(e.deltaY < 0 ? 1.1 : 0.9);
-        }, {passive: false});
-        container.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.cv-tile') || e.target.closest('.topo-link')) return;
-            isPanning = true; panStartX = e.clientX - panX; panStartY = e.clientY - panY;
-            container.classList.add('grabbing');
+        const c = document.getElementById('sim-svg-container');
+        c.addEventListener('wheel', e => { e.preventDefault(); simZoom(e.deltaY < 0 ? 1.1 : 0.9); }, {passive:false});
+        c.addEventListener('mousedown', e => {
+            if (e.target.closest('.cv-tile') || e.target.closest('.topo-link') || e.target.closest('.zoom-controls')) return;
+            isPanning = true; panStartX = e.clientX - panX; panStartY = e.clientY - panY; c.classList.add('grabbing');
         });
-        window.addEventListener('mousemove', (e) => {
-            if (!isPanning) return;
-            panX = e.clientX - panStartX; panY = e.clientY - panStartY;
-            applyTransform();
-        });
-        window.addEventListener('mouseup', () => {
-            isPanning = false;
-            document.getElementById('sim-svg-container').classList.remove('grabbing');
-        });
+        window.addEventListener('mousemove', e => { if (!isPanning) return; panX = e.clientX - panStartX; panY = e.clientY - panStartY; applyTransform(); });
+        window.addEventListener('mouseup', () => { isPanning = false; document.getElementById('sim-svg-container').classList.remove('grabbing'); });
     }
-
-    function applyTransform() {
-        const g = document.getElementById('sg-root');
-        if (g) g.setAttribute('transform', `translate(${panX},${panY}) scale(${zoomLevel})`);
-    }
-
-    window.simZoom = function(factor) {
-        zoomLevel = Math.max(0.3, Math.min(3, zoomLevel * factor));
-        applyTransform();
-    };
+    function applyTransform() { const g = document.getElementById('sg-root'); if (g) g.setAttribute('transform', `translate(${panX},${panY}) scale(${zoomLevel})`); }
+    window.simZoom = function(f) { zoomLevel = Math.max(0.3, Math.min(3, zoomLevel * f)); applyTransform(); };
     window.simZoomReset = function() { zoomLevel = 1; panX = 0; panY = 0; applyTransform(); };
 
-    // ── Render ──
+    // Render fabric
     function renderFabric() {
         if (!topoData || !topoData.nodes) return;
         const container = document.getElementById('sim-svg-container');
         const planeNodes = {};
         const multiHosts = [];
-
         topoData.nodes.forEach(n => {
             const p = n.plane != null ? n.plane : -1;
             if (n.role === 'host' && p < 0) { multiHosts.push(n); return; }
@@ -270,51 +246,32 @@
             else planeNodes[p].hosts.push(n);
         });
 
-        // Detect multi-plane hosts
-        topoData.nodes.filter(n => n.role === 'host' && n.plane >= 0).forEach(h => {
-            const planes = new Set();
-            topoData.links.forEach(l => {
-                if (l.node_a === h.name || l.node_b === h.name) {
-                    const other = l.node_a === h.name ? l.node_b : l.node_a;
-                    const on = topoData.nodes.find(x => x.name === other);
-                    if (on && on.plane != null) planes.add(on.plane);
-                }
-            });
-            if (planes.size > 1 && !multiHosts.find(m => m.name === h.name)) {
-                multiHosts.push(h);
-                Object.values(planeNodes).forEach(pn => { pn.hosts = pn.hosts.filter(x => x.name !== h.name); });
-            }
-        });
-
         const planeIds = Object.keys(planeNodes).map(Number).sort();
-        const PW = 860, PH = 520, GAP = 60, PAD = 40;
+        const PW = 900, PH = 400, GAP = 80, PAD = 40;
         const numPlanes = planeIds.length || 1;
-        svgBaseW = numPlanes * PW + (numPlanes-1)*GAP + 2*PAD;
-        const hostRowH = multiHosts.length > 0 ? 110 : 0;
-        svgBaseH = PH + 2*PAD + hostRowH;
+        const totalW = numPlanes * PW + (numPlanes-1)*GAP + 2*PAD;
+        const hostRowH = multiHosts.length > 0 ? 120 : 0;
+        const totalH = PH + 2*PAD + hostRowH;
         nodePos = {};
 
-        let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 ${svgBaseW} ${svgBaseH}"><g id="sg-root">`;
+        let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 ${totalW} ${totalH}"><g id="sg-root">`;
 
         planeIds.forEach((pid, pi) => {
             const px = PAD + pi*(PW+GAP), py = PAD;
             const pn = planeNodes[pid];
-            svg += `<rect class="plane-box" x="${px}" y="${py}" width="${PW}" height="${PH}" fill="rgba(22,27,34,0.5)"/>`;
+            svg += `<rect class="plane-box" x="${px}" y="${py}" width="${PW}" height="${PH}"/>`;
             svg += `<text class="plane-label" x="${px+PW/2}" y="${py+24}" text-anchor="middle">PLANE ${pid}</text>`;
-
-            function row(list, yOff) {
-                if (!list.length) return;
-                const sp = PW / (list.length+1);
-                list.forEach((n,i) => { nodePos[n.name] = {x: px+sp*(i+1), y: py+yOff}; });
-            }
-            row(pn.spines, 90);
+            function row(list, yOff) { if (!list.length) return; const sp = PW/(list.length+1);
+                list.forEach((n,i) => { nodePos[n.name] = {x:px+sp*(i+1), y:py+yOff}; }); }
+            row(pn.spines, 100);
             row(pn.leafs, 280);
-            row(pn.hosts, 440);
+            row(pn.hosts, 360);
         });
 
+        // Multi-plane hosts below fabric, centered
         if (multiHosts.length > 0) {
-            const hy = PAD + PH + 60;
-            const sp = svgBaseW / (multiHosts.length+1);
+            const hy = PAD + PH + 70;
+            const sp = totalW / (multiHosts.length+1);
             multiHosts.forEach((h,i) => { nodePos[h.name] = {x:sp*(i+1), y:hy}; });
         }
 
@@ -331,102 +288,74 @@
         });
         svg += '</g><g id="sg-paths"></g><g id="sg-nodes">';
 
-        // CloudVision tile nodes
+        // CloudVision tiles
         for (const [name, pos] of Object.entries(nodePos)) {
             const node = topoData.nodes.find(n => n.name === name);
             if (!node) continue;
             const role = node.role;
-            const bg = role === 'spine' ? C.spine : role === 'leaf' ? C.leaf : C.host;
-            const stripe = role === 'spine' ? C.spine_stripe : role === 'leaf' ? C.leaf_stripe : C.host_stripe;
-            const txtColor = role === 'spine' ? C.spine_text : role === 'leaf' ? C.leaf_text : C.host_text;
-            const rx = pos.x - TILE_W/2, ry = pos.y - TILE_H/2;
-            const isSelected = (name === selectedSrc || name === selectedDst);
-            const selClass = isSelected ? ' cv-selected' : '';
-            const usidStr = node.usid != null ? '0x'+('0000'+node.usid.toString(16).toUpperCase()).slice(-4) : '';
-            const tipData = encodeURIComponent(JSON.stringify({
-                name:node.name, role, plane:node.plane,
-                loopback_ipv6:node.loopback_ipv6||'-', srv6_locator:node.srv6_locator||'-',
-                usid:usidStr||'-', interfaces:node.interfaces||{}
-            }));
-
-            // Status dot color
-            const failed = Object.keys(failedLinks).some(k => k.includes(name));
-            const dotColor = failed ? C.failed : C.GOOD;
+            const bg = role==='spine'?C.spine:role==='leaf'?C.leaf:C.host;
+            const stripe = role==='spine'?C.spine_stripe:role==='leaf'?C.leaf_stripe:C.host_stripe;
+            const txt = role==='spine'?C.spine_text:role==='leaf'?C.leaf_text:C.host_text;
+            const rx = pos.x-TILE_W/2, ry = pos.y-TILE_H/2;
+            const sel = (name===selectedSrc||name===selectedDst) ? ' cv-selected' : '';
+            const usid = node.usid!=null ? '0x'+('0000'+node.usid.toString(16).toUpperCase()).slice(-4) : '';
+            const tipData = encodeURIComponent(JSON.stringify({name, role, plane:node.plane, loopback_ipv6:node.loopback_ipv6||'-', srv6_locator:node.srv6_locator||'-', usid:usid||'-', interfaces:node.interfaces||{}}));
+            const hasFail = Object.keys(failedLinks).some(k => k.includes(name));
+            const dot = hasFail ? C.failed : C.GOOD;
 
             svg += `<g class="cv-tile" onclick="simViz.selectHost('${name}','${role}')" onmouseenter="simViz.showTip(event,this.querySelector('.cv-tile-bg'),'node')" onmouseleave="simViz.hideTip()">`;
-            // Background
-            svg += `<rect class="cv-tile-bg${selClass}" x="${rx}" y="${ry}" width="${TILE_W}" height="${TILE_H}" fill="${bg}" stroke="${stripe}" stroke-width="1.5" data-tip="${tipData}"/>`;
-            // Left stripe
-            svg += `<rect class="cv-tile-stripe" x="${rx}" y="${ry}" width="5" height="${TILE_H}" fill="${stripe}"/>`;
-            // Status dot
-            svg += `<circle class="cv-status-dot" cx="${rx+TILE_W-12}" cy="${ry+12}" r="4" fill="${dotColor}"/>`;
-            // Name
-            svg += `<text class="cv-tile-name" x="${rx+14}" y="${ry+20}" fill="${txtColor}" text-anchor="start">${name}</text>`;
-            // Role
-            const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
-            svg += `<text class="cv-tile-role" x="${rx+14}" y="${ry+33}" text-anchor="start">${roleLabel}</text>`;
-            // uSID
-            if (usidStr) svg += `<text class="cv-tile-usid" x="${rx+14}" y="${ry+45}" text-anchor="start">${usidStr}</text>`;
+            svg += `<rect class="cv-tile-bg${sel}" x="${rx}" y="${ry}" width="${TILE_W}" height="${TILE_H}" fill="${bg}" stroke="${stripe}" stroke-width="1.5" data-tip="${tipData}"/>`;
+            svg += `<rect x="${rx}" y="${ry}" width="5" height="${TILE_H}" fill="${stripe}" rx="6"/>`;
+            svg += `<circle cx="${rx+TILE_W-12}" cy="${ry+12}" r="4.5" fill="${dot}"/>`;
+            svg += `<text class="cv-tile-name" x="${rx+14}" y="${ry+18}" fill="${txt}">${name}</text>`;
+            svg += `<text class="cv-tile-role" x="${rx+14}" y="${ry+31}">${role.charAt(0).toUpperCase()+role.slice(1)}</text>`;
+            if (usid) svg += `<text class="cv-tile-usid" x="${rx+14}" y="${ry+44}">${usid}</text>`;
             svg += '</g>';
         }
-        svg += '</g>';
+        svg += '</g><g id="sg-failure-flash"></g></g></svg>';
 
-        // Failure flash overlay group
-        svg += '<g id="sg-failure-flash"></g>';
-        svg += '</g></svg>';
-        container.querySelector('svg')?.remove();
+        const existingSvg = container.querySelector('svg');
+        if (existingSvg) existingSvg.remove();
         container.insertAdjacentHTML('afterbegin', svg);
     }
 
-    // ── Failure flash on topology ──
-    function flashFailure(nodeNames) {
-        const g = document.getElementById('sg-failure-flash');
-        if (!g) return;
-        nodeNames.forEach(name => {
-            const pos = nodePos[name];
-            if (!pos) return;
-            const rx = pos.x - TILE_W/2 - 10, ry = pos.y - TILE_H/2 - 10;
-            const flash = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            flash.setAttribute('class', 'failure-flash');
-            flash.setAttribute('x', rx); flash.setAttribute('y', ry);
-            flash.setAttribute('width', TILE_W + 20); flash.setAttribute('height', TILE_H + 20);
-            g.appendChild(flash);
-            setTimeout(() => flash.remove(), 2000);
-        });
+    function flashFailure(names) {
+        const g = document.getElementById('sg-failure-flash'); if (!g) return;
+        names.forEach(n => { const p = nodePos[n]; if (!p) return;
+            const el = document.createElementNS('http://www.w3.org/2000/svg','rect');
+            el.setAttribute('class','failure-flash');
+            el.setAttribute('x',p.x-TILE_W/2-8); el.setAttribute('y',p.y-TILE_H/2-8);
+            el.setAttribute('width',TILE_W+16); el.setAttribute('height',TILE_H+16);
+            g.appendChild(el); setTimeout(()=>el.remove(),2000); });
     }
 
-    // ── Path overlays ──
     function drawPaths() {
-        const g = document.getElementById('sg-paths');
-        if (!g) return;
-        g.innerHTML = '';
+        const g = document.getElementById('sg-paths'); if (!g) return; g.innerHTML = '';
         highlightedPaths.forEach((path, idx) => {
-            const hops = path.hops;
-            if (!hops || hops.length < 2) return;
+            const hops = path.hops; if (!hops || hops.length < 2) return;
             let color = C.GOOD;
-            const ps = pathStates.find(s => s.ev_value_int === path.ev_value ||
-                s.ev_value === '0x'+('00000000'+path.ev_value.toString(16)).slice(-8));
+            const ps = pathStates.find(s => s.ev_value_int===path.ev_value || s.ev_value==='0x'+('00000000'+path.ev_value.toString(16)).slice(-8));
             if (ps) color = stateColor(ps.state);
-            const offset = (idx - (highlightedPaths.length-1)/2) * 5;
+            const offset = (idx-(highlightedPaths.length-1)/2)*5;
             for (let i = 0; i < hops.length-1; i++) {
-                const pa = nodePos[hops[i]], pb = nodePos[hops[i+1]];
-                if (!pa || !pb) continue;
-                const dx = pb.x-pa.x, dy = pb.y-pa.y, len = Math.sqrt(dx*dx+dy*dy)||1;
-                const nx = -dy/len*offset, ny = dx/len*offset;
-                g.innerHTML += `<line class="path-overlay" x1="${pa.x+nx}" y1="${pa.y+ny}" x2="${pb.x+nx}" y2="${pb.y+ny}" stroke="${color}" stroke-width="5" stroke-opacity="0.8"/>`;
+                const pa = nodePos[hops[i]], pb = nodePos[hops[i+1]]; if (!pa||!pb) continue;
+                const dx=pb.x-pa.x, dy=pb.y-pa.y, len=Math.sqrt(dx*dx+dy*dy)||1;
+                const nx=-dy/len*offset, ny=dx/len*offset;
+                g.innerHTML += `<line class="path-overlay" x1="${pa.x+nx}" y1="${pa.y+ny}" x2="${pb.x+nx}" y2="${pb.y+ny}" stroke="${color}" stroke-width="5" stroke-opacity="0.85"/>`;
             }
         });
     }
 
     function updateEVTable() {
         const tbody = document.getElementById('ev-table-body');
-        if (!highlightedPaths.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-muted text-center">Select hosts to show paths</td></tr>'; return; }
+        if (!highlightedPaths.length) { tbody.innerHTML='<tr><td colspan="6" class="text-muted text-center">Select src → dst hosts to show paths</td></tr>'; return; }
         let html = '';
         highlightedPaths.forEach(p => {
-            const ps = pathStates.find(s => s.ev_value_int === p.ev_value);
+            const ps = pathStates.find(s => s.ev_value_int===p.ev_value);
             const state = ps ? ps.state : 'GOOD';
             const rtt = ps ? ps.rtt_us.toFixed(1) : '-';
-            html += `<tr class="ev-row"><td><code>0x${('00000000'+p.ev_value.toString(16).toUpperCase()).slice(-8)}</code></td>` +
+            const evHex = '0x'+('00000000'+p.ev_value.toString(16).toUpperCase()).slice(-8);
+            html += `<tr class="ev-row"><td><code>${evHex}</code></td>` +
                 `<td><span class="state-dot" style="background:${stateColor(state)}"></span>${state}</td>` +
                 `<td>${p.plane}</td><td>${p.spine_index}</td>` +
                 `<td><code style="font-size:0.7rem">${p.srv6_address||'-'}</code></td>` +
@@ -435,275 +364,156 @@
         tbody.innerHTML = html;
     }
 
-    // ── Host selection ──
+    // Host selection
     function selectHost(name, role) {
         if (role !== 'host') return;
-        if (!selectedSrc) {
-            selectedSrc = name;
-            document.getElementById('sim-src').value = name;
-        } else if (!selectedDst && selectedSrc !== name) {
-            selectedDst = name;
-            document.getElementById('sim-dst').value = name;
-            showSimPaths();
-        } else {
-            selectedSrc = name; selectedDst = '';
-            document.getElementById('sim-src').value = name;
-            document.getElementById('sim-dst').value = '';
-            highlightedPaths = []; drawPaths(); updateEVTable();
-        }
+        if (!selectedSrc) { selectedSrc = name; document.getElementById('sim-src').value = name; }
+        else if (!selectedDst && selectedSrc !== name) { selectedDst = name; document.getElementById('sim-dst').value = name; showSimPaths(); }
+        else { selectedSrc = name; selectedDst = ''; document.getElementById('sim-src').value = name; document.getElementById('sim-dst').value = ''; highlightedPaths=[]; drawPaths(); updateEVTable(); }
         renderFabric(); drawPaths();
     }
 
     window.showSimPaths = async function() {
         selectedSrc = document.getElementById('sim-src').value;
         selectedDst = document.getElementById('sim-dst').value;
-        if (!selectedSrc || !selectedDst || selectedSrc === selectedDst) {
-            highlightedPaths = []; drawPaths(); updateEVTable(); renderFabric(); return;
-        }
+        if (!selectedSrc||!selectedDst||selectedSrc===selectedDst) { highlightedPaths=[]; drawPaths(); updateEVTable(); renderFabric(); return; }
         highlightedPaths = [];
         const key = `${selectedSrc}->${selectedDst}`;
         if (topoData.paths && topoData.paths[key]) highlightedPaths = topoData.paths[key];
-        try {
-            const r = await apiCall(`/api/topology/paths/${encodeURIComponent(selectedSrc)}`);
-            if (r && Array.isArray(r)) {
-                const m = r.filter(p => p.dest_host === selectedDst);
-                if (m.length > 0) highlightedPaths = m;
-            }
+        try { const r = await apiCall(`/api/topology/paths/${encodeURIComponent(selectedSrc)}`);
+            if (r && Array.isArray(r)) { const m=r.filter(p=>p.dest_host===selectedDst); if (m.length>0) highlightedPaths=m; }
         } catch(e) {}
-        await refreshPaths();
+        // Initialize pathStates for the highlighted paths
+        pathStates = highlightedPaths.map(p => ({
+            ev_value: '0x'+('00000000'+p.ev_value.toString(16)).slice(-8),
+            ev_value_int: p.ev_value, state: 'GOOD', rtt_us: 100+Math.random()*30,
+            ecn_rate:0, loss_rate:0, sack_count:0, nack_count:0, probe_count:0
+        }));
+        try { const r = await apiCall('/api/pathstate'); if (r&&r.paths) pathStates = r.paths; } catch(e) {}
         renderFabric(); drawPaths(); updateEVTable();
     };
 
-    // ── Tooltips ──
+    // Tooltips
     window.simViz = {
         selectHost,
         showTip(event, el, type) {
             const tip = document.getElementById('sim-tip');
             const data = JSON.parse(decodeURIComponent(el.getAttribute('data-tip')));
             let html = '';
-            if (type === 'node') {
-                html = `<strong>${data.name}</strong>\n`;
-                html += `Role: ${data.role}  |  Plane: ${data.plane}\n`;
-                html += `Loopback: <code>${data.loopback_ipv6}</code>\n`;
-                html += `SRv6: <code>${data.srv6_locator}</code>\n`;
-                html += `uSID: <code>${data.usid}</code>`;
-                if (data.interfaces && Object.keys(data.interfaces).length > 0) {
-                    html += '\n\nInterfaces:';
-                    for (const [iface, addr] of Object.entries(data.interfaces))
-                        html += `\n  ${iface}: <code>${addr}</code>`;
-                }
+            if (type==='node') {
+                html = `<strong>${data.name}</strong>\nRole: ${data.role}  |  Plane: ${data.plane}\nLoopback: <code>${data.loopback_ipv6}</code>\nSRv6: <code>${data.srv6_locator}</code>\nuSID: <code>${data.usid}</code>`;
+                if (data.interfaces && Object.keys(data.interfaces).length>0) { html+='\n\nInterfaces:'; for (const [k,v] of Object.entries(data.interfaces)) html+=`\n  ${k}: <code>${v}</code>`; }
             } else {
-                html = `<strong>${data.node_a} ↔ ${data.node_b}</strong>\n\n`;
-                html += `${data.node_a}:\n  ${data.iface_a}: <code>${data.addr_a}</code>\n\n`;
-                html += `${data.node_b}:\n  ${data.iface_b}: <code>${data.addr_b}</code>`;
+                html = `<strong>${data.node_a} ↔ ${data.node_b}</strong>\n\n${data.node_a}:\n  ${data.iface_a}: <code>${data.addr_a}</code>\n\n${data.node_b}:\n  ${data.iface_b}: <code>${data.addr_b}</code>`;
             }
-            tip.innerHTML = html; tip.style.display = 'block';
-            tip.style.left = (event.pageX+15)+'px'; tip.style.top = (event.pageY-10)+'px';
+            tip.innerHTML=html; tip.style.display='block'; tip.style.left=(event.pageX+15)+'px'; tip.style.top=(event.pageY-10)+'px';
         },
-        hideTip() { document.getElementById('sim-tip').style.display = 'none'; },
+        hideTip() { document.getElementById('sim-tip').style.display='none'; },
         toggleLink(el) {
             const key = el.getAttribute('data-key');
-            if (failedLinks[key]) { delete failedLinks[key]; }
-            else {
-                failedLinks[key] = true;
-                // Flash the affected nodes
-                const parts = key.split('||');
-                flashFailure(parts);
-            }
+            if (failedLinks[key]) { delete failedLinks[key]; } else { failedLinks[key]=true; flashFailure(key.split('||')); }
             renderFabric(); drawPaths();
         },
     };
 
-    function log(msg) {
-        const el = document.getElementById('event-log');
-        const ts = new Date().toLocaleTimeString();
-        el.innerHTML = `<div>[${ts}] ${msg}</div>` + el.innerHTML;
-        if (el.children.length > 200) el.removeChild(el.lastChild);
-    }
+    function log(msg) { const el=document.getElementById('event-log'); const ts=new Date().toLocaleTimeString();
+        el.innerHTML=`<div>[${ts}] ${msg}</div>`+el.innerHTML; if (el.children.length>200) el.removeChild(el.lastChild); }
 
-    // ── Simulation ──
+    // Simulation
     window.startSimulation = async function() {
-        const hosts = [];
-        document.querySelectorAll('.sim-host-cb:checked').forEach(cb => hosts.push(cb.value));
-        if (hosts.length < 2) { alert('Need at least 2 hosts'); return; }
-
+        const hosts=[]; document.querySelectorAll('.sim-host-cb:checked').forEach(cb=>hosts.push(cb.value));
+        if (hosts.length<2) { alert('Need 2+ hosts'); return; }
         const r = await apiCall('/api/traffic/generate', 'POST', {
-            collective_type: document.getElementById('sim-collective').value,
-            hosts, message_size: parseInt(document.getElementById('sim-msgsize').value),
-            chunk_size: parseInt(document.getElementById('sim-chunksize').value),
-        });
-        totalSteps = r.num_steps || 0; stepCount = 0;
-
-        // Auto-select first→last host paths
-        if (!selectedSrc && hosts.length >= 2) {
-            document.getElementById('sim-src').value = hosts[0];
-            document.getElementById('sim-dst').value = hosts[hosts.length-1];
-            await showSimPaths();
-        }
-
-        document.getElementById('btn-start').disabled = true;
-        document.getElementById('btn-stop').disabled = false;
-        document.getElementById('run-indicator').innerHTML = '<span class="badge bg-success running-indicator ms-2">RUNNING</span>';
-        log(`Started: ${r.collective_type || 'collective'}, ${totalSteps} steps, ${hosts.length} hosts`);
-
-        const interval = parseInt(document.getElementById('sim-interval').value) || 500;
-        const duration = parseInt(document.getElementById('sim-duration').value) || 30;
-        const endTime = Date.now() + duration * 1000;
-
-        simTimer = setInterval(async () => {
-            if (Date.now() > endTime) { stopSimulation(); return; }
+            collective_type:document.getElementById('sim-collective').value, hosts,
+            message_size:parseInt(document.getElementById('sim-msgsize').value),
+            chunk_size:parseInt(document.getElementById('sim-chunksize').value)});
+        totalSteps=r.num_steps||0; stepCount=0;
+        if (!selectedSrc && hosts.length>=2) { document.getElementById('sim-src').value=hosts[0]; document.getElementById('sim-dst').value=hosts[hosts.length-1]; await showSimPaths(); }
+        document.getElementById('btn-start').disabled=true; document.getElementById('btn-stop').disabled=false;
+        document.getElementById('run-indicator').innerHTML='<span class="badge bg-success running-pulse ms-2">RUNNING</span>';
+        log(`Started: ${totalSteps} steps, ${hosts.length} hosts`);
+        const interval=parseInt(document.getElementById('sim-interval').value)||500;
+        const duration=parseInt(document.getElementById('sim-duration').value)||30;
+        const endTime=Date.now()+duration*1000;
+        simTimer=setInterval(async()=>{
+            if (Date.now()>endTime) { stopSimulation(); return; }
             try {
-                const sr = await apiCall('/api/traffic/simulate_step', 'POST');
-                if (sr.error || sr.completed) {
-                    await apiCall('/api/traffic/simulation_reset', 'POST');
-                    stepCount = 0; return;
+                const sr=await apiCall('/api/traffic/simulate_step','POST');
+                if (sr.error||sr.completed) { await apiCall('/api/traffic/simulation_reset','POST'); stepCount=0; return; }
+                stepCount++; updateMetrics(sr.state, sr.step_result);
+                // Update path states from simulation state
+                if (sr.state && sr.state.ev_state_summary) {
+                    pathStates.forEach(ps => {
+                        // Check if this EV was affected
+                        const flowResults = sr.step_result?.flows || [];
+                        flowResults.forEach(f => {
+                            if (f.ev_value === ps.ev_value_int) { ps.state = f.ev_state_after || ps.state; ps.rtt_us = f.rtt_us || ps.rtt_us; }
+                        });
+                    });
                 }
-                stepCount++;
-                updateMetrics(sr.state, sr.step_result);
-                await refreshPaths();
+                try { const pr=await apiCall('/api/pathstate'); if(pr&&pr.paths) pathStates=pr.paths; } catch(e){}
                 drawPaths(); updateEVTable();
-            } catch(e) { log('Error: ' + e.message); }
+            } catch(e) { log('Error: '+e.message); }
         }, interval);
     };
 
     window.stopSimulation = function() {
-        if (simTimer) { clearInterval(simTimer); simTimer = null; }
-        document.getElementById('btn-start').disabled = false;
-        document.getElementById('btn-stop').disabled = true;
-        document.getElementById('run-indicator').innerHTML = '<span class="badge bg-secondary ms-2">STOPPED</span>';
+        if (simTimer) { clearInterval(simTimer); simTimer=null; }
+        document.getElementById('btn-start').disabled=false; document.getElementById('btn-stop').disabled=true;
+        document.getElementById('run-indicator').innerHTML='<span class="badge bg-secondary ms-2">STOPPED</span>';
         log('Stopped');
     };
 
     function updateMetrics(state, step) {
         if (state) {
-            document.getElementById('m-cwnd').textContent = state.cwnd || '—';
-            document.getElementById('m-inflight').textContent = state.inflight || '—';
-            document.getElementById('m-rtt').textContent = state.rtt_estimate ? state.rtt_estimate.toFixed(1) : '—';
-            document.getElementById('m-packets').textContent = state.total_packets || 0;
-            document.getElementById('m-dropped').textContent = state.total_dropped || 0;
-            document.getElementById('m-ecn').textContent = state.total_ecn || 0;
-            document.getElementById('m-trimmed').textContent = state.total_trimmed || 0;
-            if (state.ev_state_summary) {
-                const s = state.ev_state_summary;
-                document.getElementById('m-ev-summary').innerHTML =
-                    `<span style="color:${C.GOOD}">GOOD:${s.GOOD||0}</span> ` +
-                    `<span style="color:${C.SKIP}">SKIP:${s.SKIP||0}</span> ` +
-                    `<span style="color:${C.ASSUMED_BAD}">BAD:${s.ASSUMED_BAD||0}</span>`;
-            }
+            document.getElementById('m-cwnd').textContent=state.cwnd||'—';
+            document.getElementById('m-inflight').textContent=state.inflight||'—';
+            document.getElementById('m-rtt').textContent=state.rtt_estimate?state.rtt_estimate.toFixed(1):'—';
+            document.getElementById('m-packets').textContent=state.total_packets||0;
+            document.getElementById('m-dropped').textContent=state.total_dropped||0;
+            document.getElementById('m-ecn').textContent=state.total_ecn||0;
+            document.getElementById('m-trimmed').textContent=state.total_trimmed||0;
+            if (state.ev_state_summary) { const s=state.ev_state_summary;
+                document.getElementById('m-ev-summary').innerHTML=
+                    `<span style="color:${C.GOOD}">G:${s.GOOD||0}</span> <span style="color:${C.SKIP}">S:${s.SKIP||0}</span> <span style="color:${C.ASSUMED_BAD}">B:${s.ASSUMED_BAD||0}</span>`; }
         }
-        document.getElementById('m-step').textContent = `${stepCount}/${totalSteps}`;
+        document.getElementById('m-step').textContent=`${stepCount}/${totalSteps}`;
         if (step) {
-            if (step.total_dropped > 0) log(`Step ${step.step}: <span style="color:${C.failed}">${step.total_dropped} dropped</span>`);
-            if (step.total_ecn_marked > 0) log(`Step ${step.step}: <span style="color:${C.SKIP}">${step.total_ecn_marked} ECN</span>`);
+            if (step.total_dropped>0) log(`Step ${step.step}: <span style="color:${C.failed}">${step.total_dropped} dropped</span>`);
+            if (step.total_ecn_marked>0) log(`Step ${step.step}: <span style="color:${C.SKIP}">${step.total_ecn_marked} ECN</span>`);
         }
     }
 
-    async function refreshPaths() {
-        try {
-            const r = await apiCall('/api/pathstate');
-            if (r && r.paths) pathStates = r.paths;
-        } catch(e) {
-            pathStates = highlightedPaths.map(p => ({
-                ev_value: '0x'+('00000000'+p.ev_value.toString(16)).slice(-8),
-                ev_value_int: p.ev_value, state: 'GOOD', rtt_us: 100+Math.random()*50,
-                ecn_rate:0, loss_rate:0, sack_count:0, nack_count:0, probe_count:0
-            }));
-        }
-    }
-
-    // ── Collapsible cards ──
-    window.toggleCard = function(btn) {
-        const body = btn.closest('.card').querySelector('.card-body');
-        if (body.style.display === 'none') {
-            body.style.display = ''; btn.textContent = '−';
-        } else {
-            body.style.display = 'none'; btn.textContent = '+';
-        }
-    };
-
-    // ── Failure injection — pushes DROP_EV to backend + updates local state ──
+    // Failure injection
     window.injectFailure = async function() {
-        const scenario = document.getElementById('fail-scenario').value;
-        if (!scenario) return;
-        let ev = document.getElementById('fail-ev').value;
-        ev = ev.startsWith('0x') ? parseInt(ev, 16) : parseInt(ev);
-
-        // Push fault rule to backend so simulator sees it
-        try {
-            await apiCall('/api/faults/rules', 'POST', {
-                fault_type: 'DROP_EV', drop_evs: [ev], description: `${scenario} EV=0x${ev.toString(16)}`
-            });
-        } catch(e) {}
-
-        // Also try scenario endpoint
-        try {
-            await apiCall(`/api/faults/scenarios/${scenario}/run`, 'POST', {ev_value:ev, ev_values:[ev]});
-        } catch(e) {}
-
-        // Mark affected paths as ASSUMED_BAD in local state
-        const affectedNodes = [];
-        const failedPath = highlightedPaths.find(p => p.ev_value === ev);
-        highlightedPaths.forEach(p => {
-            if (p.ev_value === ev && p.hops) {
-                p.hops.forEach(h => { if (!affectedNodes.includes(h)) affectedNodes.push(h); });
-                for (let i = 0; i < p.hops.length-1; i++) {
-                    const key = [p.hops[i], p.hops[i+1]].sort().join('||');
-                    failedLinks[key] = true;
-                }
-            }
+        const scenario=document.getElementById('fail-scenario').value; if (!scenario) return;
+        let ev=document.getElementById('fail-ev').value;
+        ev=ev.startsWith('0x')?parseInt(ev,16):parseInt(ev);
+        try { await apiCall('/api/faults/rules','POST',{fault_type:'DROP_EV',drop_evs:[ev],description:`${scenario} EV=0x${ev.toString(16)}`}); } catch(e){}
+        try { await apiCall(`/api/faults/scenarios/${scenario}/run`,'POST',{ev_value:ev,ev_values:[ev]}); } catch(e){}
+        const affectedNodes=[], failedPath=highlightedPaths.find(p=>p.ev_value===ev);
+        highlightedPaths.forEach(p=>{
+            if (p.ev_value===ev && p.hops) { p.hops.forEach(h=>{if(!affectedNodes.includes(h))affectedNodes.push(h)});
+                for (let i=0;i<p.hops.length-1;i++) { failedLinks[[p.hops[i],p.hops[i+1]].sort().join('||')]=true; } }
         });
-
-        // Update pathStates locally to reflect the failure
-        pathStates.forEach(ps => {
-            if (ps.ev_value_int === ev || ps.ev_value === '0x'+('00000000'+ev.toString(16)).slice(-8)) {
-                ps.state = 'ASSUMED_BAD';
-            }
-        });
-
-        renderFabric(); drawPaths(); updateEVTable();
-        flashFailure(affectedNodes);
-
-        // Log failure details
-        const evHex = '0x' + ('00000000'+ev.toString(16).toUpperCase()).slice(-8);
-        log(`<span style="color:${C.failed}">FAILURE: ${scenario} on EV ${evHex}</span>`);
-        if (failedPath) {
-            log(`<span style="color:${C.failed}">  Path down: ${failedPath.hops.join(' → ')}</span>`);
-        }
-
-        // Log which paths are still active
-        const activePaths = highlightedPaths.filter(p => {
-            const ps = pathStates.find(s => s.ev_value_int === p.ev_value);
-            return !ps || ps.state === 'GOOD' || ps.state === 'SKIP';
-        });
-        if (activePaths.length > 0) {
-            log(`<span style="color:${C.GOOD}">Active paths (${activePaths.length}):</span>`);
-            activePaths.forEach(p => {
-                const evH = '0x'+('00000000'+p.ev_value.toString(16).toUpperCase()).slice(-8);
-                log(`<span style="color:${C.GOOD}">  ${evH} plane=${p.plane} spine=${p.spine_index}: ${p.hops.join(' → ')}</span>`);
-            });
-        } else {
-            log(`<span style="color:${C.failed}">  WARNING: No active paths remaining!</span>`);
-        }
-
-        document.getElementById('fail-status').innerHTML = `<span style="color:${C.failed}">${scenario} — EV ${evHex} → ASSUMED_BAD</span>`;
+        pathStates.forEach(ps=>{ if(ps.ev_value_int===ev||ps.ev_value==='0x'+('00000000'+ev.toString(16)).slice(-8)) ps.state='ASSUMED_BAD'; });
+        renderFabric(); drawPaths(); updateEVTable(); flashFailure(affectedNodes);
+        const evHex='0x'+('00000000'+ev.toString(16).toUpperCase()).slice(-8);
+        log(`<span style="color:${C.failed}">FAILURE: ${scenario} on ${evHex}</span>`);
+        if (failedPath) log(`<span style="color:${C.failed}">  Down: ${failedPath.hops.join(' → ')}</span>`);
+        const active=highlightedPaths.filter(p=>{const ps=pathStates.find(s=>s.ev_value_int===p.ev_value); return !ps||ps.state==='GOOD'||ps.state==='SKIP';});
+        if (active.length>0) { log(`<span style="color:${C.GOOD}">Active paths (${active.length}):</span>`);
+            active.forEach(p=>log(`<span style="color:${C.GOOD}">  ${('0x'+('00000000'+p.ev_value.toString(16).toUpperCase()).slice(-8))} P${p.plane} S${p.spine_index}: ${p.hops.join('→')}</span>`));
+        } else log(`<span style="color:${C.failed}">  NO ACTIVE PATHS!</span>`);
+        document.getElementById('fail-status').innerHTML=`<span style="color:${C.failed}">${scenario} — ${evHex} → ASSUMED_BAD</span>`;
     };
 
     window.clearFailures = async function() {
-        try { await apiCall('/api/faults/clear', 'POST'); } catch(e) {}
-        failedLinks = {};
-
-        // Restore all path states to GOOD
-        pathStates.forEach(ps => { ps.state = 'GOOD'; });
-
+        try { await apiCall('/api/faults/clear','POST'); } catch(e) {}
+        failedLinks={}; pathStates.forEach(ps=>{ps.state='GOOD'});
         renderFabric(); drawPaths(); updateEVTable();
-        document.getElementById('fail-status').innerHTML = '<span style="color:#238636">Cleared — all paths restored</span>';
-        log('<span style="color:#238636">All failures cleared — paths restored to GOOD</span>');
-
-        // Log all active paths
-        highlightedPaths.forEach(p => {
-            const evH = '0x'+('00000000'+p.ev_value.toString(16).toUpperCase()).slice(-8);
-            log(`<span style="color:${C.GOOD}">  Restored: ${evH} plane=${p.plane} → ${p.hops.join(' → ')}</span>`);
-        });
+        document.getElementById('fail-status').innerHTML='<span style="color:#238636">Cleared</span>';
+        log('<span style="color:#238636">All paths restored</span>');
     };
 
     document.addEventListener('DOMContentLoaded', init);
