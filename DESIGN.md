@@ -899,18 +899,35 @@ python3 app.py
 
 ### Containerlab Live Mode
 
+**Docker images:**
+- `ghcr.io/anichol67/mrc-emu:latest` — MRC emulator (hosts + controller), pulled from GitHub Container Registry (private)
+- `ceos:4.36.0.1F` — Arista cEOS (switches), must be imported locally from Arista-provided tar file (`image-pull-policy: Never`)
+
+**One-time server setup:**
+
 ```bash
-# 1. Build the Docker image
-docker build -t mrc-emu .
+# Login to GitHub Container Registry (token needs read:packages scope)
+docker login ghcr.io -u anichol67 -p <GITHUB_TOKEN>
 
-# 2. (Optional) Regenerate topology for custom dimensions
-python3 generate_deployment.py --planes 2 --leafs 4 --spines 2
+# Import cEOS image from Arista tar file
+docker import cEOS64-lab-4.36.0.1F.tar ceos:4.36.0.1F
+```
 
-# 3. Deploy the fabric
+**Deploy:**
+
+```bash
+git clone https://github.com/anichol67/MRC-Client.git
+cd MRC-Client
 containerlab deploy -t topology.clab.yml
+# Access controller GUI at http://<controller-mgmt-ip>:8080
+```
 
-# 4. Access the controller GUI
-# Browse to http://<controller-mgmt-ip>:8080
+**Regenerate topology (optional — only needed to change fabric dimensions):**
+
+```bash
+# Run offline on any machine
+python3 generate_deployment.py --planes 2 --leafs 4 --spines 2 --ceos-image ceos:4.36.0.1F
+# Commit and push updated topology.clab.yml + configs/
 ```
 
 Requires root/sudo for network configuration changes (IPv6 routes, addresses). Runs read-only without root.
