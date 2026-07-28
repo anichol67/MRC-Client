@@ -52,7 +52,7 @@ class TopologyConfig:
     ipv6_base: str = 'fd00::/32'
     srv6_base: str = 'fcbb::/32'
     ceos_image: str = 'ceos:4.36.0.1F'
-    mrc_image: str = 'mrc-emulator:latest'
+    mrc_image: str = 'ghcr.io/anichol67/mrc-emu:latest'
     management_network: str = '172.20.0.0/24'
     qps_per_host_pair: int = 1
 
@@ -308,7 +308,6 @@ class TopologyGenerator:
                 nodes_section[node.name] = {
                     'kind': 'linux',
                     'image': self.config.mrc_image,
-                    'image-pull-policy': 'Never',
                     'binds': [
                         f'configs/{node.name}-startup.sh:/startup.sh',
                     ],
@@ -321,7 +320,6 @@ class TopologyGenerator:
         nodes_section['controller'] = {
             'kind': 'linux',
             'image': self.config.mrc_image,
-            'image-pull-policy': 'Never',
         }
 
         links_section = topo['topology']['links']
