@@ -89,9 +89,10 @@
         </a>
         <ul class="cv-nav">
             <li class="cv-nav-section">Fabric</li>
+            <li><a href="/topology_builder" class="{% if request.path == '/topology_builder' %}active{% endif %}">Topology Builder</a></li>
             <li><a href="/topology" class="{% if request.path == '/topology' %}active{% endif %}">Topology</a></li>
             <li><a href="/topology_viz" class="{% if request.path == '/topology_viz' %}active{% endif %}">Fabric View</a></li>
-            <li><a href="/simulation" class="{% if request.path == '/simulation' %}active{% endif %}">Simulation</a></li>
+            <li><a href="/simulation" class="{% if request.path == '/simulation' %}active{% endif %}">Simulator</a></li>
             <li class="cv-nav-section">Endpoint</li>
             <li><a href="/host" class="{% if request.path == '/' or request.path == '/host' %}active{% endif %}">Host Config</a></li>
             <li><a href="/network" class="{% if request.path == '/network' %}active{% endif %}">Network</a></li>

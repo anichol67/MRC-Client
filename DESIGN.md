@@ -41,6 +41,35 @@
 | 25 | Hosts connected to all planes in fabric view | §25 |
 | 26 | Unified simulation page with timed run, fabric view, and live failure injection | §26 |
 | 27 | Arista CloudVision-style GUI (dark sidebar nav, blue accents, metric cards) | §27 |
+| 28 | Per-plane host addressing (Port = Plane, one IPv6 per plane per host) | §28 |
+| 29 | Flow-level packet spraying (flow = XPU-to-XPU, per-packet EV path selection) | §29 |
+| 30 | Flow definition modes (unidirectional pair, bidirectional pair, NCCL collective) | §30 |
+| 31 | Topology-aware click-to-fail (right-click link/node, auto-resolve affected EVs) | §31 |
+| 32 | Spec-based MRC failure detection timeline (SACK gaps, ACK timeout, probing) | §32 |
+| 33 | Failure visualization (dashed/red failed links, highlighted nodes, traffic shift) | §33 |
+| 34 | MRC detection event log (spec-aligned with section references) | §34 |
+| 35 | Collapsible/resizable simulation panels (4 panels, layout persisted) | §35 |
+| 36 | Topology zoom & pan | §36 |
+| 37 | Topology failure highlighting detail (pulse animation, status dots) | §37 |
+| 38 | Per-EV packet counters with clear option | §38 |
+| 39 | Animated flow dots on active paths during simulation | §39 |
+| 40 | Configurable text size for all panels (topology tiles, EV table, event log, controls) | §40 |
+| 41 | Per-plane uSID and SRv6 locator for host XPUs | §41 |
+| 42 | Metrics bar tooltips with MRC spec references | §42 |
+| 43 | EV profile mode selector (auto from topology / use existing) | §43 |
+| 44 | Continuous plan looping for duration-based simulation | §44 |
+| 45 | Tabbed GUI layout (Topology Builder + Simulator tabs) | §45 |
+| 46 | SRv6 uSID F3216 packet encapsulation (outer IPv6 + optional SRH) | §46 |
+| 47 | Real packet I/O via scapy (send/receive on raw interfaces) | §47 |
+| 48 | MRC responder loop (receive→parse→SACK/NACK on wire) | §48 |
+| 49 | Controller ↔ Host agent API (orchestrate flows across hosts) | §49 |
+| 50 | Arista EOS 4.32 SRv6 uSID switch configuration | §50 |
+| 51 | Host container auto-configuration (IPv6, routes, MTU) | §51 |
+| 52 | Containerlab topology with startup-config mounting | §52 |
+| 53 | Live ↔ Offline mode switching in simulator | §53 |
+| 54 | Real SACK-driven CC and EV state in live mode | §54 |
+| 55 | Configurable QPs per host pair | §55 |
+| 56 | Management-only controller host (no data traffic) | §56 |
 
 ---
 
@@ -225,7 +254,7 @@ Per-switch configuration:
 ### 11. Leaf-Spine Topology Structure
 **Decision**: Two-plane leaf-spine with configurable dimensions.
 
-Default: 2 planes × (4 leafs + 2 spines) = 12 Arista cEOS switches + 8 MRC host containers.
+Default: 2 planes × (4 leafs + 2 spines) = 12 Arista cEOS switches + 4 MRC host XPUs (each connected to both planes).
 
 ```
                     Plane 0                                     Plane 1
@@ -235,8 +264,18 @@ Default: 2 planes × (4 leafs + 2 spines) = 12 Arista cEOS switches + 8 MRC host
            ┌───┘  │  │  └───┐                          ┌───┘  │  │  └───┐
         Leaf0  Leaf1 Leaf2 Leaf3                    Leaf4  Leaf5 Leaf6 Leaf7
          │      │     │     │                        │      │     │     │
-        Host0  Host1 Host2 Host3                   Host4  Host5 Host6 Host7
+         └──────┼─────┼─────┼────────────────────────┘      │     │     │
+                └─────┼─────┼───────────────────────────────┘     │     │
+                      └─────┼─────────────────────────────────────┘     │
+                            └───────────────────────────────────────────┘
+        Host0  Host1 Host2 Host3
+       (eth1    eth1   eth1   eth1  = Plane 0 IPv6)
+       (eth2    eth2   eth2   eth2  = Plane 1 IPv6)
 ```
+
+Each host XPU has one port per plane (Port = Plane per spec §9.3.2, §11.5). A single QP
+sprays packets across both planes via EV selection. Each port has its own IPv6 address
+for SRv6 forwarding.
 
 ### 12. IPv6 Addressing — Single Template Derivation
 **Decision**: All IPv6 addresses derived from a single user-provided base prefix.
@@ -431,15 +470,285 @@ Auto-detection: the tool detects the platform at startup and enables offline mod
 - Clean metric cards and status badges
 - Responsive: sidebar collapses to horizontal nav on small screens
 
-### 28. Topology Zoom & Pan
+### 28. Per-Plane Host Addressing
+**Decision**: Each host XPU has one link per plane with a distinct IPv6 address for SRv6 forwarding (Port = Plane per spec §9.3.2, §11.5).
+
+- The topology generator models hosts as single nodes with one interface per plane
+- Each host holds a `plane_interfaces` map: plane → {interface name, IPv6 address, connected leaf}
+- Host link IPv6 addresses follow the existing scheme `{base}:{plane}:{leaf_id}:ff::{side}/127`
+- In a 2-plane fabric, `host0` has `eth1` (plane 0 IPv6) and `eth2` (plane 1 IPv6)
+- Matches the spec's multi-port NIC model (Figure 8) where each port maps to a plane
+
+### 29. Flow-Level Packet Spraying
+**Decision**: A flow is defined between XPUs (not links). Packets within a flow are sprayed across all available paths (all planes × all spines) via EV-based selection.
+
+- A flow is `host0 → host2` — the simulator sprays packets per-packet across all paths
+- Each EV encodes a plane + spine; the selected EV determines which plane interface the packet egresses from
+- The source IPv6 address per packet corresponds to the egress plane's interface address
+- The destination IPv6 address per packet corresponds to the destination host's interface on the same plane
+- Matches spec §9.3.2 multi-plane EV selection and §6.2.1 work request spraying
+
+### 30. Flow Definition Modes
+**Decision**: Users can define traffic as unidirectional XPU pair, bidirectional XPU pair, or NCCL collective from the simulation page.
+
+- **Unidirectional pair**: Select source XPU and destination XPU → single flow direction
+- **Bidirectional pair**: Select two XPUs → simultaneous flows in both directions (A→B and B→A)
+- **NCCL collective**: Select collective type (AllReduce, AllGather, etc.) + participating hosts → multi-step flow plan
+- All modes generate flows between logical XPUs; per-packet path selection is handled by the simulation engine
+
+### 31. Topology-Aware Click-to-Fail
+**Decision**: Users click a link or node in the topology view to inject a failure. The tool resolves affected EVs/paths automatically from the topology's path mappings — no EV knowledge required.
+
+- Right-click a link or node in the topology SVG → context menu with: Fail Link/Node, Degrade (ECN), Degrade (partial loss), Restore
+- Backend resolves which EVs/paths traverse the clicked element using the topology's path data
+- Appropriate fault rules (DROP_EV for hard failure, ECN_MARK for degradation) are created automatically
+- Pre-defined failure scenarios remain available: single link, spine failure, plane failure, partial degradation, link flap
+
+### 32. Spec-Based Failure Detection
+**Decision**: Failures are not immediately visible to MRC endpoints. The simulation models how MRC discovers failures through its own mechanisms per the spec.
+
+Detection timeline:
+1. Packets sent on failed EV are dropped in fabric (never reach responder)
+2. SACKs from other packets show bitmap gaps at the failed EV's PSN (§7.4.5)
+3. Sender infers loss from SACK bitmap → marks packet for retransmit (§7.4.5)
+4. Retransmitted packet uses a different EV; BTH.RTX flag set (§7.4.4)
+5. Local ACK Timeout fires if no SACK covers the PSN within timeout (§7.4.1, Table 7-1)
+6. After repeated failures on same EV, sender transitions EV to ASSUMED_BAD (§9.3.1, Figure 5)
+7. Traffic shifts — `select_next_ev()` skips ASSUMED_BAD EVs (§9.3.1)
+8. NSCC adjusts cwnd — multiplicative decrease on ECN+high RTT (§8.2, Table 8-1)
+9. Sender sends EV Probes on ASSUMED_BAD EVs for recovery (§6.5.2, §7.4.7)
+10. Probe response with m=NONE → EV transitions ASSUMED_BAD → GOOD (§9.3.1, Figure 5)
+
+For degradation (ECN/partial loss):
+- Packets arrive but ECN-marked → SACK m=SKIP_ONCE → EV → SKIP (§9.3.1)
+- SKIP EVs temporarily avoided, transition back to GOOD after implementation-defined time
+- NSCC reduces cwnd proportionally (§8.2)
+
+### 33. Failure Visualization
+**Decision**: Failed links and nodes are visually highlighted in the topology during simulation.
+
+- Failed links rendered with dashed stroke and red color (pulsing animation)
+- Failed nodes get a red overlay; status dots on CloudVision tiles turn red
+- Active paths shown in green/blue; paths transitioning to ASSUMED_BAD turn red then fade
+- Traffic visibly shifts to healthy paths as MRC detects and reacts to the failure
+- Path overlay updates in real-time as EV states change during simulation
+
+### 34. MRC Detection Event Log
+**Decision**: A spec-aligned event log shows how MRC detects and reacts to failures with spec section references.
+
+Event types logged:
+- `SACK_RECEIVED` — m-flag value (NONE/SKIP_ONCE/ALWAYS_SKIP), reflected EV, ECN state (§7.5.2)
+- `NACK_RECEIVED` — reason code (TRIMMED, NO_BITMAP, etc. per Table 7-3), PSN, action taken (§7.4.4)
+- `ACK_TIMEOUT` — EV, retry count, timer value (§7.4.1, Table 7-1)
+- `EV_STATE_CHANGE` — EV value, old state → new state, trigger reason (§9.3.1, Figure 5)
+- `PROBE_SENT` — EV, probe_id, probe type (reliability §6.5.1 / EV §6.5.2)
+- `PROBE_RESPONSE` — EV, m-flag, result (§7.4.7)
+- `TRAFFIC_SHIFT` — description of traffic moving away from/to paths
+- `CWND_CHANGE` — old cwnd → new cwnd, trigger (§8.2, Table 8-1)
+
+### 35. Collapsible/Resizable Simulation Panels
+**Decision**: The simulation page's 4 panels are each independently collapsible and resizable.
+
+Default layout:
+- **Flow Definition** — top control bar (XPU pair selector, collective dropdown, start/stop/step)
+- **Topology View** — expanded full width (SVG with click-to-fail, path highlighting)
+- **Path/EV State** — across the bottom (table with color-coded states, RTT, ECN rate)
+- **Event Log** — minimised by default (collapsed to header bar, click to expand)
+
+Each panel has a header bar with collapse/expand toggle. Panels can be maximised (fills available space) or minimised (header only). Layout state persisted in localStorage.
+
+### 36. Topology Zoom & Pan
 **Decision**: SVG topology view supports scroll-to-zoom and drag-to-pan for navigating large fabrics.
 
-### 29. Failure Highlighting on Topology
+### 37. Topology Failure Highlighting Detail
 **Decision**: When a failure is injected during simulation, the affected links and nodes are visually highlighted:
-- Failed links pulse red with animation
+- Failed links pulse red with dashed animation
 - Affected nodes get a red failure flash overlay that fades out
 - Status dots on CloudVision tiles turn red for nodes involved in the failure
 - Failed paths change color in the path overlay (ASSUMED_BAD = red)
+
+### 38. Per-EV Packet Counters
+**Decision**: The simulator tracks per-EV packet counts showing how many packets used each path.
+
+- Displayed in the "Pkts" column of the EV Path State table
+- Counters are cumulative across plan cycles (preserved by `restart_plan`)
+- A "Clear Counters" button resets per-EV counts and metrics bar totals without affecting EV state or the event log
+
+### 39. Animated Flow Dots
+**Decision**: Active paths show animated white dots flowing along the path during simulation.
+
+- 3 dots per active (GOOD) path, staggered timing, moving from source host through leaf→spine→leaf to destination host
+- Dots only appear while the simulation is running; they stop immediately when the simulation stops
+- ASSUMED_BAD, SKIP, and DENIED paths show no dots — only the colored overlay line
+- Dots are bright white (full opacity, r=5) for visibility against the semi-transparent green path overlay
+
+### 40. Configurable Text Size
+**Decision**: All panels have an "Aa" button that cycles through small/medium/large text.
+
+- Topology tiles: cycles tile dimensions (120×48 / 160×60 / 200×74) and text (11px / 13px / 16px)
+- EV Path State table: cycles row text (0.78rem / 0.92rem / 1.08rem)
+- MRC Event Log: cycles log text (0.72rem / 0.9rem / 1.08rem)
+- Flow controls bar: cycles label and input text (0.72rem / 0.88rem / 1.05rem)
+- Default is medium for all panels
+
+### 41. Per-Plane uSID and SRv6 Locator for Hosts
+**Decision**: Each host XPU has per-plane uSID values and SRv6 locators, stored in `plane_interfaces`.
+
+- uSID encoding: `[15:8]=plane, [7:4]=role (3=host), [3:0]=index` — e.g. host0 plane 0 = `0x0030`, plane 1 = `0x0130`
+- SRv6 locator: `{srv6_base}:{plane}:{role_id}::/48` — e.g. `fcbb:0:30::/48`
+- Topology tiles display per-plane uSIDs: `P0:0x0030 P1:0x0130`
+- Tooltips show full per-plane interface details (interface name, IPv6, uSID, SRv6 locator, connected leaf)
+
+### 42. Metrics Bar Tooltips
+**Decision**: Each metric in the metrics bar has a hover tooltip explaining its meaning with MRC spec references.
+
+- CWND: Congestion window — max bytes in-flight before waiting for SACKs (§8.3.1)
+- Inflight: Total bytes sent but not yet acknowledged (§8.3.1)
+- Packets: Total packets sent across all EVs/paths
+- Dropped: Packets lost in fabric, triggers ACK timeout (§7.4.1)
+- ECN: ECN-marked packets, SACK m=SKIP_ONCE (§9.3.1)
+- Trimmed: Payload removed by switch, NACK TRIMMED (§7.5.3)
+- RTT: Round-trip time estimate for NSCC congestion detection (§8.2)
+- Step: Current step / total steps in flow plan cycle
+- EV State: Summary of EV states per spec Figure 5
+
+### 43. EV Profile Mode Selector
+**Decision**: The flow controls bar includes an EV Profile selector with two modes.
+
+- **Auto (from topology)**: Auto-generates an EV profile from the topology's path mappings on the first simulation step. Covers all EV values across all planes and spines. Default mode.
+- **Use existing profile**: Uses a manually-defined profile from the EV Profiles page. If none exists, falls back to sequential round-robin without EV state tracking.
+
+### 44. Continuous Plan Looping
+**Decision**: When a flow plan's steps are exhausted during a timed simulation, the plan restarts from step 0.
+
+- `restart_plan()` resets only the step counter — EV states, packet counts, event log, and CC state are preserved
+- Traffic continues flowing until the configured duration expires
+- The event log shows "Plan cycle complete — restarting" at each cycle boundary
+- On completion, the simulation stops gracefully without clearing state
+
+---
+
+## Containerlab Live Mode
+
+### 45. Tabbed GUI Layout
+**Decision**: The GUI has two main tabs alongside the existing sidebar navigation.
+
+- **Tab 1 — Topology Builder**: fabric dimension configuration, .clab.yml generation with startup-config mounting, per-switch EOS config generation/download, per-host startup script generation, eAPI push to live switches, topology preview
+- **Tab 2 — Simulator**: existing simulation view (flow definition, topology view, EV state, event log, metrics) working in both offline and live modes
+
+### 46. SRv6 uSID F3216 Packet Encapsulation
+**Decision**: The PacketBuilder supports SRv6 encapsulation with outer IPv6 + optional SRH wrapping.
+
+- Outer IPv6 destination address carries the uSID stack (LID + up to 6 uSIDs in F3216)
+- Optional SRH extension header for paths requiring additional segments or debug/telemetry
+- Inner packet: standard MRC stack (Ethernet/IPv6/UDP/BTH/MRC headers)
+- `build_srv6_packet()` method wraps inner packet with SRv6 outer headers
+- Source address = host's per-plane interface IPv6 address
+
+### 47. Real Packet I/O via Scapy
+**Decision**: In live Containerlab mode, the MRC emulator sends and receives real packets on the wire.
+
+- Send: scapy `sendp()` on per-plane interfaces (eth1 for plane 0, eth2 for plane 1)
+- Receive: scapy `AsyncSniffer` filtering on UDP dst port 4971 (RoCE)
+- Requires `CAP_NET_RAW` + `CAP_NET_ADMIN` (provided by Containerlab)
+- Receive path wired to packet parser → MRC responder loop
+
+### 48. MRC Responder Loop
+**Decision**: Each XPU host runs a responder that receives MRC WRITE packets and generates real SACK/NACK responses.
+
+- Listen on data interfaces for incoming MRC packets
+- Parse via `packet_parser.parse_packet()`
+- Track PSN bitmap per source QP (responder state per §7.5)
+- Generate real SACK packets via `PacketBuilder.build_sack()`:
+  - cack_psn and sack_bitmap from PSN tracking
+  - m-flag from ECN state (IP header ECN CE bits)
+  - CC_STATE with rcvd_bytes, ooo_count, reflected tx_timestamp
+  - Reflected entropy from received packet (§7.5.2.1)
+- Generate NACK for trimmed/dropped/error conditions
+- Send SACK/NACK on control traffic class (DSCP_CONTROL)
+
+### 49. Controller ↔ Host Agent API
+**Decision**: A management-only controller orchestrates flows across XPU hosts via REST APIs.
+
+- Controller calls host APIs:
+  - `POST /api/host/start_flow` — start sending MRC packets to a destination
+  - `POST /api/host/stop_flow` — stop sending
+  - `GET /api/host/state` — return EV state, packet counts, CC state, event log
+  - `GET /api/host/ev_states` — per-EV state for the path state panel
+  - `POST /api/host/configure` — set up EV profile, CC config, interface addresses
+- Controller aggregates state from all hosts for the unified GUI view
+- Host discovery via management IP addresses configured in Topology Builder
+
+### 50. Arista EOS 4.32 SRv6 uSID Switch Configuration
+**Decision**: The EOS provisioner generates complete SRv6 uSID configuration for EOS 4.32+.
+
+Per-switch configuration:
+```
+router segment-routing
+   srv6
+      encapsulation source-address Loopback0
+      locator LOC-<HOSTNAME>
+         prefix <srv6_locator>
+         micro-segment behavior uN
+segment-routing
+   srv6
+      transit
+```
+
+- F3216 uSID encoding: `[31:16]=LID, [15:8]=plane, [7:4]=role (1=spine/2=leaf/3=host), [3:0]=index`
+- Static routes to all remote SRv6 locator prefixes via appropriate next-hops
+- ECN/WRED profiles for congestion marking on data traffic classes
+
+### 51. Host Container Auto-Configuration
+**Decision**: Each XPU host container is configured at startup via a generated shell script.
+
+- IPv6 addresses on per-plane interfaces (from `plane_interfaces`)
+- Default routes via connected leaf switches per plane
+- MTU 9216 (jumbo frames for MRC + SRv6 overhead)
+- No kernel SRv6 config needed — MRC emu crafts SRv6-encapsulated raw packets directly
+
+### 52. Containerlab Topology with Startup-Config Mounting
+**Decision**: The generated `.clab.yml` includes startup-config references for all nodes.
+
+- cEOS nodes: `startup-config: configs/<node_name>.cfg`
+- Host containers: bind-mount startup script + exec at boot
+- Controller node: management-only, no data interfaces
+- All configs generated into a `configs/` directory
+- Single `containerlab deploy -t topology.clab.yml` deploys the entire fabric
+
+### 53. Live ↔ Offline Mode Switching
+**Decision**: The simulator tab works in both live and offline mode with the same GUI.
+
+- Detects live mode by checking host reachability via management IPs
+- Live mode: flows trigger real packet generation on remote hosts via controller API
+- Offline mode: flows run the existing in-memory simulation
+- Mode indicator displayed in the metrics bar
+- Same topology view, EV state panel, and event log for both modes
+
+### 54. Real SACK-Driven CC and EV State
+**Decision**: In live mode, real wire traffic drives the congestion controller and EV state machine.
+
+- Received SACKs from the wire feed into the NSCC congestion controller
+- EV state transitions based on real SACK m-flags and actual packet timeouts
+- Event log shows real wire events with actual timestamps
+- Packet counts and RTT measured from actual packet round-trips
+
+### 55. Configurable QPs per Host Pair
+**Decision**: The number of Queue Pairs per destination host is configurable.
+
+- Default: 1 QP per destination
+- User can increase QPs in the flow definition controls
+- Multiple QPs enable higher parallelism and more in-flight packets
+- Each QP has independent PSN tracking, CC state, and EV selection
+
+### 56. Management-Only Controller Host
+**Decision**: The controller is a dedicated management node that does not participate in data traffic.
+
+- Connected only to the management network (eth0)
+- Runs the full GUI (Topology Builder + Simulator tabs)
+- Orchestrates flows by calling REST APIs on XPU hosts
+- Aggregates EV state, packet counts, events from all hosts
+- Does not send or receive MRC data packets
 
 ---
 
@@ -487,15 +796,135 @@ Auto-detection: the tool detects the platform at startup and enables offline mod
 - Default port changed to 8080
 - Requirements expanded to 27 total
 
+### 2026-07-27 — Multi-plane host model, flow-level spraying, and simulation enhancements
+- Verified per-plane host addressing against OCP MRC spec §9.3.2, §11.5 (Port = Plane)
+- Added OCP MRC spec and GitHub references to DESIGN.md
+- Restructured host model: single XPU node with one interface per plane (was separate per-plane host nodes)
+- Flow definition is between XPUs, not links — per-packet path selection via EV
+- Added flow definition modes: unidirectional pair, bidirectional pair, NCCL collective
+- Added topology-aware click-to-fail: right-click link/node, auto-resolve affected EVs
+- Added spec-based MRC failure detection timeline (SACK gaps → loss inference → ACK timeout → EV state transition → probing → recovery)
+- Added failure visualization: dashed/red failed links, highlighted nodes, traffic shifting
+- Added spec-aligned MRC detection event log with spec section references
+- Added collapsible/resizable simulation panels (4 panels: flow def, topology, EV state, event log)
+- Default layout: flow controls top, topology full-width, EV state bottom, event log minimised
+- Requirements expanded to 37 total
+
+### 2026-07-27 — Simulation refinements and GUI enhancements
+- Fixed EV state transitions: SKIP → ASSUMED_BAD now allowed for escalated failures
+- Auto-generate EV profile from topology paths when none manually defined
+- Added EV Profile mode selector in flow controls (auto from topology / use existing)
+- Per-EV packet counters in EV Path State table with Clear Counters button
+- Per-plane uSID and SRv6 locator for host XPUs (role=3, displayed as P0:0x0030 P1:0x0130)
+- Animated flow dots on active (GOOD) paths during simulation; no dots on failed/skipped paths
+- Continuous plan looping: plan restarts from step 0 preserving EV state and counters
+- Configurable text size (Aa button) for all panels: topology tiles, EV table, event log, controls
+- Metrics bar hover tooltips with MRC spec references for CWND, Inflight, Dropped, ECN, RTT, etc.
+- Fixed EV state display: simulator's ev_states are authoritative during simulation (no pathstate API overwrite)
+- Fixed packet counters not resetting on plan cycle (restart_plan preserves counts)
+- Requirements expanded to 44 total
+
+### 2026-07-27 — Additional simulation features
+- Auto EV probing on ASSUMED_BAD paths (periodic, configurable auto/manual)
+- SKIP timeout recovery per spec §9.3.1 (SKIP → GOOD after implementation-defined timeout)
+- Full ECN detection chain in event log: ECN_RECEIVED (data packet with CE), SACK_GENERATED (SETH + CC_STATE fields), SACK_RECEIVED (sender processing)
+- Per-path BW% column in EV Path State table
+- Bidirectional flow dots: forward (white) and reverse (grey-white) flowing in opposite directions
+- Help cursor on metrics bar tooltips
+- Multiple failures and restores within a single flow session
+- Fault restore triggers EV probe_resolved() recovery in simulator
+
+### 2026-07-28 — Containerlab live mode build
+- Defined architecture: management-only controller + XPU hosts with real packet I/O
+- **EOS provisioner** updated for EOS 4.32 SRv6 uSID F3216:
+  - `micro-segment behavior uN` under locator
+  - `encapsulation source-address Loopback0`
+  - Auto-generated static routes to all remote SRv6 locator prefixes
+  - `srv6_locator_routes` field added to `EOSNodeConfig`
+- **Topology generator** enhanced:
+  - `.clab.yml` includes `startup-config:` for cEOS and `binds:`/`exec:` for hosts
+  - Controller node added (management-only, no data interfaces)
+  - `generate_host_startup_script()` — IPv6 addresses, routes, MTU 9216 per plane
+  - `generate_eos_node_configs()` — full EOSNodeConfig dicts with SRv6 locator routes
+  - `get_srv6_locator_routes()` — computes per-switch routes to all other locator prefixes
+  - Configurable `qps_per_host_pair` in TopologyConfig
+- **SRv6 packet encapsulation** (core/packet_builder.py):
+  - `SRv6Header` dataclass — routing type 4, F3216 uSID segment list, `to_bytes()`/`from_bytes()`
+  - `MRCPacket` extended with `outer_ipv6` and `srh` fields
+  - `to_bytes()` handles outer IPv6 + optional SRH + inner IPv6/UDP/BTH/MRC
+  - `build_srv6_write()` method — wraps inner WRITE packet with SRv6 encapsulation
+- **Packet I/O** (core/packet_io.py — new):
+  - `PacketIO` class with scapy `sendp()` for sending and `AsyncSniffer` for receiving
+  - Interface binding, BPF filter on UDP dst port 4971
+  - Graceful fallback when scapy unavailable (offline mode)
+- **MRC responder** (core/mrc_responder.py — new):
+  - `ResponderQPState` — per-QP PSN bitmap tracking, cack_psn, rcvd_bytes, ooo_count
+  - `MRCResponder.process_packet()` — parse incoming WRITE, generate real SACK bytes
+  - SACK includes reflected entropy, m-flag from ECN CE detection, CC_STATE, bitmap
+  - NACK generation for error conditions
+- **Host agent API** (routes/host_agent.py — new):
+  - `POST /api/host/configure` — bind interfaces, start responder, set QPs
+  - `POST /api/host/start_flow` / `stop_flow` — traffic generation control
+  - `GET /api/host/state` — responder stats, QP states, packet I/O stats
+  - `GET /api/host/event_log` — responder event log
+- **Controller API** (routes/controller.py — new):
+  - `POST /api/controller/hosts` — register remote hosts with management IPs
+  - `POST /api/controller/discover` — test connectivity, set live/offline mode
+  - `POST /api/controller/configure_hosts` — push config to all hosts
+  - `POST /api/controller/start_flow` — orchestrate flow between host pair (with bidirectional)
+  - `GET /api/controller/aggregate_state` — collect state from all hosts
+  - `GET /api/controller/aggregate_events` — merge event logs from all hosts
+- **Tabbed GUI**:
+  - Sidebar nav: Topology Builder + Simulator (renamed from Simulation)
+  - `/topology_builder` page: fabric config, generate .clab.yml + configs, download, preview, eAPI push, connectivity test
+- **Default deployment files** generated:
+  - `topology.clab.yml` — 2 planes, 12 switches, 4 hosts, 1 controller
+  - `configs/` — 12 EOS startup configs + 4 host startup scripts
+  - `generate_deployment.py` — CLI for regenerating with custom dimensions
+- Requirements expanded to 56 total
+
 ---
 
 ## Running
+
+### Offline Mode (Mac/Windows/Linux)
 
 ```bash
 cd /Users/anichol/repo/MRC-Client
 pip install -r requirements.txt
 python3 app.py
-# Access at http://<host>:5001
+# Access at http://localhost:8080
+# Use Topology Builder tab to configure, Simulator tab to simulate
+```
+
+### Containerlab Live Mode
+
+```bash
+# 1. Build the Docker image
+docker build -t mrc-emu .
+
+# 2. (Optional) Regenerate topology for custom dimensions
+python3 generate_deployment.py --planes 2 --leafs 4 --spines 2
+
+# 3. Deploy the fabric
+containerlab deploy -t topology.clab.yml
+
+# 4. Access the controller GUI
+# Browse to http://<controller-mgmt-ip>:8080
 ```
 
 Requires root/sudo for network configuration changes (IPv6 routes, addresses). Runs read-only without root.
+
+---
+
+## References
+
+| Document | Details |
+|----------|---------|
+| OCP-MRC-1.0 | [Multipath Reliable Connection Specification, Revision 1.0 (03/21/26)](https://github.com/opencomputeproject/OCP-Multipath-Reliable-Connection) — Joint contribution from AMD, Broadcom, Intel, Microsoft, NVIDIA, OpenAI |
+| libmrc | [MRC Software API (mrc.h, mrc_ctl.h)](https://github.com/opencomputeproject/OCP-Multipath-Reliable-Connection) |
+| IBTASPEC | InfiniBand Architecture Specification Volume 1 Release 1.8 |
+| UESPEC | UltraEthernet 1.01 Specification |
+| RFC 8986 | Segment Routing over IPv6 (SRv6) Network Programming |
+| RFC 9800 | Compressed SRv6 Segment List Encoding |
+| SRv6 uSID | Network Programming extension: SRv6 uSID instruction |

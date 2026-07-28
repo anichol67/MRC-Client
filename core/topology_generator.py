@@ -51,9 +51,10 @@ class TopologyConfig:
     hosts_per_leaf: int = 1
     ipv6_base: str = 'fd00::/32'
     srv6_base: str = 'fcbb::/32'
-    ceos_image: str = 'ceos:latest'
+    ceos_image: str = 'ceos:4.36.0.1F'
     mrc_image: str = 'mrc-emulator:latest'
     management_network: str = '172.20.0.0/24'
+    qps_per_host_pair: int = 1
 
     def to_dict(self) -> dict:
         return {
@@ -73,9 +74,12 @@ class TopologyConfig:
 class NodeInfo:
     """A single node (spine, leaf, or host) in the topology.
 
-    Switch nodes (spine/leaf) carry full IPv6 and SRv6 addressing.
-    Host nodes only carry interface addresses assigned during link
-    generation.
+    Switch nodes (spine/leaf) carry full IPv6 and SRv6 addressing and
+    belong to a single plane.
+
+    Host nodes represent a multi-port XPU connected to all planes
+    (Port = Plane per spec §9.3.2, §11.5).  Their ``plane`` is set to
+    ``-1`` and per-plane connectivity is stored in ``plane_interfaces``.
     """
 
     name: str
@@ -87,6 +91,7 @@ class NodeInfo:
     srv6_locator: str = ''
     usid: int = 0
     interfaces: dict[str, str] = field(default_factory=dict)
+    plane_interfaces: dict[int, dict] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -99,6 +104,9 @@ class NodeInfo:
             'srv6_locator': self.srv6_locator,
             'usid': self.usid,
             'interfaces': dict(self.interfaces),
+            'plane_interfaces': {
+                k: dict(v) for k, v in self.plane_interfaces.items()
+            },
         }
 
 
@@ -130,6 +138,9 @@ class PathInfo:
 
     Each path traverses exactly one plane and one spine:
     source_host -> source_leaf -> spine -> dest_leaf -> dest_host.
+
+    ``source_ipv6`` and ``dest_ipv6`` are the per-plane IPv6 addresses
+    used for SRv6 forwarding on this path's plane.
     """
 
     source_host: str
@@ -138,6 +149,8 @@ class PathInfo:
     spine_index: int
     ev_value: int
     srv6_address: str
+    source_ipv6: str = ''
+    dest_ipv6: str = ''
     hops: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -148,6 +161,8 @@ class PathInfo:
             'spine_index': self.spine_index,
             'ev_value': self.ev_value,
             'srv6_address': self.srv6_address,
+            'source_ipv6': self.source_ipv6,
+            'dest_ipv6': self.dest_ipv6,
             'hops': list(self.hops),
         }
 
@@ -227,9 +242,7 @@ class TopologyGenerator:
     def get_ev_profile_for_host(self, host_name: str) -> dict:
         """Return EV values and SRv6 mappings ready for the EV engine.
 
-        The profile covers all planes and spines.  Accepts both physical
-        and logical host names; a physical name is promoted to logical so
-        the returned profile includes all plane paths.
+        The profile covers all planes and spines for the given host.
 
         Returns a dict of the form::
 
@@ -242,25 +255,26 @@ class TopologyGenerator:
                 },
             }
         """
-        # Always use the logical name for a complete cross-plane profile
         logical = self._to_logical_host(host_name)
         host_paths = self.get_paths_for_host(logical)
 
         destinations: dict[str, list[dict]] = {}
         for path in host_paths:
-            dest_logical = self._to_logical_host(path.dest_host)
-            if dest_logical not in destinations:
-                destinations[dest_logical] = []
-            destinations[dest_logical].append({
+            dest = path.dest_host
+            if dest not in destinations:
+                destinations[dest] = []
+            destinations[dest].append({
                 'ev_value': path.ev_value,
                 'srv6_address': path.srv6_address,
+                'source_ipv6': path.source_ipv6,
+                'dest_ipv6': path.dest_ipv6,
                 'plane': path.plane,
                 'spine_index': path.spine_index,
                 'hops': list(path.hops),
             })
 
         return {
-            'host': host_name,
+            'host': logical,
             'destinations': destinations,
         }
 
@@ -287,12 +301,25 @@ class TopologyGenerator:
                 nodes_section[node.name] = {
                     'kind': 'ceos',
                     'image': self.config.ceos_image,
+                    'startup-config': f'configs/{node.name}.cfg',
                 }
             elif node.role == 'host':
                 nodes_section[node.name] = {
                     'kind': 'linux',
                     'image': self.config.mrc_image,
+                    'binds': [
+                        f'configs/{node.name}-startup.sh:/startup.sh',
+                    ],
+                    'exec': [
+                        'bash /startup.sh',
+                    ],
                 }
+
+        # Controller node (management only, no data interfaces)
+        nodes_section['controller'] = {
+            'kind': 'linux',
+            'image': self.config.mrc_image,
+        }
 
         links_section = topo['topology']['links']
         for link in self.links:
@@ -339,11 +366,11 @@ class TopologyGenerator:
     def _role_id(role: str, index: int) -> int:
         """Compute the combined role+index value used in addressing.
 
-        Spine 0 -> 0x10 (16), Leaf 3 -> 0x23 (35), etc.
-        The upper nibble encodes role (1=spine, 2=leaf) and the lower
-        nibble encodes the node index within that role.
+        Spine 0 -> 0x10 (16), Leaf 3 -> 0x23 (35), Host 0 -> 0x30 (48).
+        The upper nibble encodes role (1=spine, 2=leaf, 3=host) and the
+        lower nibble encodes the node index within that role.
         """
-        r = 1 if role == 'spine' else 2
+        r = {'spine': 1, 'leaf': 2, 'host': 3}.get(role, 2)
         return (r << 4) | index
 
     def _make_ipv6_addr(self, plane: int, role_id: int,
@@ -380,10 +407,10 @@ class TopologyGenerator:
         Bit layout::
 
             [15:8] = plane
-            [7:4]  = role (1=spine, 2=leaf)
+            [7:4]  = role (1=spine, 2=leaf, 3=host)
             [3:0]  = index
         """
-        r = 1 if role == 'spine' else 2
+        r = {'spine': 1, 'leaf': 2, 'host': 3}.get(role, 2)
         return (plane << 8) | (r << 4) | index
 
     @staticmethod
@@ -411,11 +438,13 @@ class TopologyGenerator:
 
     @staticmethod
     def _to_logical_host(name: str) -> str:
-        """Convert a physical host name to its logical form.
+        """Convert a host name to its logical form.
 
-        ``'p0-host3'`` becomes ``'host3'``; ``'host3'`` is unchanged.
+        With the unified host model, host names are already logical
+        (e.g. ``'host0'``).  This method is kept for backward
+        compatibility with any code that passes plane-prefixed names.
         """
-        if '-' in name:
+        if name.startswith('p') and '-host' in name:
             return name.split('-', 1)[1]
         return name
 
@@ -423,19 +452,194 @@ class TopologyGenerator:
     def _host_matches(source_host: str, query: str) -> bool:
         """Check whether *source_host* matches *query*.
 
-        Exact match always works.  A logical name like ``'host0'`` matches
-        any physical name ending with ``'-host0'``.
+        With the unified host model, this is typically an exact match.
+        Legacy plane-prefixed names are also handled for compatibility.
         """
         if source_host == query:
             return True
-        if '-' not in query and source_host.endswith(f'-{query}'):
-            return True
-        return False
+        logical_source = source_host
+        if source_host.startswith('p') and '-host' in source_host:
+            logical_source = source_host.split('-', 1)[1]
+        return logical_source == query
+
+    def get_paths_through_element(self, element_name: str) -> list[PathInfo]:
+        """Return all paths whose hops include the given link or node.
+
+        For a node name (e.g. ``'p0-spine1'``), returns paths that
+        traverse that node.  For a link specified as
+        ``'nodeA↔nodeB'``, returns paths that traverse both nodes
+        adjacently.
+        """
+        results: list[PathInfo] = []
+        if '↔' in element_name:
+            node_a, node_b = element_name.split('↔', 1)
+            for path_list in self.paths.values():
+                for path in path_list:
+                    hops = path.hops
+                    for i in range(len(hops) - 1):
+                        if ((hops[i] == node_a and hops[i + 1] == node_b) or
+                                (hops[i] == node_b and hops[i + 1] == node_a)):
+                            results.append(path)
+                            break
+        else:
+            for path_list in self.paths.values():
+                for path in path_list:
+                    if element_name in path.hops:
+                        results.append(path)
+        return results
+
+    def get_srv6_locator_routes(self, node_name: str) -> list[dict]:
+        """Compute SRv6 locator routes for a switch node.
+
+        Each switch needs static routes to every other switch's SRv6
+        locator prefix.  The next-hop is determined by the direct P2P
+        link between the two nodes (or via the connected spine/leaf for
+        non-adjacent nodes).
+
+        Returns a list of ``{'prefix': ..., 'next_hop': ...}`` dicts.
+        """
+        node = self._node_map.get(node_name)
+        if node is None or node.role == 'host':
+            return []
+
+        routes: list[dict] = []
+        seen_prefixes: set[str] = set()
+
+        for other in self.nodes:
+            if other.name == node_name or other.role == 'host':
+                continue
+            if not other.srv6_locator:
+                continue
+            if other.srv6_locator in seen_prefixes:
+                continue
+
+            next_hop = self._find_next_hop(node_name, other.name)
+            if next_hop:
+                routes.append({
+                    'prefix': other.srv6_locator,
+                    'next_hop': next_hop,
+                })
+                seen_prefixes.add(other.srv6_locator)
+
+        return routes
+
+    def _find_next_hop(self, from_node: str, to_node: str) -> str:
+        """Find the IPv6 next-hop address from *from_node* to *to_node*.
+
+        If the nodes are directly connected, returns the peer's link
+        address.  If not directly connected (e.g. leaf to remote spine),
+        returns the address of the local spine that connects toward the
+        destination (for leaves) or the local leaf (for spines).
+        """
+        for link in self.links:
+            if link.node_a == from_node and link.node_b == to_node:
+                addr = link.addr_b
+                return addr.split('/')[0] if '/' in addr else addr
+            if link.node_b == from_node and link.node_a == to_node:
+                addr = link.addr_a
+                return addr.split('/')[0] if '/' in addr else addr
+
+        from_n = self._node_map.get(from_node)
+        to_n = self._node_map.get(to_node)
+        if from_n is None or to_n is None:
+            return ''
+
+        if from_n.plane != to_n.plane:
+            return ''
+
+        if from_n.role == 'leaf' and to_n.role == 'leaf':
+            for link in self.links:
+                peer = ''
+                if link.node_a == from_node and 'spine' in link.node_b:
+                    peer_node = self._node_map.get(link.node_b)
+                    if peer_node and peer_node.plane == from_n.plane:
+                        addr = link.addr_b
+                        return addr.split('/')[0] if '/' in addr else addr
+                if link.node_b == from_node and 'spine' in link.node_a:
+                    peer_node = self._node_map.get(link.node_a)
+                    if peer_node and peer_node.plane == from_n.plane:
+                        addr = link.addr_a
+                        return addr.split('/')[0] if '/' in addr else addr
+
+        return ''
+
+    def generate_eos_node_configs(self) -> list[dict]:
+        """Generate EOSNodeConfig-compatible dicts for all switch nodes.
+
+        Includes SRv6 locator routes computed from the fabric topology.
+        Suitable for passing to the EOS provisioner.
+        """
+        configs = []
+        for node in self.nodes:
+            if node.role == 'host':
+                continue
+            srv6_routes = self.get_srv6_locator_routes(node.name)
+            configs.append({
+                'hostname': node.name,
+                'role': node.role,
+                'plane': node.plane,
+                'index': node.index,
+                'loopback_ipv6': node.loopback_ipv6,
+                'interfaces': dict(node.interfaces),
+                'static_routes': [],
+                'srv6_locator': node.srv6_locator,
+                'srv6_usid': node.usid,
+                'srv6_locator_routes': srv6_routes,
+            })
+        return configs
+
+    def generate_host_startup_script(self, host_name: str) -> str:
+        """Generate a shell script to configure a host container at boot.
+
+        Sets up IPv6 addresses on per-plane interfaces and default
+        routes via connected leaf switches.
+        """
+        node = self._node_map.get(host_name)
+        if node is None or node.role != 'host':
+            return '#!/bin/bash\n# Unknown host\n'
+
+        lines = [
+            '#!/bin/bash',
+            f'# Startup script for {host_name}',
+            f'# Generated by MRC emu topology generator',
+            '',
+        ]
+        for plane, pi in sorted(node.plane_interfaces.items()):
+            iface = pi['iface']
+            ipv6 = pi['ipv6']
+            leaf = pi['leaf']
+            leaf_node = self._node_map.get(leaf)
+            lines.append(f'# Plane {plane}: {iface} -> {leaf}')
+            lines.append(f'ip -6 addr add {ipv6} dev {iface}')
+            lines.append(f'ip link set {iface} up')
+            lines.append(f'ip link set {iface} mtu 9216')
+            # Find the leaf's address on this link for the default route
+            for link in self.links:
+                if ((link.node_a == leaf and link.node_b == host_name) or
+                        (link.node_b == leaf and link.node_a == host_name)):
+                    gw = link.addr_a if link.node_a == leaf else link.addr_b
+                    gw_addr = gw.split('/')[0] if '/' in gw else gw
+                    lines.append(
+                        f'ip -6 route add default via {gw_addr} '
+                        f'dev {iface} metric {100 + plane}'
+                    )
+                    break
+            lines.append('')
+
+        lines.append('echo "Host configuration complete"')
+        lines.append('')
+        return '\n'.join(lines)
 
     # -- generation internals ------------------------------------------------
 
     def _generate_nodes(self) -> None:
-        """Create all NodeInfo objects with IPv6 and SRv6 addressing."""
+        """Create all NodeInfo objects with IPv6 and SRv6 addressing.
+
+        Switch nodes (spine/leaf) are created per-plane.  Host XPU nodes
+        are created once and connected to all planes via
+        ``_generate_links()``, matching the spec's Port = Plane model
+        (§9.3.2, §11.5).
+        """
         self.nodes.clear()
         self._node_map.clear()
         cfg = self.config
@@ -473,25 +677,32 @@ class TopologyGenerator:
                 self.nodes.append(node)
                 self._node_map[name] = node
 
-            # Host containers (one or more per leaf)
-            for li in range(cfg.leafs_per_plane):
-                for hi in range(cfg.hosts_per_leaf):
-                    host_idx = li * cfg.hosts_per_leaf + hi
-                    name = f'p{plane}-host{host_idx}'
-                    node = NodeInfo(
-                        name=name,
-                        role='host',
-                        plane=plane,
-                        index=host_idx,
-                    )
-                    self.nodes.append(node)
-                    self._node_map[name] = node
+        # Host XPUs — one per logical position, connected to all planes.
+        # plane=-1 indicates a multi-plane node; per-plane interfaces are
+        # populated during _generate_links().
+        hosts_per_plane = cfg.leafs_per_plane * cfg.hosts_per_leaf
+        for li in range(cfg.leafs_per_plane):
+            for hi in range(cfg.hosts_per_leaf):
+                host_idx = li * cfg.hosts_per_leaf + hi
+                name = f'host{host_idx}'
+                node = NodeInfo(
+                    name=name,
+                    role='host',
+                    plane=-1,
+                    index=host_idx,
+                )
+                self.nodes.append(node)
+                self._node_map[name] = node
 
     def _generate_links(self) -> None:
         """Create all LinkInfo objects with IPv6 point-to-point addresses.
 
         Assigns interface names sequentially per node (eth1, eth2, ...).
         eth0 is reserved for management.
+
+        Each host XPU gets one link per plane to its corresponding leaf,
+        with a distinct interface and IPv6 address per plane.  This
+        populates ``NodeInfo.plane_interfaces`` for host nodes.
         """
         self.links.clear()
         cfg = self.config
@@ -533,15 +744,14 @@ class TopologyGenerator:
                     self._node_map[leaf_name].interfaces[leaf_iface] = addr_leaf
                     self._node_map[spine_name].interfaces[spine_iface] = addr_spine
 
-            # Leaf <-> Host links
+            # Leaf <-> Host links (one per host per plane)
             for li in range(cfg.leafs_per_plane):
                 leaf_name = f'p{plane}-leaf{li}'
                 leaf_rid = self._role_id('leaf', li)
 
                 for hi in range(cfg.hosts_per_leaf):
                     host_idx = li * cfg.hosts_per_leaf + hi
-                    host_name = f'p{plane}-host{host_idx}'
-                    # Link ID: 0xff for first host, 0xfe for second, etc.
+                    host_name = f'host{host_idx}'
                     host_link_id = 0xff - hi
 
                     leaf_iface = next_iface(leaf_name)
@@ -560,8 +770,20 @@ class TopologyGenerator:
                         addr_a=addr_leaf, addr_b=addr_host,
                     ))
 
+                    host_node = self._node_map[host_name]
                     self._node_map[leaf_name].interfaces[leaf_iface] = addr_leaf
-                    self._node_map[host_name].interfaces[host_iface] = addr_host
+                    host_node.interfaces[host_iface] = addr_host
+
+                    host_rid = self._role_id('host', host_idx)
+                    host_node.plane_interfaces[plane] = {
+                        'iface': host_iface,
+                        'ipv6': addr_host,
+                        'leaf': leaf_name,
+                        'usid': self._make_usid(plane, 'host', host_idx),
+                        'srv6_locator': self._make_srv6_locator(
+                            plane, host_rid,
+                        ),
+                    }
 
     def _generate_paths(self) -> None:
         """Enumerate all host-to-host paths with EV and SRv6 mappings.
@@ -570,25 +792,32 @@ class TopologyGenerator:
         and include entries for every plane and spine combination.  Only
         pairs where source and destination are on different leafs are
         included (same-leaf pairs have no spine-traversal path).
+
+        Each path records the per-plane source and destination IPv6
+        addresses from the host's ``plane_interfaces``, matching the
+        spec's model where each packet's source address corresponds to
+        the egress plane's interface.
         """
         self.paths.clear()
         cfg = self.config
-        hosts_per_plane = cfg.leafs_per_plane * cfg.hosts_per_leaf
+        total_hosts = cfg.leafs_per_plane * cfg.hosts_per_leaf
 
-        for src_idx in range(hosts_per_plane):
+        for src_idx in range(total_hosts):
             src_leaf_idx = src_idx // cfg.hosts_per_leaf
+            src_host = f'host{src_idx}'
+            src_node = self._node_map[src_host]
 
-            for dst_idx in range(hosts_per_plane):
+            for dst_idx in range(total_hosts):
                 dst_leaf_idx = dst_idx // cfg.hosts_per_leaf
                 if src_leaf_idx == dst_leaf_idx:
-                    continue  # same leaf -- no spine-traversal path
+                    continue
 
-                key = f'host{src_idx}→host{dst_idx}'
+                dst_host = f'host{dst_idx}'
+                dst_node = self._node_map[dst_host]
+                key = f'{src_host}→{dst_host}'
                 path_list: list[PathInfo] = []
 
                 for plane in range(cfg.num_planes):
-                    src_host = f'p{plane}-host{src_idx}'
-                    dst_host = f'p{plane}-host{dst_idx}'
                     src_leaf = f'p{plane}-leaf{src_leaf_idx}'
                     dst_leaf = f'p{plane}-leaf{dst_leaf_idx}'
                     src_leaf_usid = self._make_usid(
@@ -597,6 +826,13 @@ class TopologyGenerator:
                     dst_leaf_usid = self._make_usid(
                         plane, 'leaf', dst_leaf_idx,
                     )
+
+                    src_ipv6 = src_node.plane_interfaces.get(
+                        plane, {},
+                    ).get('ipv6', '')
+                    dst_ipv6 = dst_node.plane_interfaces.get(
+                        plane, {},
+                    ).get('ipv6', '')
 
                     for si in range(cfg.spines_per_plane):
                         spine_name = f'p{plane}-spine{si}'
@@ -613,6 +849,8 @@ class TopologyGenerator:
                             spine_index=si,
                             ev_value=ev_value,
                             srv6_address=srv6_addr,
+                            source_ipv6=src_ipv6,
+                            dest_ipv6=dst_ipv6,
                             hops=[
                                 src_host, src_leaf, spine_name,
                                 dst_leaf, dst_host,

@@ -77,9 +77,14 @@ def _build_path_states() -> list[dict]:
             if ev_val in ecn_evs:
                 ecn_rate = 1.0
 
+            plane = (ev_val >> 8) & 0xFF
+            spine = ev_val & 0xFF
+
             state_entry = {
                 'ev_value': f'0x{ev_val:08X}',
                 'ev_value_int': ev_val,
+                'plane': plane,
+                'spine': spine,
                 'state': state_name,
                 'state_code': {'GOOD': 0, 'DENIED': 1, 'SKIP': 2, 'ASSUMED_BAD': 3}.get(state_name, 0),
                 'rtt_us': 0.0,

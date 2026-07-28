@@ -122,3 +122,131 @@ def api_scenario_step():
 def api_scenario_reset():
     _scenario_runner.reset()
     return jsonify(_scenario_runner.to_dict())
+
+
+# ---------------------------------------------------------------------------
+# Topology-aware click-to-fail
+# ---------------------------------------------------------------------------
+
+_topo_fault_map: dict[str, int] = {}
+
+
+@faults_bp.route('/api/faults/topology_fail', methods=['POST'])
+def api_topology_fail():
+    """Inject or clear a failure on a topology link or node.
+
+    The backend resolves which EVs/paths traverse the element using the
+    topology path data, so the user never needs to know EV values.
+
+    Request body::
+
+        {
+            "element_type": "link" | "node",
+            "element_id": "p0-leaf0↔p0-spine1" | "p0-spine1",
+            "failure_mode": "fail" | "ecn" | "partial_loss" | "restore"
+        }
+    """
+    try:
+        from routes.topology import _topology_state
+        gen = _topology_state.get('generator')
+    except ImportError:
+        gen = None
+    if gen is None:
+        return jsonify({'error': 'No topology generated'}), 400
+
+    data = request.json or {}
+    element_type = data.get('element_type', 'node')
+    element_id = data.get('element_id', '')
+    failure_mode = data.get('failure_mode', 'fail')
+
+    if element_type == 'link':
+        lookup = element_id
+    else:
+        lookup = element_id
+
+    affected_paths = gen.get_paths_through_element(lookup)
+    if not affected_paths:
+        return jsonify({'error': f'No paths traverse {element_id}'}), 404
+
+    affected_evs = sorted(set(p.ev_value for p in affected_paths))
+
+    if failure_mode == 'restore':
+        fault_id = _topo_fault_map.pop(element_id, None)
+        if fault_id is not None:
+            try:
+                _injector.remove_rule(fault_id)
+            except ValueError:
+                pass
+        # Recover affected EVs in the simulator's profile (simulates probe response)
+        try:
+            from routes.traffic import _traffic_state
+            sim = _traffic_state.get('simulator')
+            if sim and sim.ev_profile:
+                for ev in sim.ev_profile.ev_universe:
+                    if ev.value in affected_evs:
+                        ev.probe_resolved()
+                        sim._log_event(
+                            'PROBE_RESPONSE',
+                            f'EV=0x{ev.value:04X} probe response m=NONE '
+                            f'→ ASSUMED_BAD → GOOD (path restored)',
+                            '§9.3.1, Fig 5',
+                            ev_value=ev.value,
+                        )
+        except (ImportError, AttributeError):
+            pass
+        return jsonify({
+            'action': 'restored',
+            'element_id': element_id,
+            'affected_evs': [f'0x{ev:04X}' for ev in affected_evs],
+        })
+
+    if element_id in _topo_fault_map:
+        try:
+            _injector.remove_rule(_topo_fault_map[element_id])
+        except ValueError:
+            pass
+
+    if failure_mode == 'fail':
+        rule = FaultRule(
+            fault_type=FaultType.DROP_EV,
+            drop_evs=list(affected_evs),
+            description=f'Topology fail: {element_type} {element_id}',
+        )
+    elif failure_mode == 'ecn':
+        rule = FaultRule(
+            fault_type=FaultType.ECN_MARK,
+            ecn_evs=list(affected_evs),
+            ecn_m_flag=1,
+            description=f'Topology ECN degrade: {element_type} {element_id}',
+        )
+    elif failure_mode == 'partial_loss':
+        rule = FaultRule(
+            fault_type=FaultType.DROP_RATE,
+            drop_rate=0.30,
+            drop_evs=list(affected_evs),
+            description=f'Topology partial loss: {element_type} {element_id}',
+        )
+    else:
+        return jsonify({'error': f'Unknown failure_mode: {failure_mode}'}), 400
+
+    fault_id = _injector.add_rule(rule)
+    _topo_fault_map[element_id] = fault_id
+
+    return jsonify({
+        'action': failure_mode,
+        'element_id': element_id,
+        'fault_id': fault_id,
+        'affected_evs': [f'0x{ev:04X}' for ev in affected_evs],
+        'affected_paths': len(affected_paths),
+    })
+
+
+@faults_bp.route('/api/faults/topology_state')
+def api_topology_fault_state():
+    """Return currently active topology-level failures."""
+    return jsonify({
+        'active_failures': {
+            element_id: fault_id
+            for element_id, fault_id in _topo_fault_map.items()
+        },
+    })

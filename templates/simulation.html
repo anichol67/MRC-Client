@@ -11,7 +11,7 @@
 
     /* Metrics bar */
     .metrics-bar { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 8px 16px; margin-bottom: 12px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
-    .metric-item { text-align: center; }
+    .metric-item { text-align: center; cursor: help; }
     .metric-item small { display: block; font-size: 0.65rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; }
     .metric-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1rem; color: #e6edf3; }
     .metric-val.danger { color: #da3633; }
@@ -22,22 +22,23 @@
                          overflow: hidden; position: relative; cursor: grab; width: 100%; height: 60vh; min-height: 450px; }
     #sim-svg-container.grabbing { cursor: grabbing; }
 
-    /* CloudVision tile nodes */
+    /* CloudVision tile nodes — sizes controlled by tileSizeIdx */
     .cv-tile { cursor: pointer; }
     .cv-tile:hover .cv-tile-bg { filter: brightness(1.25); }
     .cv-tile-bg { rx: 6; ry: 6; }
-    .cv-tile-name { font-family: -apple-system, sans-serif; font-size: 11px; fill: #e6edf3; font-weight: 600; }
-    .cv-tile-role { font-family: -apple-system, sans-serif; font-size: 8.5px; fill: #8b949e; }
-    .cv-tile-usid { font-family: monospace; font-size: 8px; fill: #58a6ff; }
+    .cv-tile-name { font-family: -apple-system, sans-serif; fill: #e6edf3; font-weight: 600; }
+    .cv-tile-role { font-family: -apple-system, sans-serif; fill: #8b949e; }
+    .cv-tile-usid { font-family: monospace; fill: #58a6ff; }
     .cv-selected { stroke: #f0e68c !important; stroke-width: 3 !important; stroke-dasharray: 5 2; }
 
-    /* Links */
-    .topo-link { cursor: pointer; stroke-linecap: round; }
-    .topo-link:hover { stroke-width: 5; }
-    .link-failed { stroke: #da3633 !important; stroke-width: 4 !important; }
+    /* Links — uniform width for all connections */
+    .topo-link { cursor: pointer; stroke-linecap: round; stroke-width: 2.5; }
+    .topo-link:hover { stroke-width: 4; }
+    .link-failed { stroke: #da3633 !important; }
     .link-failed-pulse { animation: failPulse 1s infinite; }
     @keyframes failPulse { 0%,100%{stroke-opacity:1} 50%{stroke-opacity:0.3} }
-    .path-overlay { pointer-events: none; stroke-linecap: round; }
+    .path-overlay { pointer-events: none; stroke-linecap: round; stroke-width: 8; stroke-opacity: 0.5; }
+    .flow-dot { pointer-events: none; }
     .plane-box { fill: rgba(22,27,34,0.5); stroke: #30363d; stroke-width: 1; rx: 10; }
     .plane-label { font-size: 14px; fill: #8b949e; font-weight: 700; letter-spacing: 1px; }
     .failure-flash { fill: rgba(218,54,51,0.2); rx: 10; animation: flashFade 2s ease-out forwards; }
@@ -58,23 +59,55 @@
     /* Bottom panels */
     .bottom-panels { display: flex; gap: 12px; margin-top: 12px; }
     .bottom-panels .card { flex: 1; min-width: 0; }
-    .ev-row td { padding: 3px 6px; font-size: 0.78rem; }
+    .ev-row td { padding: 4px 8px; color: #e6edf3; }
+    .ev-row td code { color: #e6edf3; }
+    .ev-table-sm .ev-row td, .ev-table-sm th { font-size: 0.78rem; }
+    .ev-table-md .ev-row td, .ev-table-md th { font-size: 0.92rem; }
+    .ev-table-lg .ev-row td, .ev-table-lg th { font-size: 1.08rem; }
+    #ev-table th { color: #c9d1d9; }
     .state-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; }
-    .sim-log { font-family:monospace; font-size:0.72rem; max-height:180px; overflow-y:auto; }
+    .sim-log { font-family:monospace; max-height:180px; overflow-y:auto; color: #e6edf3; }
+    .log-text-sm .sim-log { font-size: 0.72rem; }
+    .log-text-md .sim-log { font-size: 0.9rem; }
+    .log-text-lg .sim-log { font-size: 1.08rem; }
+    .ctrl-text-sm .ctrl-bar label, .ctrl-text-sm .ctrl-bar .btn, .ctrl-text-sm .ctrl-bar input, .ctrl-text-sm .ctrl-bar select { font-size: 0.72rem; }
+    .ctrl-text-md .ctrl-bar label, .ctrl-text-md .ctrl-bar .btn, .ctrl-text-md .ctrl-bar input, .ctrl-text-md .ctrl-bar select { font-size: 0.88rem; }
+    .ctrl-text-lg .ctrl-bar label, .ctrl-text-lg .ctrl-bar .btn, .ctrl-text-lg .ctrl-bar input, .ctrl-text-lg .ctrl-bar select { font-size: 1.05rem; }
     .collapse-btn { font-size:0.8rem; color:#8b949e; cursor:pointer; background:none; border:none; padding:0; }
     .collapse-btn:hover { color:#e6edf3; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
     .running-pulse { animation: pulse 1s infinite; }
+
+    /* Link failure styles */
+    .link-failed-dash { stroke-dasharray: 8 4 !important; stroke: #da3633 !important; stroke-width: 4 !important; }
+
+    /* Right-click context menu */
+    .ctx-menu { position:absolute; background:#161b22; border:1px solid #30363d; border-radius:6px;
+                padding:4px 0; z-index:2000; min-width:160px; box-shadow:0 8px 24px rgba(0,0,0,0.6); display:none; }
+    .ctx-menu-item { padding:5px 14px; font-size:0.78rem; color:#c9d1d9; cursor:pointer; }
+    .ctx-menu-item:hover { background:#1c2129; color:#e6edf3; }
+    .ctx-menu-item.danger { color:#da3633; }
+    .ctx-menu-sep { height:1px; background:#30363d; margin:4px 0; }
+
+    /* Panel resizable */
+    .panel-header { background:#161b22; border-bottom:1px solid #30363d; padding:6px 12px;
+                    display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; }
+    .panel-header h6 { margin:0; font-size:0.8rem; color:#8b949e; }
+    .panel-maximize { font-size:0.72rem; color:#58a6ff; cursor:pointer; background:none; border:none; margin-left:8px; }
+    .panel-maximize:hover { color:#79c0ff; }
 </style>
 {% endblock %}
 {% block content %}
 <div class="cv-page-header d-flex justify-content-between align-items-center">
     Simulation <span id="run-indicator"></span>
-    <button class="collapse-btn" onclick="document.getElementById('ctrl-bar').style.display = document.getElementById('ctrl-bar').style.display==='none'?'':'none'">Controls ▾</button>
+    <span>
+        <button class="panel-maximize" onclick="cycleCtrlText()" title="Controls text size">Aa</button>
+        <button class="collapse-btn" onclick="document.getElementById('ctrl-bar').style.display = document.getElementById('ctrl-bar').style.display==='none'?'':'none'">Controls ▾</button>
+    </span>
 </div>
 
 <!-- Top: Controls bar (collapsible, horizontal) -->
-<div class="ctrl-bar" id="ctrl-bar">
+<div class="ctrl-bar ctrl-text-md" id="ctrl-bar">
     <div class="d-flex flex-wrap align-items-end gap-2">
         <div class="ctrl-group">
             <div><label>Collective</label><select id="sim-collective" class="form-select form-select-sm">
@@ -88,22 +121,27 @@
         <div class="ctrl-group">
             <button class="btn btn-success btn-sm" id="btn-start" onclick="startSimulation()">Start</button>
             <button class="btn btn-danger btn-sm" id="btn-stop" onclick="stopSimulation()" disabled>Stop</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="clearCounters()" title="Clear packet counters">Clear Counters</button>
         </div>
         <div class="ctrl-group">
-            <div><label>Failure</label><select id="fail-scenario" class="form-select form-select-sm">
-                <option value="">—</option><option value="single_link">Link</option><option value="spine_failure">Spine</option>
-                <option value="plane_failure">Plane</option><option value="partial_degradation">Degrade</option><option value="link_flap">Flap</option>
+            <div><label>Flow Mode</label><select id="flow-mode" class="form-select form-select-sm">
+                <option value="collective">NCCL Collective</option>
+                <option value="unidirectional">Unidirectional Pair</option>
+                <option value="bidirectional">Bidirectional Pair</option>
             </select></div>
-            <div><label>EV</label><input type="text" id="fail-ev" class="form-control form-control-sm" value="0x0000" style="max-width:90px"></div>
-            <button class="btn btn-warning btn-sm" onclick="injectFailure()">Inject</button>
-            <button class="btn btn-outline-secondary btn-sm" onclick="clearFailures()">Clear</button>
-        </div>
-        <div class="ctrl-group">
             <div><label>Source</label><select id="sim-src" class="form-select form-select-sm">
                 <option value="">—</option>{% for h in hosts %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
             </select></div>
             <div><label>Destination</label><select id="sim-dst" class="form-select form-select-sm">
                 <option value="">—</option>{% for h in hosts %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+            </select></div>
+            <div><label>EV Profile</label><select id="ev-profile-mode" class="form-select form-select-sm">
+                <option value="auto">Auto (from topology)</option>
+                <option value="manual">Use existing profile</option>
+            </select></div>
+            <div><label>EV Probes</label><select id="probe-mode" class="form-select form-select-sm">
+                <option value="auto">Auto (periodic)</option>
+                <option value="manual">Manual only</option>
             </select></div>
             <button class="btn btn-outline-primary btn-sm" onclick="showSimPaths()">Paths</button>
         </div>
@@ -117,15 +155,15 @@
 
 <!-- Metrics bar -->
 <div class="metrics-bar" id="metrics-bar">
-    <div class="metric-item"><small>CWND</small><div class="metric-val" id="m-cwnd">—</div></div>
-    <div class="metric-item"><small>Inflight</small><div class="metric-val" id="m-inflight">—</div></div>
-    <div class="metric-item"><small>Packets</small><div class="metric-val" id="m-packets">0</div></div>
-    <div class="metric-item"><small>Dropped</small><div class="metric-val danger" id="m-dropped">0</div></div>
-    <div class="metric-item"><small>ECN</small><div class="metric-val warning" id="m-ecn">0</div></div>
-    <div class="metric-item"><small>Trimmed</small><div class="metric-val" id="m-trimmed">0</div></div>
-    <div class="metric-item"><small>RTT (us)</small><div class="metric-val" id="m-rtt">—</div></div>
-    <div class="metric-item"><small>Step</small><div class="metric-val" id="m-step">0/0</div></div>
-    <div class="metric-item"><small>EV State</small><div id="m-ev-summary" style="font-size:0.78rem;">—</div></div>
+    <div class="metric-item" title="Congestion Window — max bytes the sender can have in-flight before waiting for SACKs (§8.3.1)"><small>CWND</small><div class="metric-val" id="m-cwnd">—</div></div>
+    <div class="metric-item" title="Inflight bytes — total bytes sent but not yet acknowledged by the responder (§8.3.1)"><small>Inflight</small><div class="metric-val" id="m-inflight">—</div></div>
+    <div class="metric-item" title="Total packets sent across all EVs/paths during this simulation"><small>Packets</small><div class="metric-val" id="m-packets">0</div></div>
+    <div class="metric-item" title="Packets dropped in the fabric (no SACK received) — triggers ACK timeout and EV state transition (§7.4.1)"><small>Dropped</small><div class="metric-val danger" id="m-dropped">0</div></div>
+    <div class="metric-item" title="ECN-marked packets — SACK received with m=SKIP_ONCE indicating path congestion (§9.3.1)"><small>ECN</small><div class="metric-val warning" id="m-ecn">0</div></div>
+    <div class="metric-item" title="Trimmed packets — payload removed by switch, NACK with TRIMMED reason sent to sender (§7.5.3)"><small>Trimmed</small><div class="metric-val" id="m-trimmed">0</div></div>
+    <div class="metric-item" title="Round-trip time estimate in microseconds — used by NSCC to detect congestion (§8.2, Table 8-1)"><small>RTT (us)</small><div class="metric-val" id="m-rtt">—</div></div>
+    <div class="metric-item" title="Current step / total steps in the flow plan cycle"><small>Step</small><div class="metric-val" id="m-step">0/0</div></div>
+    <div class="metric-item" title="EV state summary — G=GOOD (active), S=SKIP (congested), B=ASSUMED_BAD (failed) per spec Figure 5"><small>EV State</small><div id="m-ev-summary" style="font-size:0.78rem;">—</div></div>
 </div>
 
 <!-- Topology view — full width -->
@@ -134,28 +172,46 @@
         <button onclick="simZoom(1.2)" title="Zoom in">+</button>
         <button onclick="simZoom(0.8)" title="Zoom out">−</button>
         <button onclick="simZoomReset()" title="Reset">⟲</button>
+        <button onclick="cycleTileSize()" title="Tile size">Aa</button>
     </div>
 </div>
 <div id="sim-tip" class="sim-tooltip"></div>
 
-<!-- Bottom panels: EV table + Event log -->
+<!-- Right-click context menu -->
+<div class="ctx-menu" id="ctx-menu">
+    <div class="ctx-menu-item" onclick="ctxAction('fail')">Fail Link/Node</div>
+    <div class="ctx-menu-item" onclick="ctxAction('ecn')">Degrade (ECN)</div>
+    <div class="ctx-menu-item" onclick="ctxAction('partial_loss')">Degrade (Partial Loss)</div>
+    <div class="ctx-menu-sep"></div>
+    <div class="ctx-menu-item" onclick="ctxAction('restore')" style="color:#238636">Restore</div>
+    <div class="ctx-menu-sep"></div>
+    <div class="ctx-menu-item" onclick="clearFailures()" class="danger">Clear All Failures</div>
+</div>
+
+<!-- Bottom panels: EV state (expanded) + Event log (minimised) -->
 <div class="bottom-panels">
-    <div class="card" style="flex:2;">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            EV Path State <button class="collapse-btn" onclick="togglePanel(this)">−</button>
+    <div class="card" id="panel-evstate" style="flex:1;">
+        <div class="panel-header" onclick="togglePanel('panel-evstate')">
+            <h6>EV Path State</h6>
+            <span>
+                <button class="panel-maximize" onclick="event.stopPropagation();cycleTextSize()" title="Text size">Aa</button>
+                <button class="panel-maximize" onclick="event.stopPropagation();maximizePanel('panel-evstate')" title="Maximize">⤢</button>
+                <button class="collapse-btn" id="panel-evstate-btn" onclick="event.stopPropagation();togglePanel('panel-evstate')">−</button>
+            </span>
         </div>
-        <div class="card-body p-0" style="max-height:220px; overflow-y:auto;">
-            <table class="table table-sm mb-0">
-                <thead><tr><th>EV</th><th>State</th><th>Plane</th><th>Spine</th><th>SRv6 Path</th><th>RTT</th></tr></thead>
-                <tbody id="ev-table-body"><tr><td colspan="6" class="text-muted text-center">Select hosts to show paths</td></tr></tbody>
+        <div class="card-body p-0" id="panel-evstate-body" style="max-height:220px; overflow-y:auto;">
+            <table class="table table-sm mb-0 ev-table-md" id="ev-table">
+                <thead><tr><th>EV</th><th>State</th><th>Plane</th><th>Spine</th><th>Pkts</th><th title="Percentage of total traffic using this path">BW%</th><th>Src IPv6</th><th>SRv6 Path</th><th>RTT</th><th>ECN</th></tr></thead>
+                <tbody id="ev-table-body"><tr><td colspan="10" class="text-muted text-center">Select src → dst hosts to show paths</td></tr></tbody>
             </table>
         </div>
     </div>
-    <div class="card" style="flex:1;">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            Event Log <button class="collapse-btn" onclick="togglePanel(this)">−</button>
+    <div class="card log-text-md" id="panel-eventlog" style="flex:1;">
+        <div class="panel-header" onclick="togglePanel('panel-eventlog')">
+            <h6>MRC Event Log</h6>
+            <span><button class="panel-maximize" onclick="event.stopPropagation();cycleLogText()" title="Log text size">Aa</button><button class="panel-maximize" onclick="event.stopPropagation();maximizePanel('panel-eventlog')" title="Maximize">⤢</button><button class="collapse-btn" id="panel-eventlog-btn" onclick="event.stopPropagation();togglePanel('panel-eventlog')">+</button></span>
         </div>
-        <div class="card-body p-2"><div class="sim-log" id="event-log"></div></div>
+        <div class="card-body p-2" id="panel-eventlog-body" style="display:none;"><div class="sim-log" id="event-log"></div></div>
     </div>
 </div>
 {% endblock %}
@@ -169,7 +225,19 @@
         link:'#30363d', failed:'#da3633',
         GOOD:'#238636', SKIP:'#d29922', DENIED:'#484f58', ASSUMED_BAD:'#da3633',
     };
-    const TILE_W = 140, TILE_H = 56;
+    const tileSizes = [
+        { w: 120, h: 48, name: 11, role: 8.5, usid: 8, nameY: 17, roleY: 29, usidY: 40, stripe: 4, dotR: 4 },
+        { w: 160, h: 60, name: 13, role: 10,  usid: 9.5, nameY: 20, roleY: 35, usidY: 49, stripe: 5, dotR: 5 },
+        { w: 200, h: 74, name: 16, role: 12,  usid: 11, nameY: 24, roleY: 42, usidY: 58, stripe: 6, dotR: 5.5 },
+    ];
+    let tileSizeIdx = 1;
+    function ts() { return tileSizes[tileSizeIdx]; }
+    let TILE_W = ts().w, TILE_H = ts().h;
+    window.cycleTileSize = function() {
+        tileSizeIdx = (tileSizeIdx + 1) % tileSizes.length;
+        TILE_W = ts().w; TILE_H = ts().h;
+        renderFabric(); drawPaths();
+    };
     let topoData = null, nodePos = {}, simTimer = null, stepCount = 0, totalSteps = 0;
     let failedLinks = {}, highlightedPaths = [], pathStates = [];
     let selectedSrc = '', selectedDst = '';
@@ -177,11 +245,88 @@
 
     function stateColor(s) { return C[s] || '#484f58'; }
 
-    // Panel collapse
-    window.togglePanel = function(btn) {
-        const body = btn.closest('.card').querySelector('.card-body');
+    // Panel collapse/maximize
+    window.togglePanel = function(panelId) {
+        const body = document.getElementById(panelId + '-body');
+        const btn = document.getElementById(panelId + '-btn');
+        if (!body || !btn) return;
         if (body.style.display === 'none') { body.style.display = ''; btn.textContent = '−'; }
         else { body.style.display = 'none'; btn.textContent = '+'; }
+        try { localStorage.setItem('sim_' + panelId, body.style.display === 'none' ? 'collapsed' : 'expanded'); } catch(e) {}
+    };
+    window.maximizePanel = function(panelId) {
+        const panel = document.getElementById(panelId);
+        if (!panel) return;
+        const body = document.getElementById(panelId + '-body');
+        if (body) { body.style.display = ''; body.style.maxHeight = body.style.maxHeight === 'none' ? '220px' : 'none'; }
+        document.getElementById(panelId + '-btn').textContent = '−';
+    };
+    function restorePanelState() {
+        ['panel-evstate', 'panel-eventlog'].forEach(id => {
+            try {
+                const s = localStorage.getItem('sim_' + id);
+                if (s === 'collapsed') { const b = document.getElementById(id+'-body'); if(b) b.style.display='none'; const bt=document.getElementById(id+'-btn'); if(bt) bt.textContent='+'; }
+                else if (s === 'expanded') { const b = document.getElementById(id+'-body'); if(b) b.style.display=''; const bt=document.getElementById(id+'-btn'); if(bt) bt.textContent='−'; }
+            } catch(e) {}
+        });
+    }
+
+    // Context menu for click-to-fail
+    let ctxTarget = null;
+    window.ctxAction = async function(mode) {
+        document.getElementById('ctx-menu').style.display = 'none';
+        if (!ctxTarget) return;
+        try {
+            const r = await apiCall('/api/faults/topology_fail', 'POST', {
+                element_type: ctxTarget.type,
+                element_id: ctxTarget.id,
+                failure_mode: mode,
+            });
+            if (r.affected_evs) {
+                log(`<span style="color:${mode==='restore'?C.GOOD:C.failed}">${mode.toUpperCase()}: ${ctxTarget.id} — ${r.affected_evs.length} EVs affected: ${r.affected_evs.join(', ')}</span>`);
+                if (mode === 'restore') {
+                    // Remove failed link/node styling
+                    if (ctxTarget.type === 'link') {
+                        const parts = ctxTarget.id.split('↔');
+                        if (parts.length === 2) delete failedLinks[parts.sort().join('||')];
+                    } else {
+                        // Remove all links connected to the restored node
+                        Object.keys(failedLinks).forEach(k => {
+                            const nodes = k.split('||');
+                            if (nodes.includes(ctxTarget.id)) delete failedLinks[k];
+                        });
+                    }
+                    // Restore affected EVs to GOOD in local state
+                    r.affected_evs.forEach(evHex => {
+                        const evInt = parseInt(evHex, 16);
+                        const ps = pathStates.find(s => s.ev_value_int === evInt);
+                        if (ps) ps.state = 'GOOD';
+                    });
+                } else {
+                    // Mark links as failed in topology view
+                    if (ctxTarget.type === 'link') {
+                        const parts = ctxTarget.id.split('↔');
+                        if (parts.length === 2) failedLinks[parts.sort().join('||')] = true;
+                    } else {
+                        // Node failure: mark all links connected to the failed node
+                        topoData.links.forEach(l => {
+                            if (l.node_a === ctxTarget.id || l.node_b === ctxTarget.id) {
+                                failedLinks[[l.node_a,l.node_b].sort().join('||')] = true;
+                            }
+                        });
+                    }
+                    flashFailure(ctxTarget.type === 'node' ? [ctxTarget.id] : ctxTarget.id.split('↔'));
+                    // Update affected EVs in local path state
+                    const newState = mode === 'fail' ? 'ASSUMED_BAD' : 'SKIP';
+                    r.affected_evs.forEach(evHex => {
+                        const evInt = parseInt(evHex, 16);
+                        const ps = pathStates.find(s => s.ev_value_int === evInt);
+                        if (ps) ps.state = newState;
+                    });
+                }
+                renderFabric(); drawPaths(); updateEVTable();
+            }
+        } catch(e) { log('Error: ' + e.message); }
     };
 
     // Init
@@ -197,6 +342,7 @@
         ensureMultiPlaneHosts();
         renderFabric();
         setupZoomPan();
+        restorePanelState();
     }
 
     function ensureMultiPlaneHosts() {
@@ -275,16 +421,16 @@
             multiHosts.forEach((h,i) => { nodePos[h.name] = {x:sp*(i+1), y:hy}; });
         }
 
-        // Links
+        // Links — all uniform width, terminating at node center
         svg += '<g id="sg-links">';
         topoData.links.forEach(l => {
             const pa = nodePos[l.node_a], pb = nodePos[l.node_b];
             if (!pa || !pb) return;
             const key = [l.node_a, l.node_b].sort().join('||');
             const failed = !!failedLinks[key];
-            const cls = failed ? 'topo-link link-failed link-failed-pulse' : 'topo-link';
+            const cls = failed ? 'topo-link link-failed link-failed-pulse link-failed-dash' : 'topo-link';
             const tipData = encodeURIComponent(JSON.stringify({node_a:l.node_a, node_b:l.node_b, iface_a:l.iface_a||'-', iface_b:l.iface_b||'-', addr_a:l.addr_a||'-', addr_b:l.addr_b||'-'}));
-            svg += `<line class="${cls}" x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${failed?C.failed:C.link}" stroke-width="${failed?4:2}" data-key="${key}" data-tip="${tipData}" onmouseenter="simViz.showTip(event,this,'link')" onmouseleave="simViz.hideTip()" onclick="simViz.toggleLink(this)"/>`;
+            svg += `<line class="${cls}" x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${failed?C.failed:C.link}" data-key="${key}" data-link-id="${l.node_a}↔${l.node_b}" data-tip="${tipData}" onmouseenter="simViz.showTip(event,this,'link')" onmouseleave="simViz.hideTip()" oncontextmenu="simViz.ctxMenu(event,'link','${l.node_a}↔${l.node_b}')"/>`;
         });
         svg += '</g><g id="sg-paths"></g><g id="sg-nodes">';
 
@@ -298,18 +444,28 @@
             const txt = role==='spine'?C.spine_text:role==='leaf'?C.leaf_text:C.host_text;
             const rx = pos.x-TILE_W/2, ry = pos.y-TILE_H/2;
             const sel = (name===selectedSrc||name===selectedDst) ? ' cv-selected' : '';
-            const usid = node.usid!=null ? '0x'+('0000'+node.usid.toString(16).toUpperCase()).slice(-4) : '';
-            const tipData = encodeURIComponent(JSON.stringify({name, role, plane:node.plane, loopback_ipv6:node.loopback_ipv6||'-', srv6_locator:node.srv6_locator||'-', usid:usid||'-', interfaces:node.interfaces||{}}));
+            const piInfo = node.plane_interfaces || {};
+            let usidLabel = '';
+            if (role === 'host' && Object.keys(piInfo).length > 0) {
+                const parts = Object.entries(piInfo).sort((a,b)=>Number(a[0])-Number(b[0]))
+                    .map(([p, info]) => 'P'+p+':0x'+('0000'+(info.usid||0).toString(16).toUpperCase()).slice(-4));
+                usidLabel = parts.join(' ');
+            } else if (node.usid) {
+                usidLabel = '0x'+('0000'+node.usid.toString(16).toUpperCase()).slice(-4);
+            }
+            const tipObj = {name, role, plane:node.plane, loopback_ipv6:node.loopback_ipv6||'-', srv6_locator:node.srv6_locator||'-', usid:usidLabel||'-', interfaces:node.interfaces||{}, plane_interfaces:piInfo};
+            const tipData = encodeURIComponent(JSON.stringify(tipObj));
             const hasFail = Object.keys(failedLinks).some(k => k.includes(name));
             const dot = hasFail ? C.failed : C.GOOD;
 
-            svg += `<g class="cv-tile" onclick="simViz.selectHost('${name}','${role}')" onmouseenter="simViz.showTip(event,this.querySelector('.cv-tile-bg'),'node')" onmouseleave="simViz.hideTip()">`;
+            const t = ts();
+            svg += `<g class="cv-tile" onclick="simViz.selectHost('${name}','${role}')" oncontextmenu="simViz.ctxMenu(event,'node','${name}')" onmouseenter="simViz.showTip(event,this.querySelector('.cv-tile-bg'),'node')" onmouseleave="simViz.hideTip()">`;
             svg += `<rect class="cv-tile-bg${sel}" x="${rx}" y="${ry}" width="${TILE_W}" height="${TILE_H}" fill="${bg}" stroke="${stripe}" stroke-width="1.5" data-tip="${tipData}"/>`;
-            svg += `<rect x="${rx}" y="${ry}" width="5" height="${TILE_H}" fill="${stripe}" rx="6"/>`;
-            svg += `<circle cx="${rx+TILE_W-12}" cy="${ry+12}" r="4.5" fill="${dot}"/>`;
-            svg += `<text class="cv-tile-name" x="${rx+14}" y="${ry+18}" fill="${txt}">${name}</text>`;
-            svg += `<text class="cv-tile-role" x="${rx+14}" y="${ry+31}">${role.charAt(0).toUpperCase()+role.slice(1)}</text>`;
-            if (usid) svg += `<text class="cv-tile-usid" x="${rx+14}" y="${ry+44}">${usid}</text>`;
+            svg += `<rect x="${rx}" y="${ry}" width="${t.stripe}" height="${TILE_H}" fill="${stripe}" rx="6"/>`;
+            svg += `<circle cx="${rx+TILE_W-12}" cy="${ry+12}" r="${t.dotR}" fill="${dot}"/>`;
+            svg += `<text class="cv-tile-name" x="${rx+t.stripe+8}" y="${ry+t.nameY}" fill="${txt}" font-size="${t.name}px">${name}</text>`;
+            svg += `<text class="cv-tile-role" x="${rx+t.stripe+8}" y="${ry+t.roleY}" font-size="${t.role}px">${role.charAt(0).toUpperCase()+role.slice(1)}</text>`;
+            if (usidLabel) svg += `<text class="cv-tile-usid" x="${rx+t.stripe+8}" y="${ry+t.usidY}" font-size="${t.usid}px">${usidLabel}</text>`;
             svg += '</g>';
         }
         svg += '</g><g id="sg-failure-flash"></g></g></svg>';
@@ -331,35 +487,103 @@
 
     function drawPaths() {
         const g = document.getElementById('sg-paths'); if (!g) return; g.innerHTML = '';
-        highlightedPaths.forEach((path, idx) => {
+        const isRunning = !!simTimer;
+        highlightedPaths.forEach((path, pidx) => {
             const hops = path.hops; if (!hops || hops.length < 2) return;
-            let color = C.GOOD;
             const ps = pathStates.find(s => s.ev_value_int===path.ev_value || s.ev_value==='0x'+('00000000'+path.ev_value.toString(16)).slice(-8));
-            if (ps) color = stateColor(ps.state);
-            const offset = (idx-(highlightedPaths.length-1)/2)*5;
-            for (let i = 0; i < hops.length-1; i++) {
-                const pa = nodePos[hops[i]], pb = nodePos[hops[i+1]]; if (!pa||!pb) continue;
-                const dx=pb.x-pa.x, dy=pb.y-pa.y, len=Math.sqrt(dx*dx+dy*dy)||1;
-                const nx=-dy/len*offset, ny=dx/len*offset;
-                g.innerHTML += `<line class="path-overlay" x1="${pa.x+nx}" y1="${pa.y+ny}" x2="${pb.x+nx}" y2="${pb.y+ny}" stroke="${color}" stroke-width="5" stroke-opacity="0.85"/>`;
+            const state = ps ? ps.state : 'GOOD';
+            const color = stateColor(state);
+            const isActive = (state === 'GOOD');
+
+            // Build the full path as SVG coordinates
+            const points = [];
+            for (let i = 0; i < hops.length; i++) {
+                const p = nodePos[hops[i]];
+                if (p) points.push(p);
+            }
+
+            // Draw path overlay segments
+            for (let i = 0; i < points.length - 1; i++) {
+                g.innerHTML += `<line class="path-overlay" x1="${points[i].x}" y1="${points[i].y}" x2="${points[i+1].x}" y2="${points[i+1].y}" stroke="${color}"/>`;
+            }
+
+            // Animated flow dots on active paths while simulation is running
+            if (isRunning && isActive && points.length >= 2) {
+                const dur = (1.5 + pidx * 0.3).toFixed(1);
+
+                // Forward dots: source → destination (bright white)
+                if (path.direction !== 'reverse') {
+                    const fwdPath = 'M' + points.map(p => `${p.x},${p.y}`).join(' L');
+                    for (let d = 0; d < 3; d++) {
+                        const delay = (d * 0.5).toFixed(1);
+                        g.innerHTML += `<circle class="flow-dot" r="5" fill="#ffffff" opacity="1">` +
+                            `<animateMotion dur="${dur}s" begin="${delay}s" repeatCount="indefinite" path="${fwdPath}"/>` +
+                            `</circle>`;
+                    }
+                }
+
+                // Reverse dots: destination → source (soft white) — bidirectional only
+                const flowMode = document.getElementById('flow-mode').value;
+                if (flowMode === 'bidirectional' || path.direction === 'reverse') {
+                    const revPoints = [...points].reverse();
+                    const revPath = 'M' + revPoints.map(p => `${p.x},${p.y}`).join(' L');
+                    const revDur = (1.8 + pidx * 0.3).toFixed(1);
+                    for (let d = 0; d < 3; d++) {
+                        const delay = (d * 0.5 + 0.25).toFixed(2);
+                        g.innerHTML += `<circle class="flow-dot" r="4" fill="#b0b8c0" opacity="0.9">` +
+                            `<animateMotion dur="${revDur}s" begin="${delay}s" repeatCount="indefinite" path="${revPath}"/>` +
+                            `</circle>`;
+                    }
+                }
             }
         });
     }
 
+    // Text size cycling for all panels
+    function cycleClass(el, classes, stateObj, key) {
+        el.classList.remove(classes[stateObj[key]]);
+        stateObj[key] = (stateObj[key] + 1) % classes.length;
+        el.classList.add(classes[stateObj[key]]);
+    }
+    const szState = { ev: 1, log: 1, ctrl: 1 };
+    const evSizes = ['ev-table-sm', 'ev-table-md', 'ev-table-lg'];
+    const logSizes = ['log-text-sm', 'log-text-md', 'log-text-lg'];
+    const ctrlSizes = ['ctrl-text-sm', 'ctrl-text-md', 'ctrl-text-lg'];
+
+    window.cycleTextSize = function() { cycleClass(document.getElementById('ev-table'), evSizes, szState, 'ev'); };
+    window.cycleLogText = function() { cycleClass(document.getElementById('panel-eventlog'), logSizes, szState, 'log'); };
+    window.cycleCtrlText = function() { cycleClass(document.getElementById('ctrl-bar'), ctrlSizes, szState, 'ctrl'); };
+
+    // Per-EV packet counts from simulator
+    let evPacketCounts = {};
+
     function updateEVTable() {
         const tbody = document.getElementById('ev-table-body');
-        if (!highlightedPaths.length) { tbody.innerHTML='<tr><td colspan="6" class="text-muted text-center">Select src → dst hosts to show paths</td></tr>'; return; }
+        if (!highlightedPaths.length) { tbody.innerHTML='<tr><td colspan="10" class="text-muted text-center">Select src → dst hosts to show paths</td></tr>'; return; }
+        // Calculate total packets across all displayed paths for BW%
+        let totalPkts = 0;
+        highlightedPaths.forEach(p => {
+            const ps = pathStates.find(s => s.ev_value_int===p.ev_value);
+            totalPkts += (ps && ps.packet_count != null) ? ps.packet_count : (evPacketCounts[p.ev_value] || 0);
+        });
         let html = '';
         highlightedPaths.forEach(p => {
             const ps = pathStates.find(s => s.ev_value_int===p.ev_value);
             const state = ps ? ps.state : 'GOOD';
             const rtt = ps ? ps.rtt_us.toFixed(1) : '-';
+            const ecn = ps ? (ps.ecn_rate * 100).toFixed(0) + '%' : '0%';
             const evHex = '0x'+('00000000'+p.ev_value.toString(16).toUpperCase()).slice(-8);
+            const srcIpv6 = p.source_ipv6 || '-';
+            const pkts = (ps && ps.packet_count != null) ? ps.packet_count : (evPacketCounts[p.ev_value] || 0);
+            const bwPct = totalPkts > 0 ? ((pkts / totalPkts) * 100).toFixed(1) : '0.0';
             html += `<tr class="ev-row"><td><code>${evHex}</code></td>` +
                 `<td><span class="state-dot" style="background:${stateColor(state)}"></span>${state}</td>` +
                 `<td>${p.plane}</td><td>${p.spine_index}</td>` +
-                `<td><code style="font-size:0.7rem">${p.srv6_address||'-'}</code></td>` +
-                `<td>${rtt}</td></tr>`;
+                `<td>${pkts}</td>` +
+                `<td>${bwPct}%</td>` +
+                `<td><code>${srcIpv6}</code></td>` +
+                `<td><code>${p.srv6_address||'-'}</code></td>` +
+                `<td>${rtt}</td><td>${ecn}</td></tr>`;
         });
         tbody.innerHTML = html;
     }
@@ -378,22 +602,62 @@
         selectedDst = document.getElementById('sim-dst').value;
         if (!selectedSrc||!selectedDst||selectedSrc===selectedDst) { highlightedPaths=[]; drawPaths(); updateEVTable(); renderFabric(); return; }
         highlightedPaths = [];
-        const key = `${selectedSrc}->${selectedDst}`;
-        if (topoData.paths && topoData.paths[key]) highlightedPaths = topoData.paths[key];
-        try { const r = await apiCall(`/api/topology/paths/${encodeURIComponent(selectedSrc)}`);
-            if (r && Array.isArray(r)) { const m=r.filter(p=>p.dest_host===selectedDst); if (m.length>0) highlightedPaths=m; }
-        } catch(e) {}
-        // Initialize pathStates for the highlighted paths
+        // Forward paths: src→dst
+        const key = `${selectedSrc}→${selectedDst}`;
+        if (topoData.paths && topoData.paths[key]) {
+            topoData.paths[key].forEach(p => { highlightedPaths.push(Object.assign({}, p, {direction: 'forward'})); });
+        }
+        if (!highlightedPaths.length) {
+            try { const r = await apiCall(`/api/topology/paths/${encodeURIComponent(selectedSrc)}`);
+                if (r && Array.isArray(r)) { const m=r.filter(p=>p.dest_host===selectedDst); m.forEach(p => highlightedPaths.push(Object.assign({}, p, {direction: 'forward'}))); }
+            } catch(e) {}
+        }
+        // Reverse paths for bidirectional mode
+        const flowMode = document.getElementById('flow-mode').value;
+        if (flowMode === 'bidirectional') {
+            const revKey = `${selectedDst}→${selectedSrc}`;
+            if (topoData.paths && topoData.paths[revKey]) {
+                topoData.paths[revKey].forEach(p => { highlightedPaths.push(Object.assign({}, p, {direction: 'reverse'})); });
+            } else {
+                try { const r = await apiCall(`/api/topology/paths/${encodeURIComponent(selectedDst)}`);
+                    if (r && Array.isArray(r)) { const m=r.filter(p=>p.dest_host===selectedSrc); m.forEach(p => highlightedPaths.push(Object.assign({}, p, {direction: 'reverse'}))); }
+                } catch(e) {}
+            }
+        }
         pathStates = highlightedPaths.map(p => ({
             ev_value: '0x'+('00000000'+p.ev_value.toString(16)).slice(-8),
-            ev_value_int: p.ev_value, state: 'GOOD', rtt_us: 100+Math.random()*30,
+            ev_value_int: p.ev_value, plane: p.plane, spine: p.spine_index,
+            state: 'GOOD', rtt_us: 100+Math.random()*30, packet_count: 0,
             ecn_rate:0, loss_rate:0, sack_count:0, nack_count:0, probe_count:0
         }));
-        try { const r = await apiCall('/api/pathstate'); if (r&&r.paths) pathStates = r.paths; } catch(e) {}
+        // Merge server-side state into local entries (don't replace the array)
+        try {
+            const simState = await apiCall('/api/traffic/simulation_state');
+            if (simState && simState.ev_states) {
+                simState.ev_states.forEach(ev => {
+                    const ps = pathStates.find(s => s.ev_value_int === ev.value);
+                    if (ps) { ps.state = ev.state; ps.packet_count = ev.packet_count || 0; }
+                    evPacketCounts[ev.value] = ev.packet_count || 0;
+                });
+            }
+        } catch(e) {}
+        try {
+            const pr = await apiCall('/api/pathstate');
+            if (pr && pr.paths) {
+                pr.paths.forEach(serverPs => {
+                    const ps = pathStates.find(s => s.ev_value_int === serverPs.ev_value_int);
+                    if (ps) {
+                        if (serverPs.state !== 'GOOD') ps.state = serverPs.state;
+                        if (serverPs.rtt_us) ps.rtt_us = serverPs.rtt_us;
+                        if (serverPs.ecn_rate) ps.ecn_rate = serverPs.ecn_rate;
+                    }
+                });
+            }
+        } catch(e) {}
         renderFabric(); drawPaths(); updateEVTable();
     };
 
-    // Tooltips
+    // Tooltips and context menu
     window.simViz = {
         selectHost,
         showTip(event, el, type) {
@@ -401,37 +665,98 @@
             const data = JSON.parse(decodeURIComponent(el.getAttribute('data-tip')));
             let html = '';
             if (type==='node') {
-                html = `<strong>${data.name}</strong>\nRole: ${data.role}  |  Plane: ${data.plane}\nLoopback: <code>${data.loopback_ipv6}</code>\nSRv6: <code>${data.srv6_locator}</code>\nuSID: <code>${data.usid}</code>`;
-                if (data.interfaces && Object.keys(data.interfaces).length>0) { html+='\n\nInterfaces:'; for (const [k,v] of Object.entries(data.interfaces)) html+=`\n  ${k}: <code>${v}</code>`; }
+                html = `<strong>${data.name}</strong>\nRole: ${data.role}  |  Plane: ${data.plane === -1 ? 'All' : data.plane}`;
+                if (data.loopback_ipv6 && data.loopback_ipv6 !== '-') html += `\nLoopback: <code>${data.loopback_ipv6}</code>`;
+                if (data.srv6_locator && data.srv6_locator !== '-') html += `\nSRv6: <code>${data.srv6_locator}</code>`;
+                if (data.usid && data.usid !== '-') html += `\nuSID: <code>${data.usid}</code>`;
+                if (data.plane_interfaces && Object.keys(data.plane_interfaces).length > 0) {
+                    html += '\n\nPer-Plane Interfaces:';
+                    for (const [plane, info] of Object.entries(data.plane_interfaces)) {
+                        html += `\n  Plane ${plane}: ${info.iface} → <code>${info.ipv6}</code> (${info.leaf})`;
+                    }
+                } else if (data.interfaces && Object.keys(data.interfaces).length>0) {
+                    html+='\n\nInterfaces:'; for (const [k,v] of Object.entries(data.interfaces)) html+=`\n  ${k}: <code>${v}</code>`;
+                }
             } else {
                 html = `<strong>${data.node_a} ↔ ${data.node_b}</strong>\n\n${data.node_a}:\n  ${data.iface_a}: <code>${data.addr_a}</code>\n\n${data.node_b}:\n  ${data.iface_b}: <code>${data.addr_b}</code>`;
             }
             tip.innerHTML=html; tip.style.display='block'; tip.style.left=(event.pageX+15)+'px'; tip.style.top=(event.pageY-10)+'px';
         },
         hideTip() { document.getElementById('sim-tip').style.display='none'; },
-        toggleLink(el) {
-            const key = el.getAttribute('data-key');
-            if (failedLinks[key]) { delete failedLinks[key]; } else { failedLinks[key]=true; flashFailure(key.split('||')); }
-            renderFabric(); drawPaths();
+        ctxMenu(event, type, id) {
+            event.preventDefault();
+            ctxTarget = { type, id };
+            const menu = document.getElementById('ctx-menu');
+            menu.style.left = event.pageX + 'px';
+            menu.style.top = event.pageY + 'px';
+            menu.style.display = 'block';
         },
     };
+    document.addEventListener('click', () => { document.getElementById('ctx-menu').style.display = 'none'; });
 
     function log(msg) { const el=document.getElementById('event-log'); const ts=new Date().toLocaleTimeString();
         el.innerHTML=`<div>[${ts}] ${msg}</div>`+el.innerHTML; if (el.children.length>200) el.removeChild(el.lastChild); }
 
+    let lastEventCount = 0;
+    function updateEventLog(events) {
+        if (!events || events.length <= lastEventCount) return;
+        const el = document.getElementById('event-log');
+        const newEvents = events.slice(lastEventCount);
+        newEvents.forEach(evt => {
+            const typeColor = {
+                'ECN_RECEIVED': '#d29922', 'SACK_GENERATED': '#79c0ff',
+                'SACK_RECEIVED': '#58a6ff', 'NACK_RECEIVED': '#d29922',
+                'ACK_TIMEOUT': '#da3633', 'EV_STATE_CHANGE': '#f0e68c',
+                'PROBE_SENT': '#79c0ff', 'PROBE_RESPONSE': '#238636',
+                'CWND_CHANGE': '#8b949e', 'TRAFFIC_SHIFT': '#238636',
+            }[evt.type] || '#c9d1d9';
+            const specRef = evt.spec_ref ? ` <span style="color:#484f58">(${evt.spec_ref})</span>` : '';
+            el.innerHTML = `<div><span style="color:#484f58">[T=${evt.time}s]</span> <span style="color:${typeColor}">${evt.detail}</span>${specRef}</div>` + el.innerHTML;
+        });
+        lastEventCount = events.length;
+        if (el.children.length > 500) while (el.children.length > 500) el.removeChild(el.lastChild);
+    }
+
     // Simulation
     window.startSimulation = async function() {
-        const hosts=[]; document.querySelectorAll('.sim-host-cb:checked').forEach(cb=>hosts.push(cb.value));
-        if (hosts.length<2) { alert('Need 2+ hosts'); return; }
-        const r = await apiCall('/api/traffic/generate', 'POST', {
-            collective_type:document.getElementById('sim-collective').value, hosts,
-            message_size:parseInt(document.getElementById('sim-msgsize').value),
-            chunk_size:parseInt(document.getElementById('sim-chunksize').value)});
+        const flowMode = document.getElementById('flow-mode').value;
+        const evProfileMode = document.getElementById('ev-profile-mode').value;
+        let r;
+        if (flowMode === 'unidirectional' || flowMode === 'bidirectional') {
+            const src = document.getElementById('sim-src').value;
+            const dst = document.getElementById('sim-dst').value;
+            if (!src || !dst || src === dst) { alert('Select different source and destination XPUs'); return; }
+            r = await apiCall('/api/traffic/generate_pair', 'POST', {
+                src_host: src, dst_host: dst,
+                bidirectional: flowMode === 'bidirectional',
+                message_size: parseInt(document.getElementById('sim-msgsize').value),
+                chunk_size: parseInt(document.getElementById('sim-chunksize').value),
+                ev_profile_mode: evProfileMode,
+            });
+        } else {
+            const hosts=[]; document.querySelectorAll('.sim-host-cb:checked').forEach(cb=>hosts.push(cb.value));
+            if (hosts.length<2) { alert('Need 2+ hosts'); return; }
+            r = await apiCall('/api/traffic/generate', 'POST', {
+                collective_type:document.getElementById('sim-collective').value, hosts,
+                message_size:parseInt(document.getElementById('sim-msgsize').value),
+                chunk_size:parseInt(document.getElementById('sim-chunksize').value),
+                ev_profile_mode: evProfileMode});
+        }
         totalSteps=r.num_steps||0; stepCount=0;
-        if (!selectedSrc && hosts.length>=2) { document.getElementById('sim-src').value=hosts[0]; document.getElementById('sim-dst').value=hosts[hosts.length-1]; await showSimPaths(); }
+        lastEventCount=0; evPacketCounts={};
+        // Auto-select src/dst for path display if not already set
+        const src = document.getElementById('sim-src').value;
+        const dst = document.getElementById('sim-dst').value;
+        if (src && dst && src !== dst && !selectedSrc) { await showSimPaths(); }
         document.getElementById('btn-start').disabled=true; document.getElementById('btn-stop').disabled=false;
         document.getElementById('run-indicator').innerHTML='<span class="badge bg-success running-pulse ms-2">RUNNING</span>';
-        log(`Started: ${totalSteps} steps, ${hosts.length} hosts`);
+        // Set probe mode on simulator
+        const probeMode = document.getElementById('probe-mode').value;
+        try { await apiCall('/api/traffic/set_probe_mode', 'POST', {probe_mode: probeMode}); } catch(e) {}
+        // Expand event log when simulation starts
+        const logBody = document.getElementById('panel-eventlog-body');
+        if (logBody && logBody.style.display === 'none') { logBody.style.display = ''; document.getElementById('panel-eventlog-btn').textContent = '−'; }
+        log(`Started: ${totalSteps} steps, ${r.total_flows||'?'} flows, probes=${probeMode}`);
         const interval=parseInt(document.getElementById('sim-interval').value)||500;
         const duration=parseInt(document.getElementById('sim-duration').value)||30;
         const endTime=Date.now()+duration*1000;
@@ -439,19 +764,39 @@
             if (Date.now()>endTime) { stopSimulation(); return; }
             try {
                 const sr=await apiCall('/api/traffic/simulate_step','POST');
-                if (sr.error||sr.completed) { await apiCall('/api/traffic/simulation_reset','POST'); stepCount=0; return; }
+                if (sr.completed) {
+                    // Plan exhausted — restart from step 0, preserving EV state and counters
+                    await apiCall('/api/traffic/restart_plan','POST');
+                    log('<span style="color:#58a6ff">Plan cycle complete — restarting</span>');
+                    return;
+                }
+                if (sr.error) { stopSimulation(); log('Error: ' + (sr.error || 'unknown')); return; }
                 stepCount++; updateMetrics(sr.state, sr.step_result);
-                // Update path states from simulation state
-                if (sr.state && sr.state.ev_state_summary) {
-                    pathStates.forEach(ps => {
-                        // Check if this EV was affected
-                        const flowResults = sr.step_result?.flows || [];
-                        flowResults.forEach(f => {
-                            if (f.ev_value === ps.ev_value_int) { ps.state = f.ev_state_after || ps.state; ps.rtt_us = f.rtt_us || ps.rtt_us; }
-                        });
+                // Update EV states, packet counts, and RTT from simulator (authoritative during simulation)
+                if (sr.state && sr.state.ev_states) {
+                    sr.state.ev_states.forEach(ev => {
+                        let ps = pathStates.find(s => s.ev_value_int === ev.value);
+                        if (ps) {
+                            ps.state = ev.state;
+                            ps.packet_count = ev.packet_count || 0;
+                        }
+                        evPacketCounts[ev.value] = ev.packet_count || 0;
                     });
                 }
-                try { const pr=await apiCall('/api/pathstate'); if(pr&&pr.paths) pathStates=pr.paths; } catch(e){}
+                // Also update RTT and ECN rate from per-flow results
+                const flowResults = sr.step_result?.flows || [];
+                flowResults.forEach(f => {
+                    const ps = pathStates.find(s => s.ev_value_int === f.ev_value);
+                    if (ps) {
+                        if (f.ev_state_after) ps.state = f.ev_state_after;
+                        if (f.rtt_us) ps.rtt_us = f.rtt_us;
+                        if (f.fault_decision && f.fault_decision.ecn_marked) {
+                            ps.ecn_rate = Math.min(1.0, (ps.ecn_rate || 0) + 0.1);
+                        }
+                    }
+                });
+                // Render MRC event log from simulator
+                if (sr.state && sr.state.event_log) { updateEventLog(sr.state.event_log); }
                 drawPaths(); updateEVTable();
             } catch(e) { log('Error: '+e.message); }
         }, interval);
@@ -462,6 +807,19 @@
         document.getElementById('btn-start').disabled=false; document.getElementById('btn-stop').disabled=true;
         document.getElementById('run-indicator').innerHTML='<span class="badge bg-secondary ms-2">STOPPED</span>';
         log('Stopped');
+        drawPaths();
+    };
+
+    window.clearCounters = async function() {
+        evPacketCounts = {};
+        pathStates.forEach(ps => { ps.packet_count = 0; });
+        document.getElementById('m-packets').textContent = '0';
+        document.getElementById('m-dropped').textContent = '0';
+        document.getElementById('m-ecn').textContent = '0';
+        document.getElementById('m-trimmed').textContent = '0';
+        try { await apiCall('/api/traffic/clear_counters', 'POST'); } catch(e) {}
+        updateEVTable();
+        log('<span style="color:#58a6ff">Packet counters cleared</span>');
     };
 
     function updateMetrics(state, step) {
@@ -478,42 +836,52 @@
                     `<span style="color:${C.GOOD}">G:${s.GOOD||0}</span> <span style="color:${C.SKIP}">S:${s.SKIP||0}</span> <span style="color:${C.ASSUMED_BAD}">B:${s.ASSUMED_BAD||0}</span>`; }
         }
         document.getElementById('m-step').textContent=`${stepCount}/${totalSteps}`;
-        if (step) {
-            if (step.total_dropped>0) log(`Step ${step.step}: <span style="color:${C.failed}">${step.total_dropped} dropped</span>`);
-            if (step.total_ecn_marked>0) log(`Step ${step.step}: <span style="color:${C.SKIP}">${step.total_ecn_marked} ECN</span>`);
+        if (step && step.flows) {
+            step.flows.forEach(f => {
+                const evHex = '0x'+('0000'+f.ev_value.toString(16).toUpperCase()).slice(-4);
+                const plane = (f.ev_value >> 8) & 0xFF;
+                const spine = f.ev_value & 0xFF;
+                if (f.response_type === 'DROPPED') {
+                    log(`<span style="color:${C.failed}">Step ${step.step}: ${f.src_host}→${f.dst_host} EV=${evHex} P${plane}S${spine} PSN=${f.psn} — <b>DROPPED</b> → ${f.ev_state_after}</span>`);
+                } else if (f.response_type === 'NACK') {
+                    const reason = f.response_details?.nack_reason_name || 'NACK';
+                    log(`<span style="color:${C.SKIP}">Step ${step.step}: ${f.src_host}→${f.dst_host} EV=${evHex} P${plane}S${spine} PSN=${f.psn} — NACK(${reason}) → ${f.ev_state_after}</span>`);
+                } else if (f.fault_decision?.ecn_marked) {
+                    const mFlag = f.response_details?.m_flag_name || 'ECN';
+                    log(`<span style="color:${C.SKIP}">Step ${step.step}: ${f.src_host}→${f.dst_host} EV=${evHex} P${plane}S${spine} PSN=${f.psn} — SACK(m=${mFlag}) → ${f.ev_state_after}</span>`);
+                } else {
+                    log(`<span style="color:#8b949e">Step ${step.step}: ${f.src_host}→${f.dst_host} EV=${evHex} P${plane}S${spine} PSN=${f.psn} — SACK cwnd=${f.cwnd_after}</span>`);
+                }
+            });
         }
     }
 
-    // Failure injection
+    // Failure injection (legacy scenario-based — kept for the dropdown)
     window.injectFailure = async function() {
         const scenario=document.getElementById('fail-scenario').value; if (!scenario) return;
         let ev=document.getElementById('fail-ev').value;
         ev=ev.startsWith('0x')?parseInt(ev,16):parseInt(ev);
         try { await apiCall('/api/faults/rules','POST',{fault_type:'DROP_EV',drop_evs:[ev],description:`${scenario} EV=0x${ev.toString(16)}`}); } catch(e){}
         try { await apiCall(`/api/faults/scenarios/${scenario}/run`,'POST',{ev_value:ev,ev_values:[ev]}); } catch(e){}
-        const affectedNodes=[], failedPath=highlightedPaths.find(p=>p.ev_value===ev);
+        const affectedNodes=[];
         highlightedPaths.forEach(p=>{
             if (p.ev_value===ev && p.hops) { p.hops.forEach(h=>{if(!affectedNodes.includes(h))affectedNodes.push(h)});
                 for (let i=0;i<p.hops.length-1;i++) { failedLinks[[p.hops[i],p.hops[i+1]].sort().join('||')]=true; } }
         });
-        pathStates.forEach(ps=>{ if(ps.ev_value_int===ev||ps.ev_value==='0x'+('00000000'+ev.toString(16)).slice(-8)) ps.state='ASSUMED_BAD'; });
+        try { const pr=await apiCall('/api/pathstate'); if(pr&&pr.paths) pathStates=pr.paths; } catch(e){}
         renderFabric(); drawPaths(); updateEVTable(); flashFailure(affectedNodes);
         const evHex='0x'+('00000000'+ev.toString(16).toUpperCase()).slice(-8);
         log(`<span style="color:${C.failed}">FAILURE: ${scenario} on ${evHex}</span>`);
-        if (failedPath) log(`<span style="color:${C.failed}">  Down: ${failedPath.hops.join(' → ')}</span>`);
-        const active=highlightedPaths.filter(p=>{const ps=pathStates.find(s=>s.ev_value_int===p.ev_value); return !ps||ps.state==='GOOD'||ps.state==='SKIP';});
-        if (active.length>0) { log(`<span style="color:${C.GOOD}">Active paths (${active.length}):</span>`);
-            active.forEach(p=>log(`<span style="color:${C.GOOD}">  ${('0x'+('00000000'+p.ev_value.toString(16).toUpperCase()).slice(-8))} P${p.plane} S${p.spine_index}: ${p.hops.join('→')}</span>`));
-        } else log(`<span style="color:${C.failed}">  NO ACTIVE PATHS!</span>`);
-        document.getElementById('fail-status').innerHTML=`<span style="color:${C.failed}">${scenario} — ${evHex} → ASSUMED_BAD</span>`;
+        document.getElementById('fail-status').innerHTML=`<span style="color:${C.failed}">${scenario} — ${evHex}</span>`;
     };
 
     window.clearFailures = async function() {
         try { await apiCall('/api/faults/clear','POST'); } catch(e) {}
-        failedLinks={}; pathStates.forEach(ps=>{ps.state='GOOD'});
+        failedLinks={};
+        try { const pr=await apiCall('/api/pathstate'); if(pr&&pr.paths) pathStates=pr.paths; else pathStates.forEach(ps=>{ps.state='GOOD'}); } catch(e){ pathStates.forEach(ps=>{ps.state='GOOD'}); }
         renderFabric(); drawPaths(); updateEVTable();
         document.getElementById('fail-status').innerHTML='<span style="color:#238636">Cleared</span>';
-        log('<span style="color:#238636">All paths restored</span>');
+        log('<span style="color:#238636">All failures cleared — paths restored</span>');
     };
 
     document.addEventListener('DOMContentLoaded', init);

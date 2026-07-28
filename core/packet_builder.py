@@ -23,6 +23,65 @@ from .mrc_headers import (
 
 ROCE_UDP_PORT = 4971
 NOMINAL_HDRSIZE = 40
+IPV6_NEXT_ROUTING = 43  # Routing header (SRH)
+IPV6_NEXT_IPV6 = 41     # IPv6-in-IPv6 encapsulation
+
+
+@dataclass
+class SRv6Header:
+    """Segment Routing Header for SRv6 (RFC 8986, RFC 9800 CSID).
+
+    For F3216 uSID, the segment list contains compressed uSID
+    containers.  The active segment is always in the outer IPv6
+    destination address; the SRH carries additional segments or a
+    copy for debug/telemetry.
+    """
+    next_header: int = IPV6_NEXT_IPV6
+    hdr_ext_len: int = 0
+    routing_type: int = 4  # SRH
+    segments_left: int = 0
+    last_entry: int = 0
+    flags: int = 0
+    tag: int = 0
+    segment_list: list = field(default_factory=list)  # list of IPv6 address strings
+
+    @property
+    def size(self) -> int:
+        return 8 + len(self.segment_list) * 16
+
+    def to_bytes(self) -> bytes:
+        self.last_entry = max(0, len(self.segment_list) - 1)
+        self.hdr_ext_len = len(self.segment_list) * 2
+        hdr = struct.pack(
+            '!BBBBBBH',
+            self.next_header,
+            self.hdr_ext_len,
+            self.routing_type,
+            self.segments_left,
+            self.last_entry,
+            self.flags,
+            self.tag,
+        )
+        segs = b''
+        for seg_addr in reversed(self.segment_list):
+            segs += socket.inet_pton(socket.AF_INET6, seg_addr)
+        return hdr + segs
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> 'SRv6Header':
+        nh, hel, rt, sl, le, flags, tag = struct.unpack_from('!BBBBBBH', data, 0)
+        num_segs = le + 1
+        segments = []
+        for i in range(num_segs):
+            offset = 8 + i * 16
+            addr = socket.inet_ntop(socket.AF_INET6, data[offset:offset + 16])
+            segments.append(addr)
+        segments.reverse()
+        return cls(
+            next_header=nh, hdr_ext_len=hel, routing_type=rt,
+            segments_left=sl, last_entry=le, flags=flags, tag=tag,
+            segment_list=segments,
+        )
 
 
 @dataclass
@@ -140,8 +199,16 @@ class DSCPConfig:
 
 @dataclass
 class MRCPacket:
-    """A fully assembled MRC packet ready for transmission."""
+    """A fully assembled MRC packet ready for transmission.
+
+    For SRv6 mode, ``outer_ipv6`` and optionally ``srh`` provide the
+    SRv6 encapsulation.  The inner ``ipv6`` header carries the original
+    src/dst addresses while ``outer_ipv6.dst_addr`` carries the active
+    uSID stack for forwarding.
+    """
     ethernet: EthernetHeader = field(default_factory=EthernetHeader)
+    outer_ipv6: Optional[IPv6Header] = None
+    srh: Optional[SRv6Header] = None
     ipv6: IPv6Header = field(default_factory=IPv6Header)
     udp: UDPHeader = field(default_factory=UDPHeader)
     bth: BTH = field(default_factory=BTH)
@@ -172,7 +239,6 @@ class MRCPacket:
         bth_bytes = self.bth.to_bytes()
 
         udp_payload = bth_bytes + mrc_payload
-        # iCRC is 4 bytes appended after all headers+payload
         icrc = compute_icrc(udp_payload)
         udp_payload_with_icrc = udp_payload + struct.pack('!I', icrc)
 
@@ -181,12 +247,28 @@ class MRCPacket:
 
         udp_bytes = self.udp.to_bytes() + udp_payload_with_icrc
 
+        # Inner IPv6 + UDP + BTH + MRC
         self.ipv6.payload_length = len(udp_bytes)
-        ipv6_bytes = self.ipv6.to_bytes()
+        inner_bytes = self.ipv6.to_bytes() + udp_bytes
 
-        eth_bytes = self.ethernet.to_bytes()
+        if self.outer_ipv6 is not None:
+            # SRv6 encapsulation: outer IPv6 [+ SRH] + inner IPv6 + payload
+            if self.srh is not None:
+                self.srh.next_header = IPV6_NEXT_IPV6
+                srh_bytes = self.srh.to_bytes()
+                self.outer_ipv6.next_header = IPV6_NEXT_ROUTING
+                self.outer_ipv6.payload_length = len(srh_bytes) + len(inner_bytes)
+                outer_bytes = self.outer_ipv6.to_bytes() + srh_bytes + inner_bytes
+            else:
+                self.outer_ipv6.next_header = IPV6_NEXT_IPV6
+                self.outer_ipv6.payload_length = len(inner_bytes)
+                outer_bytes = self.outer_ipv6.to_bytes() + inner_bytes
 
-        return eth_bytes + ipv6_bytes + udp_bytes
+            eth_bytes = self.ethernet.to_bytes()
+            return eth_bytes + outer_bytes
+        else:
+            eth_bytes = self.ethernet.to_bytes()
+            return eth_bytes + inner_bytes
 
     def to_hex_dump(self, bytes_per_line: int = 16) -> str:
         raw = self.to_bytes()
@@ -244,8 +326,10 @@ class PacketBuilder:
         elif ev_format == 'STRUCTURED_EV':
             pkt.udp.src_port = (ev_value >> 16) & 0xFFFF
             pkt.ipv6.flow_label = ev_value & 0xFFFF
-        elif ev_format in ('SRV6_USID', 'SRV6_USID_SRH'):
-            pass  # SRv6 addressing handled in build_srv6_packet
+        elif ev_format == 'SRV6_USID':
+            pass  # SRv6 dst addr set directly by build_srv6_write
+        elif ev_format == 'SRV6_USID_SRH':
+            pass  # SRv6 dst addr + SRH set by build_srv6_write
         else:
             pkt.udp.src_port = ev_value & 0xFFFF
 
@@ -284,6 +368,57 @@ class PacketBuilder:
             pkt.immdt = ImmDt(value=imm_data)
 
         self.apply_ev_to_packet(pkt, ev_value, ev_format)
+        return pkt
+
+    def build_srv6_write(
+        self,
+        src_ipv6: str, dst_ipv6: str,
+        src_mac: str, dst_mac: str,
+        src_qpn: int, dst_qpn: int, psn: int,
+        va: int, r_key: int, dmalen: int, payload: bytes,
+        srv6_dst: str,
+        srv6_src: str = '',
+        segment_list: Optional[list[str]] = None,
+        msn: int = 0, rqmsn: int = 0,
+        is_only: bool = True, has_imm: bool = False, imm_data: int = 0,
+        include_timestamp: bool = False, tx_timestamp: int = 0,
+        is_retransmit: bool = False,
+    ) -> MRCPacket:
+        """Build an MRC WRITE packet with SRv6 uSID encapsulation.
+
+        The inner packet uses *src_ipv6*/*dst_ipv6* as the original
+        host addresses.  The outer IPv6 header uses *srv6_dst* as the
+        destination (carrying the uSID stack) and *srv6_src* as the
+        source (the host's per-plane interface address).
+
+        If *segment_list* is provided, an SRH is included with the
+        compressed segment list for debug/telemetry or extended paths.
+        """
+        pkt = self.build_write(
+            src_ipv6=src_ipv6, dst_ipv6=dst_ipv6,
+            src_mac=src_mac, dst_mac=dst_mac,
+            src_qpn=src_qpn, dst_qpn=dst_qpn, psn=psn,
+            va=va, r_key=r_key, dmalen=dmalen, payload=payload,
+            msn=msn, rqmsn=rqmsn, ev_value=0, ev_format='SRV6_USID',
+            is_only=is_only, has_imm=has_imm, imm_data=imm_data,
+            include_timestamp=include_timestamp,
+            tx_timestamp=tx_timestamp,
+            is_retransmit=is_retransmit,
+        )
+
+        outer_src = srv6_src or src_ipv6
+        pkt.outer_ipv6 = IPv6Header(
+            src_addr=outer_src,
+            dst_addr=srv6_dst,
+            hop_limit=64,
+        )
+
+        if segment_list:
+            pkt.srh = SRv6Header(
+                segment_list=segment_list,
+                segments_left=len(segment_list) - 1,
+            )
+
         return pkt
 
     def build_sack(self, src_ipv6: str, dst_ipv6: str, src_mac: str, dst_mac: str,

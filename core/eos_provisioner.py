@@ -67,6 +67,7 @@ class EOSNodeConfig:
     srv6_locator: str = ''             # e.g. 'fcbb:0:20::/48'
     srv6_usid: int = 0                 # e.g. 0x0020
     srv6_transit: bool = True
+    srv6_locator_routes: list[dict] = field(default_factory=list)  # [{prefix, next_hop}]
     ecn_enabled: bool = True
     ecn_min_thresh: int = 100          # KB, start marking
     ecn_max_thresh: int = 500          # KB, mark all packets
@@ -206,22 +207,30 @@ class EOSProvisioner:
         if node_config.static_routes:
             cmds.append('!')
 
-        # SRv6 locator
+        # SRv6 configuration (EOS 4.32+ uSID F3216)
         if node_config.srv6_locator:
             locator_name = f'LOC-{node_config.hostname.upper()}'
             cmds.append('router segment-routing')
             cmds.append('   srv6')
+            cmds.append('      encapsulation source-address Loopback0')
             cmds.append(f'      locator {locator_name}')
             cmds.append(f'         prefix {node_config.srv6_locator}')
+            cmds.append('         micro-segment behavior uN')
             cmds.append('      !')
             cmds.append('   !')
             cmds.append('!')
 
-        # SRv6 transit
+        # SRv6 transit (enables uSID pop-and-shift forwarding)
         if node_config.srv6_transit:
             cmds.append('segment-routing')
             cmds.append('   srv6')
             cmds.append('      transit')
+            cmds.append('!')
+
+        # Static routes to all remote SRv6 locator prefixes
+        for route in node_config.srv6_locator_routes:
+            cmds.append(f'ipv6 route {route["prefix"]} {route["next_hop"]}')
+        if node_config.srv6_locator_routes:
             cmds.append('!')
 
         # ECN / WRED configuration

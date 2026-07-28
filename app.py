@@ -41,6 +41,8 @@ def create_app() -> Flask:
     from routes.traffic import traffic_bp
     from routes.faults import faults_bp
     from routes.pathstate import pathstate_bp
+    from routes.host_agent import host_agent_bp
+    from routes.controller import controller_bp
 
     app.register_blueprint(host_bp)
     app.register_blueprint(network_bp)
@@ -53,6 +55,8 @@ def create_app() -> Flask:
     app.register_blueprint(traffic_bp)
     app.register_blueprint(faults_bp)
     app.register_blueprint(pathstate_bp)
+    app.register_blueprint(host_agent_bp)
+    app.register_blueprint(controller_bp)
 
     print(f'MRC emu v1.0 — {runtime.mode.name} mode ({runtime.reason})')
 

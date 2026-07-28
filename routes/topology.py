@@ -29,6 +29,11 @@ def _get_or_create_generator(config_data=None):
     return _topology_state['generator']
 
 
+@topology_bp.route('/topology_builder')
+def topology_builder_page():
+    return render_template('topology_builder.html')
+
+
 @topology_bp.route('/topology')
 def topology_page():
     gen = _topology_state.get('generator')

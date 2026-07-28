@@ -144,8 +144,13 @@ class EV:
         self.skip_time = None
 
     def mark_assumed_bad(self) -> None:
-        """GOOD -> ASSUMED_BAD  (SACK m=always_skip or bad path detected)."""
-        if self.state != EVState.GOOD:
+        """GOOD/SKIP -> ASSUMED_BAD  (SACK m=always_skip or bad path detected).
+
+        Per spec Figure 5, GOOD transitions to ASSUMED_BAD on bad path
+        detection.  We also allow SKIP→ASSUMED_BAD when repeated failures
+        escalate a temporarily skipped path to a hard failure.
+        """
+        if self.state not in (EVState.GOOD, EVState.SKIP):
             return
         self.state = EVState.ASSUMED_BAD
         self.skip_time = None
