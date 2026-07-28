@@ -6,55 +6,68 @@ topology:
   nodes:
     p0-spine0:
       kind: ceos
-      image: ceos:4.36.0.1F
+      image: ceos:latest
+      image-pull-policy: Never
       startup-config: configs/p0-spine0.cfg
     p0-spine1:
       kind: ceos
-      image: ceos:4.36.0.1F
+      image: ceos:latest
+      image-pull-policy: Never
       startup-config: configs/p0-spine1.cfg
     p0-leaf0:
       kind: ceos
-      image: ceos:4.36.0.1F
+      image: ceos:latest
+      image-pull-policy: Never
       startup-config: configs/p0-leaf0.cfg
     p0-leaf1:
       kind: ceos
-      image: ceos:4.36.0.1F
+      image: ceos:latest
+      image-pull-policy: Never
       startup-config: configs/p0-leaf1.cfg
     p0-leaf2:
       kind: ceos
-      image: ceos:4.36.0.1F
+      image: ceos:latest
+      image-pull-policy: Never
       startup-config: configs/p0-leaf2.cfg
     p0-leaf3:
       kind: ceos
-      image: ceos:4.36.0.1F
+      image: ceos:latest
+      image-pull-policy: Never
       startup-config: configs/p0-leaf3.cfg
     p1-spine0:
       kind: ceos
-      image: ceos:4.36.0.1F
+      image: ceos:latest
+      image-pull-policy: Never
       startup-config: configs/p1-spine0.cfg
     p1-spine1:
       kind: ceos
-      image: ceos:4.36.0.1F
+      image: ceos:latest
+      image-pull-policy: Never
       startup-config: configs/p1-spine1.cfg
     p1-leaf0:
       kind: ceos
-      image: ceos:4.36.0.1F
+      image: ceos:latest
+      image-pull-policy: Never
       startup-config: configs/p1-leaf0.cfg
     p1-leaf1:
       kind: ceos
-      image: ceos:4.36.0.1F
+      image: ceos:latest
+      image-pull-policy: Never
       startup-config: configs/p1-leaf1.cfg
     p1-leaf2:
       kind: ceos
-      image: ceos:4.36.0.1F
+      image: ceos:latest
+      image-pull-policy: Never
       startup-config: configs/p1-leaf2.cfg
     p1-leaf3:
       kind: ceos
-      image: ceos:4.36.0.1F
+      image: ceos:latest
+      image-pull-policy: Never
       startup-config: configs/p1-leaf3.cfg
     host0:
       kind: linux
       image: mrc-emu:latest
+      image-pull-policy: Never
       binds:
       - configs/host0-startup.sh:/startup.sh
       exec:
@@ -62,6 +75,7 @@ topology:
     host1:
       kind: linux
       image: mrc-emu:latest
+      image-pull-policy: Never
       binds:
       - configs/host1-startup.sh:/startup.sh
       exec:
@@ -69,6 +83,7 @@ topology:
     host2:
       kind: linux
       image: mrc-emu:latest
+      image-pull-policy: Never
       binds:
       - configs/host2-startup.sh:/startup.sh
       exec:
@@ -76,6 +91,7 @@ topology:
     host3:
       kind: linux
       image: mrc-emu:latest
+      image-pull-policy: Never
       binds:
       - configs/host3-startup.sh:/startup.sh
       exec:
@@ -83,6 +99,7 @@ topology:
     controller:
       kind: linux
       image: mrc-emu:latest
+      image-pull-policy: Never
   links:
   - endpoints:
     - p0-leaf0:eth1

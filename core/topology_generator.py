@@ -301,12 +301,14 @@ class TopologyGenerator:
                 nodes_section[node.name] = {
                     'kind': 'ceos',
                     'image': self.config.ceos_image,
+                    'image-pull-policy': 'Never',
                     'startup-config': f'configs/{node.name}.cfg',
                 }
             elif node.role == 'host':
                 nodes_section[node.name] = {
                     'kind': 'linux',
                     'image': self.config.mrc_image,
+                    'image-pull-policy': 'Never',
                     'binds': [
                         f'configs/{node.name}-startup.sh:/startup.sh',
                     ],
@@ -319,6 +321,7 @@ class TopologyGenerator:
         nodes_section['controller'] = {
             'kind': 'linux',
             'image': self.config.mrc_image,
+            'image-pull-policy': 'Never',
         }
 
         links_section = topo['topology']['links']
