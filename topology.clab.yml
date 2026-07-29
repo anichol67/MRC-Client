@@ -109,7 +109,7 @@ topology:
       image: ghcr.io/anichol67/mrc-emu:latest
       mgmt-ipv4: 172.20.0.100
       ports:
-      - "8080:8080"
+      - "3080:8080"
       cmd: bash -c "/usr/sbin/sshd 2>/dev/null; cd /app && python3 app.py"
   links:
   - endpoints:
