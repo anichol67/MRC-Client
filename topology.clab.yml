@@ -2,8 +2,6 @@ name: mrcfabric
 mgmt:
   network: mrcmgmt
   ipv4-subnet: 172.20.0.0/24
-  dns:
-    servers: []
 topology:
   nodes:
     p0spine0:
