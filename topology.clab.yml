@@ -1,6 +1,6 @@
 name: mrc-fabric
 mgmt:
-  network: mrc-mgmt
+  network: mrcmgmt
   ipv4-subnet: 172.20.0.0/24
 topology:
   nodes:
