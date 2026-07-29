@@ -12,11 +12,7 @@ from config import Config
 
 
 class ReverseProxyMiddleware:
-    """Set SCRIPT_NAME from X-Forwarded-Prefix header or URL_PREFIX env var.
-
-    Allows Flask to generate correct URLs when behind a reverse proxy
-    that strips a path prefix (e.g. /proxy/3080/).
-    """
+    """Set SCRIPT_NAME from URL_PREFIX env var or X-Forwarded-Prefix header."""
 
     def __init__(self, app):
         self.app = app

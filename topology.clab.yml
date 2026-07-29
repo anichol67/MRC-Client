@@ -110,6 +110,8 @@ topology:
       mgmt-ipv4: 172.20.0.100
       ports:
       - "3080:8080"
+      env:
+        URL_PREFIX: /proxy/3080
       cmd: bash -c "/usr/sbin/sshd 2>/dev/null; cd /app && python3 app.py"
   links:
   - endpoints:
