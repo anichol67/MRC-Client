@@ -14,4 +14,5 @@ ip link set eth2 up
 ip link set eth2 mtu 9216
 ip -6 route add default via fd00:1:20:ff::0 dev eth2 metric 101
 
+/usr/sbin/sshd
 echo "Host configuration complete"

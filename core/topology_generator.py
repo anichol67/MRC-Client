@@ -627,6 +627,7 @@ class TopologyGenerator:
                     break
             lines.append('')
 
+        lines.append('/usr/sbin/sshd')
         lines.append('echo "Host configuration complete"')
         lines.append('')
         return '\n'.join(lines)

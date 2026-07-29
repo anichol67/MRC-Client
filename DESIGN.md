@@ -971,6 +971,8 @@ docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/anichol67/mrc-
 - Built multi-platform Docker image (linux/amd64 + linux/arm64) via `docker buildx`
 - Set ghcr.io/anichol67/mrc-emu package to public (no auth required for pull)
 - Removed all hyphens from clab names to fix DNS resolution in sandbox environments: topology name (`mrcfabric`), mgmt network (`mrcmgmt`), node names (`p0spine0`, `p0leaf0`, etc.), config filenames (`p0spine0.cfg`, `host0startup.sh`, etc.)
+- Enabled SSH management on all cEOS switch nodes (`management ssh` / `no shutdown` in startup configs)
+- Added SSH server to host containers (openssh-server in Dockerfile, sshd started in host startup scripts, root/admin credentials)
 - Static management IPv4 addresses assigned to all nodes for predictable SSH access
 - Requirements expanded to 63 total
 

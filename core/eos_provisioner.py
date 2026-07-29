@@ -265,7 +265,11 @@ class EOSProvisioner:
         lines.append('ip routing')
         lines.append('!')
 
-        # Management API for eAPI access
+        # Management SSH
+        lines.append('management ssh')
+        lines.append('   idle-timeout 0')
+        lines.append('   no shutdown')
+        lines.append('!')
         lines.append('management api http-commands')
         lines.append('   no shutdown')
         lines.append('!')
