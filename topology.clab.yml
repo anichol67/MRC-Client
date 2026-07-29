@@ -82,35 +82,35 @@ topology:
       mgmt-ipv4: 172.20.0.51
       binds:
       - configs/host0startup.sh:/startup.sh
-      cmd: bash -c "bash /startup.sh && sleep infinity"
+      cmd: bash -c "bash /startup.sh; sleep infinity"
     host1:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
       mgmt-ipv4: 172.20.0.52
       binds:
       - configs/host1startup.sh:/startup.sh
-      cmd: bash -c "bash /startup.sh && sleep infinity"
+      cmd: bash -c "bash /startup.sh; sleep infinity"
     host2:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
       mgmt-ipv4: 172.20.0.53
       binds:
       - configs/host2startup.sh:/startup.sh
-      cmd: bash -c "bash /startup.sh && sleep infinity"
+      cmd: bash -c "bash /startup.sh; sleep infinity"
     host3:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
       mgmt-ipv4: 172.20.0.54
       binds:
       - configs/host3startup.sh:/startup.sh
-      cmd: bash -c "bash /startup.sh && sleep infinity"
+      cmd: bash -c "bash /startup.sh; sleep infinity"
     controller:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
       mgmt-ipv4: 172.20.0.100
       ports:
       - "8080:8080"
-      cmd: bash -c "/usr/sbin/sshd && cd /app && python3 app.py"
+      cmd: bash -c "/usr/sbin/sshd 2>/dev/null; cd /app && python3 app.py"
   links:
   - endpoints:
     - p0leaf0:eth1
