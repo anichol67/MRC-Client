@@ -70,6 +70,13 @@
 | 54 | Real SACK-driven CC and EV state in live mode | §54 |
 | 55 | Configurable QPs per host pair | §55 |
 | 56 | Management-only controller host (no data traffic) | §56 |
+| 57 | Arista CloudVision light theme default with dark mode toggle | §57 |
+| 58 | CSS custom properties for centralized theming (`static/css/style.css`) | §58 |
+| 59 | Default admin credentials on all cEOS switch nodes | §59 |
+| 60 | cEOS image reference `arista/ceos:latest` | §60 |
+| 61 | Controller port 8080 exposed on sandbox host for GUI access | §61 |
+| 62 | Multi-platform Docker image build (linux/amd64 + linux/arm64) | §62 |
+| 63 | Public GitHub Container Registry for mrc-emu image (no auth required) | §63 |
 
 ---
 
@@ -750,6 +757,72 @@ segment-routing
 - Aggregates EV state, packet counts, events from all hosts
 - Does not send or receive MRC data packets
 
+### 57. Arista CloudVision Light Theme Default with Dark Mode Toggle
+**Decision**: The GUI defaults to a light/white CloudVision theme with an option to switch to dark mode via a sidebar toggle button.
+
+- **Light theme (default)**: White card backgrounds (`#ffffff`), light gray page background (`#f5f6f8`), dark text (`#24292f`), Arista blue accents (`#0078D4`)
+- **Dark theme (toggle)**: Dark navy backgrounds (`#101820` body, `#1c2e40` cards), light text (`#d0d8e0`), same Arista blue accents
+- **Sidebar is always dark** in both modes — dark navy (`#1B2A3C`) with "ARISTA" wordmark above "MRC emu" brand text
+- Theme toggle button at bottom of sidebar (sun/moon icon)
+- Preference persisted in `localStorage` and applied on page load via early `<script>` block
+- Topology SVG rendering uses dual color constant sets (`C_LIGHT`/`C_DARK`) selected by current theme
+- `onThemeChange()` callback re-renders topology tiles when theme is toggled
+- All colors centralized as CSS custom properties (`--cv-*`) in `static/css/style.css`
+
+**Why**: CloudVision's standard portal uses a white/light theme. Dark mode is available as an option for users who prefer it.
+
+### 58. CSS Custom Properties for Centralized Theming
+**Decision**: All UI colors defined as CSS custom properties on `:root` (light) with dark overrides under `[data-bs-theme="dark"]`.
+
+- `--cv-bg-body`, `--cv-bg-card`, `--cv-bg-sidebar`, `--cv-border`, `--cv-text`, `--cv-accent`, etc.
+- Bootstrap 5.3 component-level variable overrides for buttons, badges, forms, tables, nav tabs
+- Status colors (green `#00875A`, amber `#D4A017`, red `#CF3040`, gray `#5A6B7A`) consistent across both themes
+- All template `<style>` blocks reference `var(--cv-*)` — single file to edit for palette changes
+
+**Why**: The previous approach had ~144 hardcoded hex values scattered across 4 template files, making theme changes error-prone.
+
+### 59. Default Admin Credentials on cEOS Nodes
+**Decision**: All cEOS switch startup configs include `username admin privilege 15 role network-admin secret admin`.
+
+- Added to all 12 existing `.cfg` files in `configs/`
+- EOS provisioner (`core/eos_provisioner.py`) generates the admin user in all future configs
+- Allows immediate login to cEOS nodes after deployment without manual configuration
+
+**Why**: Default cEOS has no password, but eAPI and SSH access require configured credentials.
+
+### 60. cEOS Image Reference — `arista/ceos:latest`
+**Decision**: All cEOS image references use `arista/ceos:latest` (the standard Arista container registry path).
+
+- Updated in: `topology.clab.yml`, `core/topology_generator.py`, `generate_deployment.py`, `routes/topology.py`, GUI template defaults
+- Previous value was `ceos:4.36.0.1F` (version-specific, non-standard path)
+
+**Why**: `arista/ceos:latest` is the standard image name for Containerlab deployments, allowing users to use whichever cEOS version they have tagged as `latest`.
+
+### 61. Controller Port Exposed on Sandbox Host
+**Decision**: The controller node in `topology.clab.yml` exposes port 8080 on the sandbox host via `ports: - 8080:8080`.
+
+- Allows GUI access from the sandbox's web browser at `http://localhost:8080`
+- Required because Containerlab runs inside a sandbox with no external connectivity — management IP alone is insufficient
+
+**Why**: The deployment environment is a web-based terminal sandbox with no external network access. Port publishing on the host is the only way to reach the controller GUI.
+
+### 62. Multi-Platform Docker Image Build
+**Decision**: The mrc-emu Docker image is built for both `linux/amd64` and `linux/arm64` using `docker buildx`.
+
+```bash
+docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/anichol67/mrc-emu:latest --push .
+```
+
+**Why**: Development is on Apple Silicon (arm64) but Containerlab servers run on amd64. A multi-platform manifest ensures the image works on both.
+
+### 63. Public GitHub Container Registry
+**Decision**: The `ghcr.io/anichol67/mrc-emu` package is set to public visibility.
+
+- No `docker login` required to pull the image
+- Containerlab can pull directly without authentication tokens
+
+**Why**: The sandbox environment has no way to store or pass registry credentials. Public access eliminates the auth requirement.
+
 ---
 
 ## Conversation Log
@@ -883,6 +956,22 @@ segment-routing
   - `generate_deployment.py` — CLI for regenerating with custom dimensions
 - Requirements expanded to 56 total
 
+### 2026-07-29 — CloudVision theme, deployment fixes, and sandbox access
+- Restyled GUI to Arista CloudVision light theme (white backgrounds, Arista blue accents) as default
+- Added dark mode toggle in sidebar with localStorage persistence
+- Centralized all UI colors as CSS custom properties in `static/css/style.css`
+- Added "ARISTA" wordmark to sidebar brand area above "MRC emu"
+- Sidebar stays dark navy in both light and dark modes (CloudVision pattern)
+- Dual JS color constants (`C_LIGHT`/`C_DARK`) for topology SVG rendering with `onThemeChange()` re-render
+- Bootstrap component-level overrides for buttons, badges, forms, tables, nav tabs
+- Changed cEOS image from `ceos:4.36.0.1F` to `arista/ceos:latest` across all files
+- Added `username admin privilege 15 role network-admin secret admin` to all 12 switch startup configs
+- Updated EOS provisioner to include admin user in all future generated configs
+- Exposed controller port 8080 on sandbox host (`ports: - 8080:8080` in topology.clab.yml)
+- Built multi-platform Docker image (linux/amd64 + linux/arm64) via `docker buildx`
+- Set ghcr.io/anichol67/mrc-emu package to public (no auth required for pull)
+- Requirements expanded to 63 total
+
 ---
 
 ## Running
@@ -900,18 +989,9 @@ python3 app.py
 ### Containerlab Live Mode
 
 **Docker images:**
-- `ghcr.io/anichol67/mrc-emu:latest` — MRC emulator (hosts + controller), pulled from GitHub Container Registry (private)
-- `arista/ceos:latest` — Arista cEOS (switches), must be imported locally from Arista-provided tar file (`image-pull-policy: Never`)
 
-**One-time server setup:**
-
-```bash
-# Login to GitHub Container Registry (token needs read:packages scope)
-docker login ghcr.io -u anichol67 -p <GITHUB_TOKEN>
-
-# Import cEOS image from Arista tar file
-docker import cEOS64-lab-4.36.0.1F.tar arista/ceos:latest
-```
+- `ghcr.io/anichol67/mrc-emu:latest` — MRC emulator (hosts + controller), pulled from GitHub Container Registry (public, no auth required)
+- `arista/ceos:latest` — Arista cEOS (switches), pulled from Arista registry or imported locally
 
 **Deploy:**
 
@@ -919,15 +999,22 @@ docker import cEOS64-lab-4.36.0.1F.tar arista/ceos:latest
 git clone https://github.com/anichol67/MRC-Client.git
 cd MRC-Client
 containerlab deploy -t topology.clab.yml
-# Access controller GUI at http://<controller-mgmt-ip>:8080
+# Access controller GUI at http://localhost:8080 (port exposed on host)
 ```
+
+**Switch credentials:** `admin` / `admin` (configured in all startup configs)
 
 **Regenerate topology (optional — only needed to change fabric dimensions):**
 
 ```bash
-# Run offline on any machine
 python3 generate_deployment.py --planes 2 --leafs 4 --spines 2 --ceos-image arista/ceos:latest
-# Commit and push updated topology.clab.yml + configs/
+```
+
+**Rebuild and push multi-platform image (from Mac or CI):**
+
+```bash
+docker buildx create --use
+docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/anichol67/mrc-emu:latest --push .
 ```
 
 Requires root/sudo for network configuration changes (IPv6 routes, addresses). Runs read-only without root.
