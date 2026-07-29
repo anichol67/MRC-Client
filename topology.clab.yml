@@ -114,8 +114,6 @@ topology:
       mgmt-ipv4: 172.20.0.100
       ports:
       - "8080:8080"
-      exec:
-      - python3 /app/app.py &
   links:
   - endpoints:
     - p0-leaf0:eth1
