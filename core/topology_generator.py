@@ -311,15 +311,15 @@ class TopologyGenerator:
                     'binds': [
                         f'configs/{node.name}startup.sh:/startup.sh',
                     ],
-                    'exec': [
-                        'bash /startup.sh',
-                    ],
+                    'cmd': 'bash -c "bash /startup.sh && sleep infinity"',
                 }
 
         # Controller node (management only, no data interfaces)
         nodes_section['controller'] = {
             'kind': 'linux',
             'image': self.config.mrc_image,
+            'ports': ['8080:8080'],
+            'cmd': 'bash -c "/usr/sbin/sshd && cd /app && python3 app.py"',
         }
 
         links_section = topo['topology']['links']

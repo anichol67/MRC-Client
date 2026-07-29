@@ -973,6 +973,8 @@ docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/anichol67/mrc-
 - Removed all hyphens from clab names to fix DNS resolution in sandbox environments: topology name (`mrcfabric`), mgmt network (`mrcmgmt`), node names (`p0spine0`, `p0leaf0`, etc.), config filenames (`p0spine0.cfg`, `host0startup.sh`, etc.)
 - Enabled SSH management on all cEOS switch nodes (`management ssh` / `no shutdown` in startup configs)
 - Added SSH server to host containers (openssh-server in Dockerfile, sshd started in host startup scripts, root/admin credentials)
+- Changed host/controller nodes from `exec` to `cmd` directive — clab `kind: linux` uses `sleep infinity` as entrypoint which overrides Dockerfile CMD; `cmd` replaces this correctly
+- Controller `cmd` starts sshd + Flask app in foreground; host `cmd` runs startup script + `sleep infinity` to keep container alive
 - Static management IPv4 addresses assigned to all nodes for predictable SSH access
 - Requirements expanded to 63 total
 
