@@ -270,6 +270,10 @@ class EOSProvisioner:
         lines.append('   no shutdown')
         lines.append('!')
 
+        # Admin user
+        lines.append('username admin privilege 15 role network-admin secret admin')
+        lines.append('!')
+
         # Core configuration
         commands = EOSProvisioner.generate_config_commands(node_config)
         lines.extend(commands)

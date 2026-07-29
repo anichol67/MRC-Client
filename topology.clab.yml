@@ -95,6 +95,8 @@ topology:
     controller:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
+      ports:
+      - 8080:8080
   links:
   - endpoints:
     - p0-leaf0:eth1
