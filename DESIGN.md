@@ -970,6 +970,8 @@ docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/anichol67/mrc-
 - Exposed controller port 8080 on sandbox host (`ports: - 8080:8080` in topology.clab.yml)
 - Built multi-platform Docker image (linux/amd64 + linux/arm64) via `docker buildx`
 - Set ghcr.io/anichol67/mrc-emu package to public (no auth required for pull)
+- Removed all hyphens from clab names to fix DNS resolution in sandbox environments: topology name (`mrcfabric`), mgmt network (`mrcmgmt`), node names (`p0spine0`, `p0leaf0`, etc.), config filenames (`p0spine0.cfg`, `host0startup.sh`, etc.)
+- Static management IPv4 addresses assigned to all nodes for predictable SSH access
 - Requirements expanded to 63 total
 
 ---

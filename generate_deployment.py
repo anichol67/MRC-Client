@@ -58,7 +58,7 @@ def generate(output_dir: str = '.', config: dict = None) -> None:
     hosts = [n for n in gen.nodes if n.role == 'host']
     for host in hosts:
         script = gen.generate_host_startup_script(host.name)
-        script_path = os.path.join(configs_dir, f'{host.name}-startup.sh')
+        script_path = os.path.join(configs_dir, f'{host.name}startup.sh')
         with open(script_path, 'w') as f:
             f.write(script)
         os.chmod(script_path, 0o755)

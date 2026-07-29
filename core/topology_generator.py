@@ -228,7 +228,7 @@ class TopologyGenerator:
     def get_paths_for_host(self, host_name: str) -> list[PathInfo]:
         """Return all paths originating from the given host.
 
-        Accepts physical container names (e.g. ``'p0-host0'``) or logical
+        Accepts physical container names (e.g. ``'p0host0'``) or logical
         host names (e.g. ``'host0'``).  Logical names return paths across
         all planes.
         """
@@ -284,9 +284,9 @@ class TopologyGenerator:
         Returns a YAML string suitable for ``containerlab deploy``.
         """
         topo: dict = {
-            'name': 'mrc-fabric',
+            'name': 'mrcfabric',
             'mgmt': {
-                'network': 'mrc-mgmt',
+                'network': 'mrcmgmt',
                 'ipv4-subnet': self.config.management_network,
             },
             'topology': {
@@ -309,7 +309,7 @@ class TopologyGenerator:
                     'kind': 'linux',
                     'image': self.config.mrc_image,
                     'binds': [
-                        f'configs/{node.name}-startup.sh:/startup.sh',
+                        f'configs/{node.name}startup.sh:/startup.sh',
                     ],
                     'exec': [
                         'bash /startup.sh',
@@ -466,7 +466,7 @@ class TopologyGenerator:
     def get_paths_through_element(self, element_name: str) -> list[PathInfo]:
         """Return all paths whose hops include the given link or node.
 
-        For a node name (e.g. ``'p0-spine1'``), returns paths that
+        For a node name (e.g. ``'p0spine1'``), returns paths that
         traverse that node.  For a link specified as
         ``'nodeA↔nodeB'``, returns paths that traverse both nodes
         adjacently.
@@ -649,7 +649,7 @@ class TopologyGenerator:
             # Spine switches
             for si in range(cfg.spines_per_plane):
                 rid = self._role_id('spine', si)
-                name = f'p{plane}-spine{si}'
+                name = f'p{plane}spine{si}'
                 node = NodeInfo(
                     name=name,
                     role='spine',
@@ -665,7 +665,7 @@ class TopologyGenerator:
             # Leaf switches
             for li in range(cfg.leafs_per_plane):
                 rid = self._role_id('leaf', li)
-                name = f'p{plane}-leaf{li}'
+                name = f'p{plane}leaf{li}'
                 node = NodeInfo(
                     name=name,
                     role='leaf',
@@ -719,11 +719,11 @@ class TopologyGenerator:
         for plane in range(cfg.num_planes):
             # Leaf <-> Spine links (full mesh within each plane)
             for li in range(cfg.leafs_per_plane):
-                leaf_name = f'p{plane}-leaf{li}'
+                leaf_name = f'p{plane}leaf{li}'
                 leaf_rid = self._role_id('leaf', li)
 
                 for si in range(cfg.spines_per_plane):
-                    spine_name = f'p{plane}-spine{si}'
+                    spine_name = f'p{plane}spine{si}'
                     spine_rid = self._role_id('spine', si)
 
                     leaf_iface = next_iface(leaf_name)
@@ -747,7 +747,7 @@ class TopologyGenerator:
 
             # Leaf <-> Host links (one per host per plane)
             for li in range(cfg.leafs_per_plane):
-                leaf_name = f'p{plane}-leaf{li}'
+                leaf_name = f'p{plane}leaf{li}'
                 leaf_rid = self._role_id('leaf', li)
 
                 for hi in range(cfg.hosts_per_leaf):
@@ -836,7 +836,7 @@ class TopologyGenerator:
                     ).get('ipv6', '')
 
                     for si in range(cfg.spines_per_plane):
-                        spine_name = f'p{plane}-spine{si}'
+                        spine_name = f'p{plane}spine{si}'
                         spine_usid = self._make_usid(plane, 'spine', si)
                         ev_value = self._make_ev_value(plane, si)
                         srv6_addr = self._make_srv6_path(

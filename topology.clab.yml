@@ -1,87 +1,87 @@
-name: mrc-fabric
+name: mrcfabric
 mgmt:
   network: mrcmgmt
   ipv4-subnet: 172.20.0.0/24
 topology:
   nodes:
-    p0-spine0:
+    p0spine0:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
-      startup-config: configs/p0-spine0.cfg
+      startup-config: configs/p0spine0.cfg
       mgmt-ipv4: 172.20.0.11
-    p0-spine1:
+    p0spine1:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
-      startup-config: configs/p0-spine1.cfg
+      startup-config: configs/p0spine1.cfg
       mgmt-ipv4: 172.20.0.12
-    p0-leaf0:
+    p0leaf0:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
-      startup-config: configs/p0-leaf0.cfg
+      startup-config: configs/p0leaf0.cfg
       mgmt-ipv4: 172.20.0.21
-    p0-leaf1:
+    p0leaf1:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
-      startup-config: configs/p0-leaf1.cfg
+      startup-config: configs/p0leaf1.cfg
       mgmt-ipv4: 172.20.0.22
-    p0-leaf2:
+    p0leaf2:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
-      startup-config: configs/p0-leaf2.cfg
+      startup-config: configs/p0leaf2.cfg
       mgmt-ipv4: 172.20.0.23
-    p0-leaf3:
+    p0leaf3:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
-      startup-config: configs/p0-leaf3.cfg
+      startup-config: configs/p0leaf3.cfg
       mgmt-ipv4: 172.20.0.24
-    p1-spine0:
+    p1spine0:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
-      startup-config: configs/p1-spine0.cfg
+      startup-config: configs/p1spine0.cfg
       mgmt-ipv4: 172.20.0.31
-    p1-spine1:
+    p1spine1:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
-      startup-config: configs/p1-spine1.cfg
+      startup-config: configs/p1spine1.cfg
       mgmt-ipv4: 172.20.0.32
-    p1-leaf0:
+    p1leaf0:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
-      startup-config: configs/p1-leaf0.cfg
+      startup-config: configs/p1leaf0.cfg
       mgmt-ipv4: 172.20.0.41
-    p1-leaf1:
+    p1leaf1:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
-      startup-config: configs/p1-leaf1.cfg
+      startup-config: configs/p1leaf1.cfg
       mgmt-ipv4: 172.20.0.42
-    p1-leaf2:
+    p1leaf2:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
-      startup-config: configs/p1-leaf2.cfg
+      startup-config: configs/p1leaf2.cfg
       mgmt-ipv4: 172.20.0.43
-    p1-leaf3:
+    p1leaf3:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
-      startup-config: configs/p1-leaf3.cfg
+      startup-config: configs/p1leaf3.cfg
       mgmt-ipv4: 172.20.0.44
     host0:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
       mgmt-ipv4: 172.20.0.51
       binds:
-      - configs/host0-startup.sh:/startup.sh
+      - configs/host0startup.sh:/startup.sh
       exec:
       - bash /startup.sh
     host1:
@@ -89,7 +89,7 @@ topology:
       image: ghcr.io/anichol67/mrc-emu:latest
       mgmt-ipv4: 172.20.0.52
       binds:
-      - configs/host1-startup.sh:/startup.sh
+      - configs/host1startup.sh:/startup.sh
       exec:
       - bash /startup.sh
     host2:
@@ -97,7 +97,7 @@ topology:
       image: ghcr.io/anichol67/mrc-emu:latest
       mgmt-ipv4: 172.20.0.53
       binds:
-      - configs/host2-startup.sh:/startup.sh
+      - configs/host2startup.sh:/startup.sh
       exec:
       - bash /startup.sh
     host3:
@@ -105,7 +105,7 @@ topology:
       image: ghcr.io/anichol67/mrc-emu:latest
       mgmt-ipv4: 172.20.0.54
       binds:
-      - configs/host3-startup.sh:/startup.sh
+      - configs/host3startup.sh:/startup.sh
       exec:
       - bash /startup.sh
     controller:
@@ -116,74 +116,74 @@ topology:
       - "8080:8080"
   links:
   - endpoints:
-    - p0-leaf0:eth1
-    - p0-spine0:eth1
+    - p0leaf0:eth1
+    - p0spine0:eth1
   - endpoints:
-    - p0-leaf0:eth2
-    - p0-spine1:eth1
+    - p0leaf0:eth2
+    - p0spine1:eth1
   - endpoints:
-    - p0-leaf1:eth1
-    - p0-spine0:eth2
+    - p0leaf1:eth1
+    - p0spine0:eth2
   - endpoints:
-    - p0-leaf1:eth2
-    - p0-spine1:eth2
+    - p0leaf1:eth2
+    - p0spine1:eth2
   - endpoints:
-    - p0-leaf2:eth1
-    - p0-spine0:eth3
+    - p0leaf2:eth1
+    - p0spine0:eth3
   - endpoints:
-    - p0-leaf2:eth2
-    - p0-spine1:eth3
+    - p0leaf2:eth2
+    - p0spine1:eth3
   - endpoints:
-    - p0-leaf3:eth1
-    - p0-spine0:eth4
+    - p0leaf3:eth1
+    - p0spine0:eth4
   - endpoints:
-    - p0-leaf3:eth2
-    - p0-spine1:eth4
+    - p0leaf3:eth2
+    - p0spine1:eth4
   - endpoints:
-    - p0-leaf0:eth3
+    - p0leaf0:eth3
     - host0:eth1
   - endpoints:
-    - p0-leaf1:eth3
+    - p0leaf1:eth3
     - host1:eth1
   - endpoints:
-    - p0-leaf2:eth3
+    - p0leaf2:eth3
     - host2:eth1
   - endpoints:
-    - p0-leaf3:eth3
+    - p0leaf3:eth3
     - host3:eth1
   - endpoints:
-    - p1-leaf0:eth1
-    - p1-spine0:eth1
+    - p1leaf0:eth1
+    - p1spine0:eth1
   - endpoints:
-    - p1-leaf0:eth2
-    - p1-spine1:eth1
+    - p1leaf0:eth2
+    - p1spine1:eth1
   - endpoints:
-    - p1-leaf1:eth1
-    - p1-spine0:eth2
+    - p1leaf1:eth1
+    - p1spine0:eth2
   - endpoints:
-    - p1-leaf1:eth2
-    - p1-spine1:eth2
+    - p1leaf1:eth2
+    - p1spine1:eth2
   - endpoints:
-    - p1-leaf2:eth1
-    - p1-spine0:eth3
+    - p1leaf2:eth1
+    - p1spine0:eth3
   - endpoints:
-    - p1-leaf2:eth2
-    - p1-spine1:eth3
+    - p1leaf2:eth2
+    - p1spine1:eth3
   - endpoints:
-    - p1-leaf3:eth1
-    - p1-spine0:eth4
+    - p1leaf3:eth1
+    - p1spine0:eth4
   - endpoints:
-    - p1-leaf3:eth2
-    - p1-spine1:eth4
+    - p1leaf3:eth2
+    - p1spine1:eth4
   - endpoints:
-    - p1-leaf0:eth3
+    - p1leaf0:eth3
     - host0:eth2
   - endpoints:
-    - p1-leaf1:eth3
+    - p1leaf1:eth3
     - host1:eth2
   - endpoints:
-    - p1-leaf2:eth3
+    - p1leaf2:eth3
     - host2:eth2
   - endpoints:
-    - p1-leaf3:eth3
+    - p1leaf3:eth3
     - host3:eth2
