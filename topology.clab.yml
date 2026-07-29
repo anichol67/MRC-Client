@@ -9,64 +9,77 @@ topology:
       image: arista/ceos:latest
       image-pull-policy: Never
       startup-config: configs/p0-spine0.cfg
+      mgmt-ipv4: 172.20.0.11
     p0-spine1:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
       startup-config: configs/p0-spine1.cfg
+      mgmt-ipv4: 172.20.0.12
     p0-leaf0:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
       startup-config: configs/p0-leaf0.cfg
+      mgmt-ipv4: 172.20.0.21
     p0-leaf1:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
       startup-config: configs/p0-leaf1.cfg
+      mgmt-ipv4: 172.20.0.22
     p0-leaf2:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
       startup-config: configs/p0-leaf2.cfg
+      mgmt-ipv4: 172.20.0.23
     p0-leaf3:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
       startup-config: configs/p0-leaf3.cfg
+      mgmt-ipv4: 172.20.0.24
     p1-spine0:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
       startup-config: configs/p1-spine0.cfg
+      mgmt-ipv4: 172.20.0.31
     p1-spine1:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
       startup-config: configs/p1-spine1.cfg
+      mgmt-ipv4: 172.20.0.32
     p1-leaf0:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
       startup-config: configs/p1-leaf0.cfg
+      mgmt-ipv4: 172.20.0.41
     p1-leaf1:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
       startup-config: configs/p1-leaf1.cfg
+      mgmt-ipv4: 172.20.0.42
     p1-leaf2:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
       startup-config: configs/p1-leaf2.cfg
+      mgmt-ipv4: 172.20.0.43
     p1-leaf3:
       kind: ceos
       image: arista/ceos:latest
       image-pull-policy: Never
       startup-config: configs/p1-leaf3.cfg
+      mgmt-ipv4: 172.20.0.44
     host0:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
+      mgmt-ipv4: 172.20.0.51
       binds:
       - configs/host0-startup.sh:/startup.sh
       exec:
@@ -74,6 +87,7 @@ topology:
     host1:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
+      mgmt-ipv4: 172.20.0.52
       binds:
       - configs/host1-startup.sh:/startup.sh
       exec:
@@ -81,6 +95,7 @@ topology:
     host2:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
+      mgmt-ipv4: 172.20.0.53
       binds:
       - configs/host2-startup.sh:/startup.sh
       exec:
@@ -88,6 +103,7 @@ topology:
     host3:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
+      mgmt-ipv4: 172.20.0.54
       binds:
       - configs/host3-startup.sh:/startup.sh
       exec:
@@ -95,8 +111,11 @@ topology:
     controller:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
+      mgmt-ipv4: 172.20.0.100
       ports:
-      - 8080:8080
+      - "8080:8080"
+      exec:
+      - python3 /app/app.py &
   links:
   - endpoints:
     - p0-leaf0:eth1
