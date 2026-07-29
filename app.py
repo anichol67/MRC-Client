@@ -3,11 +3,32 @@ MRC emu — OCP MRC End-Host Emulator v1.0
 
 Web-based GUI for configuring and operating an MRC endpoint emulator.
 Run with: python3 app.py
-Access at: http://<host>:5001
+Access at: http://<host>:8080
 """
 
+import os
 from flask import Flask
 from config import Config
+
+
+class ReverseProxyMiddleware:
+    """Set SCRIPT_NAME from X-Forwarded-Prefix header or URL_PREFIX env var.
+
+    Allows Flask to generate correct URLs when behind a reverse proxy
+    that strips a path prefix (e.g. /proxy/3080/).
+    """
+
+    def __init__(self, app):
+        self.app = app
+        self.prefix = os.environ.get('URL_PREFIX', '').rstrip('/')
+
+    def __call__(self, environ, start_response):
+        prefix = (environ.get('HTTP_X_FORWARDED_PREFIX', '')
+                  or environ.get('HTTP_X_SCRIPT_NAME', '')
+                  or self.prefix)
+        if prefix:
+            environ['SCRIPT_NAME'] = prefix.rstrip('/')
+        return self.app(environ, start_response)
 
 from core.runtime import detect_runtime, get_network_manager, RuntimeMode
 from core.ev_engine import EVProfileManager
@@ -57,6 +78,8 @@ def create_app() -> Flask:
     app.register_blueprint(pathstate_bp)
     app.register_blueprint(host_agent_bp)
     app.register_blueprint(controller_bp)
+
+    app.wsgi_app = ReverseProxyMiddleware(app.wsgi_app)
 
     print(f'MRC emu v1.0 — {runtime.mode.name} mode ({runtime.reason})')
 

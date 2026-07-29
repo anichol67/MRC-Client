@@ -975,6 +975,10 @@ docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/anichol67/mrc-
 - Added SSH server to host containers (openssh-server in Dockerfile, sshd started in host startup scripts, root/admin credentials)
 - Changed host/controller nodes from `exec` to `cmd` directive — clab `kind: linux` uses `sleep infinity` as entrypoint which overrides Dockerfile CMD; `cmd` replaces this correctly
 - Controller `cmd` starts sshd + Flask app in foreground; host `cmd` runs startup script + `sleep infinity` to keep container alive
+- Added reverse proxy middleware (ReverseProxyMiddleware) to Flask app for sandbox proxy compatibility
+- Auto-detects proxy prefix from `X-Forwarded-Prefix` header or `URL_PREFIX` env var
+- All sidebar links and API calls use `request.script_root` prefix for correct URL generation behind proxies
+- Controller port changed to 3080 on host to avoid sandbox port conflicts
 - Static management IPv4 addresses assigned to all nodes for predictable SSH access
 - Requirements expanded to 63 total
 
