@@ -3,22 +3,22 @@
 {% block extra_css %}
 <style>
     /* Top control bar */
-    .ctrl-bar { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 10px 16px; margin-bottom: 12px; }
+    .ctrl-bar { background: var(--cv-bg-card); border: 1px solid var(--cv-border); border-radius: 6px; padding: 10px 16px; margin-bottom: 12px; }
     .ctrl-bar .ctrl-group { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; }
-    .ctrl-bar label { font-size: 0.72rem; color: #8b949e; margin-bottom: 0; white-space: nowrap; }
+    .ctrl-bar label { font-size: 0.72rem; color: var(--cv-text-muted); margin-bottom: 0; white-space: nowrap; }
     .ctrl-bar input, .ctrl-bar select { max-width: 110px; }
     .ctrl-bar .btn { font-size: 0.78rem; }
 
     /* Metrics bar */
-    .metrics-bar { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 8px 16px; margin-bottom: 12px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+    .metrics-bar { background: var(--cv-bg-card); border: 1px solid var(--cv-border); border-radius: 6px; padding: 8px 16px; margin-bottom: 12px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
     .metric-item { text-align: center; cursor: help; }
-    .metric-item small { display: block; font-size: 0.65rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; }
-    .metric-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1rem; color: #e6edf3; }
-    .metric-val.danger { color: #da3633; }
-    .metric-val.warning { color: #d29922; }
+    .metric-item small { display: block; font-size: 0.65rem; color: var(--cv-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1rem; color: var(--cv-text-heading); }
+    .metric-val.danger { color: var(--cv-bad); }
+    .metric-val.warning { color: var(--cv-skip); }
 
     /* Topology container — full width, tall */
-    #sim-svg-container { background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    #sim-svg-container { background: var(--cv-bg-canvas); border: 1px solid var(--cv-border); border-radius: 6px;
                          overflow: hidden; position: relative; cursor: grab; width: 100%; height: 60vh; min-height: 450px; }
     #sim-svg-container.grabbing { cursor: grabbing; }
 
@@ -26,75 +26,76 @@
     .cv-tile { cursor: pointer; }
     .cv-tile:hover .cv-tile-bg { filter: brightness(1.25); }
     .cv-tile-bg { rx: 6; ry: 6; }
-    .cv-tile-name { font-family: -apple-system, sans-serif; fill: #e6edf3; font-weight: 600; }
-    .cv-tile-role { font-family: -apple-system, sans-serif; fill: #8b949e; }
-    .cv-tile-usid { font-family: monospace; fill: #58a6ff; }
-    .cv-selected { stroke: #f0e68c !important; stroke-width: 3 !important; stroke-dasharray: 5 2; }
+    .cv-tile-name { font-family: -apple-system, sans-serif; fill: var(--cv-text-heading); font-weight: 600; }
+    .cv-tile-role { font-family: -apple-system, sans-serif; fill: var(--cv-text-muted); }
+    .cv-tile-usid { font-family: monospace; fill: var(--cv-accent); }
+    .cv-selected { stroke: #FFD166 !important; stroke-width: 3 !important; stroke-dasharray: 5 2; }
 
     /* Links — uniform width for all connections */
     .topo-link { cursor: pointer; stroke-linecap: round; stroke-width: 2.5; }
     .topo-link:hover { stroke-width: 4; }
-    .link-failed { stroke: #da3633 !important; }
+    .link-failed { stroke: var(--cv-bad) !important; }
     .link-failed-pulse { animation: failPulse 1s infinite; }
     @keyframes failPulse { 0%,100%{stroke-opacity:1} 50%{stroke-opacity:0.3} }
     .path-overlay { pointer-events: none; stroke-linecap: round; stroke-width: 8; stroke-opacity: 0.5; }
     .flow-dot { pointer-events: none; }
-    .plane-box { fill: rgba(22,27,34,0.5); stroke: #30363d; stroke-width: 1; rx: 10; }
-    .plane-label { font-size: 14px; fill: #8b949e; font-weight: 700; letter-spacing: 1px; }
-    .failure-flash { fill: rgba(218,54,51,0.2); rx: 10; animation: flashFade 2s ease-out forwards; }
+    .plane-box { fill: rgba(0,120,212,0.06); stroke: var(--cv-border); stroke-width: 1; rx: 10; }
+    [data-bs-theme="dark"] .plane-box { fill: rgba(28,46,64,0.5); }
+    .plane-label { font-size: 14px; fill: var(--cv-text-muted); font-weight: 700; letter-spacing: 1px; }
+    .failure-flash { fill: rgba(207,48,64,0.15); rx: 10; animation: flashFade 2s ease-out forwards; }
     @keyframes flashFade { 0%{opacity:1} 100%{opacity:0} }
 
     /* Tooltip */
-    .sim-tooltip { position:absolute; background:#161b22; color:#e6edf3; border:1px solid #30363d;
-                   border-radius:8px; padding:10px 14px; font-size:0.78rem; font-family:monospace;
+    .sim-tooltip { position:absolute; background:var(--cv-bg-card); color:var(--cv-text-heading); border:1px solid var(--cv-border);
+                   border-radius:6px; padding:10px 14px; font-size:0.78rem; font-family:monospace;
                    pointer-events:none; z-index:1000; white-space:pre-line; display:none;
                    box-shadow:0 8px 24px rgba(0,0,0,0.5); max-width:360px; }
-    .sim-tooltip strong { color:#58a6ff; }
-    .sim-tooltip code { color:#79c0ff; }
+    .sim-tooltip strong { color:var(--cv-accent); }
+    .sim-tooltip code { color:var(--cv-code-blue); }
 
     .zoom-controls { position:absolute; top:10px; right:10px; z-index:10; display:flex; flex-direction:column; gap:2px; }
-    .zoom-controls button { background:#161b22; border:1px solid #30363d; color:#c9d1d9; width:30px; height:30px; font-size:1rem; cursor:pointer; }
-    .zoom-controls button:hover { background:#1c2129; }
+    .zoom-controls button { background:var(--cv-bg-card); border:1px solid var(--cv-border); color:var(--cv-text); width:30px; height:30px; font-size:1rem; cursor:pointer; }
+    .zoom-controls button:hover { background:var(--cv-bg-card-header); }
 
     /* Bottom panels */
     .bottom-panels { display: flex; gap: 12px; margin-top: 12px; }
     .bottom-panels .card { flex: 1; min-width: 0; }
-    .ev-row td { padding: 4px 8px; color: #e6edf3; }
-    .ev-row td code { color: #e6edf3; }
+    .ev-row td { padding: 4px 8px; color: var(--cv-text-heading); }
+    .ev-row td code { color: var(--cv-text-heading); }
     .ev-table-sm .ev-row td, .ev-table-sm th { font-size: 0.78rem; }
     .ev-table-md .ev-row td, .ev-table-md th { font-size: 0.92rem; }
     .ev-table-lg .ev-row td, .ev-table-lg th { font-size: 1.08rem; }
-    #ev-table th { color: #c9d1d9; }
+    #ev-table th { color: var(--cv-text); }
     .state-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; }
-    .sim-log { font-family:monospace; max-height:180px; overflow-y:auto; color: #e6edf3; }
+    .sim-log { font-family:monospace; max-height:180px; overflow-y:auto; color: var(--cv-text-heading); }
     .log-text-sm .sim-log { font-size: 0.72rem; }
     .log-text-md .sim-log { font-size: 0.9rem; }
     .log-text-lg .sim-log { font-size: 1.08rem; }
     .ctrl-text-sm .ctrl-bar label, .ctrl-text-sm .ctrl-bar .btn, .ctrl-text-sm .ctrl-bar input, .ctrl-text-sm .ctrl-bar select { font-size: 0.72rem; }
     .ctrl-text-md .ctrl-bar label, .ctrl-text-md .ctrl-bar .btn, .ctrl-text-md .ctrl-bar input, .ctrl-text-md .ctrl-bar select { font-size: 0.88rem; }
     .ctrl-text-lg .ctrl-bar label, .ctrl-text-lg .ctrl-bar .btn, .ctrl-text-lg .ctrl-bar input, .ctrl-text-lg .ctrl-bar select { font-size: 1.05rem; }
-    .collapse-btn { font-size:0.8rem; color:#8b949e; cursor:pointer; background:none; border:none; padding:0; }
-    .collapse-btn:hover { color:#e6edf3; }
+    .collapse-btn { font-size:0.8rem; color:var(--cv-text-muted); cursor:pointer; background:none; border:none; padding:0; }
+    .collapse-btn:hover { color:var(--cv-text-heading); }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
     .running-pulse { animation: pulse 1s infinite; }
 
     /* Link failure styles */
-    .link-failed-dash { stroke-dasharray: 8 4 !important; stroke: #da3633 !important; stroke-width: 4 !important; }
+    .link-failed-dash { stroke-dasharray: 8 4 !important; stroke: var(--cv-bad) !important; stroke-width: 4 !important; }
 
     /* Right-click context menu */
-    .ctx-menu { position:absolute; background:#161b22; border:1px solid #30363d; border-radius:6px;
+    .ctx-menu { position:absolute; background:var(--cv-bg-card); border:1px solid var(--cv-border); border-radius:6px;
                 padding:4px 0; z-index:2000; min-width:160px; box-shadow:0 8px 24px rgba(0,0,0,0.6); display:none; }
-    .ctx-menu-item { padding:5px 14px; font-size:0.78rem; color:#c9d1d9; cursor:pointer; }
-    .ctx-menu-item:hover { background:#1c2129; color:#e6edf3; }
-    .ctx-menu-item.danger { color:#da3633; }
-    .ctx-menu-sep { height:1px; background:#30363d; margin:4px 0; }
+    .ctx-menu-item { padding:5px 14px; font-size:0.78rem; color:var(--cv-text); cursor:pointer; }
+    .ctx-menu-item:hover { background:var(--cv-bg-card-header); color:var(--cv-text-heading); }
+    .ctx-menu-item.danger { color:var(--cv-bad); }
+    .ctx-menu-sep { height:1px; background:var(--cv-border); margin:4px 0; }
 
     /* Panel resizable */
-    .panel-header { background:#161b22; border-bottom:1px solid #30363d; padding:6px 12px;
+    .panel-header { background:var(--cv-bg-card); border-bottom:1px solid var(--cv-border); padding:6px 12px;
                     display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; }
-    .panel-header h6 { margin:0; font-size:0.8rem; color:#8b949e; }
-    .panel-maximize { font-size:0.72rem; color:#58a6ff; cursor:pointer; background:none; border:none; margin-left:8px; }
-    .panel-maximize:hover { color:#79c0ff; }
+    .panel-header h6 { margin:0; font-size:0.8rem; color:var(--cv-text-muted); }
+    .panel-maximize { font-size:0.72rem; color:var(--cv-accent); cursor:pointer; background:none; border:none; margin-left:8px; }
+    .panel-maximize:hover { color:var(--cv-accent-hover); }
 </style>
 {% endblock %}
 {% block content %}
@@ -183,7 +184,7 @@
     <div class="ctx-menu-item" onclick="ctxAction('ecn')">Degrade (ECN)</div>
     <div class="ctx-menu-item" onclick="ctxAction('partial_loss')">Degrade (Partial Loss)</div>
     <div class="ctx-menu-sep"></div>
-    <div class="ctx-menu-item" onclick="ctxAction('restore')" style="color:#238636">Restore</div>
+    <div class="ctx-menu-item" onclick="ctxAction('restore')" style="color:#00875A">Restore</div>
     <div class="ctx-menu-sep"></div>
     <div class="ctx-menu-item" onclick="clearFailures()" class="danger">Clear All Failures</div>
 </div>
@@ -218,13 +219,22 @@
 {% block extra_js %}
 <script>
 (function() {
-    const C = {
-        spine:'#1c2d5e', spine_stripe:'#3b82f6', spine_text:'#93c5fd',
-        leaf:'#14332a', leaf_stripe:'#22c55e', leaf_text:'#86efac',
-        host:'#143040', host_stripe:'#06b6d4', host_text:'#67e8f9',
-        link:'#30363d', failed:'#da3633',
-        GOOD:'#238636', SKIP:'#d29922', DENIED:'#484f58', ASSUMED_BAD:'#da3633',
+    const C_LIGHT = {
+        spine:'#E8F0FE', spine_stripe:'#0078D4', spine_text:'#0550AE',
+        leaf:'#E6F4EA', leaf_stripe:'#00875A', leaf_text:'#0B6E3E',
+        host:'#E0F7FA', host_stripe:'#0098B8', host_text:'#006B82',
+        link:'#d0d7de', failed:'#CF3040',
+        GOOD:'#00875A', SKIP:'#D4A017', DENIED:'#5A6B7A', ASSUMED_BAD:'#CF3040',
     };
+    const C_DARK = {
+        spine:'#0e2a4d', spine_stripe:'#0078D4', spine_text:'#7AB8F0',
+        leaf:'#0e3328', leaf_stripe:'#00875A', leaf_text:'#6BD4A0',
+        host:'#0e2838', host_stripe:'#0098B8', host_text:'#5AC8E0',
+        link:'#263545', failed:'#CF3040',
+        GOOD:'#00875A', SKIP:'#D4A017', DENIED:'#5A6B7A', ASSUMED_BAD:'#CF3040',
+    };
+    function getC() { return document.documentElement.getAttribute('data-bs-theme') === 'dark' ? C_DARK : C_LIGHT; }
+    let C = getC();
     const tileSizes = [
         { w: 120, h: 48, name: 11, role: 8.5, usid: 8, nameY: 17, roleY: 29, usidY: 40, stripe: 4, dotR: 4 },
         { w: 160, h: 60, name: 13, role: 10,  usid: 9.5, nameY: 20, roleY: 35, usidY: 49, stripe: 5, dotR: 5 },
@@ -243,7 +253,7 @@
     let selectedSrc = '', selectedDst = '';
     let zoomLevel = 1, panX = 0, panY = 0, isPanning = false, panStartX = 0, panStartY = 0;
 
-    function stateColor(s) { return C[s] || '#484f58'; }
+    function stateColor(s) { return C[s] || '#5A6B7A'; }
 
     // Panel collapse/maximize
     window.togglePanel = function(panelId) {
@@ -704,14 +714,14 @@
         const newEvents = events.slice(lastEventCount);
         newEvents.forEach(evt => {
             const typeColor = {
-                'ECN_RECEIVED': '#d29922', 'SACK_GENERATED': '#79c0ff',
-                'SACK_RECEIVED': '#58a6ff', 'NACK_RECEIVED': '#d29922',
-                'ACK_TIMEOUT': '#da3633', 'EV_STATE_CHANGE': '#f0e68c',
-                'PROBE_SENT': '#79c0ff', 'PROBE_RESPONSE': '#238636',
-                'CWND_CHANGE': '#8b949e', 'TRAFFIC_SHIFT': '#238636',
-            }[evt.type] || '#c9d1d9';
-            const specRef = evt.spec_ref ? ` <span style="color:#484f58">(${evt.spec_ref})</span>` : '';
-            el.innerHTML = `<div><span style="color:#484f58">[T=${evt.time}s]</span> <span style="color:${typeColor}">${evt.detail}</span>${specRef}</div>` + el.innerHTML;
+                'ECN_RECEIVED': '#D4A017', 'SACK_GENERATED': '#4DA8FF',
+                'SACK_RECEIVED': '#0078D4', 'NACK_RECEIVED': '#D4A017',
+                'ACK_TIMEOUT': '#CF3040', 'EV_STATE_CHANGE': '#FFD166',
+                'PROBE_SENT': '#4DA8FF', 'PROBE_RESPONSE': '#00875A',
+                'CWND_CHANGE': '#7a8a9a', 'TRAFFIC_SHIFT': '#00875A',
+            }[evt.type] || '#d0d8e0';
+            const specRef = evt.spec_ref ? ` <span style="color:#4a5568">(${evt.spec_ref})</span>` : '';
+            el.innerHTML = `<div><span style="color:#4a5568">[T=${evt.time}s]</span> <span style="color:${typeColor}">${evt.detail}</span>${specRef}</div>` + el.innerHTML;
         });
         lastEventCount = events.length;
         if (el.children.length > 500) while (el.children.length > 500) el.removeChild(el.lastChild);
@@ -767,7 +777,7 @@
                 if (sr.completed) {
                     // Plan exhausted — restart from step 0, preserving EV state and counters
                     await apiCall('/api/traffic/restart_plan','POST');
-                    log('<span style="color:#58a6ff">Plan cycle complete — restarting</span>');
+                    log('<span style="color:#0078D4">Plan cycle complete — restarting</span>');
                     return;
                 }
                 if (sr.error) { stopSimulation(); log('Error: ' + (sr.error || 'unknown')); return; }
@@ -819,7 +829,7 @@
         document.getElementById('m-trimmed').textContent = '0';
         try { await apiCall('/api/traffic/clear_counters', 'POST'); } catch(e) {}
         updateEVTable();
-        log('<span style="color:#58a6ff">Packet counters cleared</span>');
+        log('<span style="color:#0078D4">Packet counters cleared</span>');
     };
 
     function updateMetrics(state, step) {
@@ -850,7 +860,7 @@
                     const mFlag = f.response_details?.m_flag_name || 'ECN';
                     log(`<span style="color:${C.SKIP}">Step ${step.step}: ${f.src_host}→${f.dst_host} EV=${evHex} P${plane}S${spine} PSN=${f.psn} — SACK(m=${mFlag}) → ${f.ev_state_after}</span>`);
                 } else {
-                    log(`<span style="color:#8b949e">Step ${step.step}: ${f.src_host}→${f.dst_host} EV=${evHex} P${plane}S${spine} PSN=${f.psn} — SACK cwnd=${f.cwnd_after}</span>`);
+                    log(`<span style="color:#7a8a9a">Step ${step.step}: ${f.src_host}→${f.dst_host} EV=${evHex} P${plane}S${spine} PSN=${f.psn} — SACK cwnd=${f.cwnd_after}</span>`);
                 }
             });
         }
@@ -880,10 +890,11 @@
         failedLinks={};
         try { const pr=await apiCall('/api/pathstate'); if(pr&&pr.paths) pathStates=pr.paths; else pathStates.forEach(ps=>{ps.state='GOOD'}); } catch(e){ pathStates.forEach(ps=>{ps.state='GOOD'}); }
         renderFabric(); drawPaths(); updateEVTable();
-        document.getElementById('fail-status').innerHTML='<span style="color:#238636">Cleared</span>';
-        log('<span style="color:#238636">All failures cleared — paths restored</span>');
+        document.getElementById('fail-status').innerHTML='<span style="color:#00875A">Cleared</span>';
+        log('<span style="color:#00875A">All failures cleared — paths restored</span>');
     };
 
+    window.onThemeChange = function() { C = getC(); renderFabric(); drawPaths(); };
     document.addEventListener('DOMContentLoaded', init);
 })();
 </script>

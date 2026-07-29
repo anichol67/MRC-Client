@@ -27,7 +27,7 @@ def generate(output_dir: str = '.', config: dict = None) -> None:
         hosts_per_leaf=cfg_args.get('hosts_per_leaf', 1),
         ipv6_base=cfg_args.get('ipv6_base', 'fd00::/32'),
         srv6_base=cfg_args.get('srv6_base', 'fcbb::/32'),
-        ceos_image=cfg_args.get('ceos_image', 'ceos:4.36.0.1F'),
+        ceos_image=cfg_args.get('ceos_image', 'arista/ceos:latest'),
         mrc_image=cfg_args.get('mrc_image', 'ghcr.io/anichol67/mrc-emu:latest'),
     )
 
@@ -90,7 +90,7 @@ if __name__ == '__main__':
     parser.add_argument('--leafs', type=int, default=4)
     parser.add_argument('--spines', type=int, default=2)
     parser.add_argument('--hosts-per-leaf', type=int, default=1)
-    parser.add_argument('--ceos-image', default='ceos:4.36.0.1F')
+    parser.add_argument('--ceos-image', default='arista/ceos:latest')
     parser.add_argument('--ipv6-base', default='fd00::/32')
     parser.add_argument('--srv6-base', default='fcbb::/32')
     args = parser.parse_args()

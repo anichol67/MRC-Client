@@ -1,1 +1,220 @@
-/* Additional styles beyond Bootstrap dark theme */
+/* ===== Arista CloudVision Theme — Light Default + Dark Mode ===== */
+
+:root {
+    /* Backgrounds — Light (CloudVision default) */
+    --cv-bg-body: #f5f6f8;
+    --cv-bg-sidebar: #1B2A3C;
+    --cv-bg-card: #ffffff;
+    --cv-bg-card-header: #f6f8fa;
+    --cv-bg-canvas: #eef0f3;
+    --cv-bg-input: #ffffff;
+
+    /* Borders */
+    --cv-border: #d0d7de;
+    --cv-border-subtle: #e1e4e8;
+
+    /* Text */
+    --cv-text: #24292f;
+    --cv-text-heading: #1b1f24;
+    --cv-text-muted: #656d76;
+    --cv-text-section: #8b949e;
+
+    /* Accent — Arista Blue (same in both modes) */
+    --cv-accent: #0078D4;
+    --cv-accent-hover: #005FAD;
+    --cv-accent-glow: rgba(0, 120, 212, 0.2);
+    --cv-code-blue: #0550AE;
+
+    /* Status (same in both modes) */
+    --cv-good: #00875A;
+    --cv-skip: #D4A017;
+    --cv-denied: #5A6B7A;
+    --cv-bad: #CF3040;
+    --cv-unknown: #8b949e;
+}
+
+/* ===== Dark Mode Overrides ===== */
+[data-bs-theme="dark"] {
+    --cv-bg-body: #101820;
+    --cv-bg-sidebar: #0b1018;
+    --cv-bg-card: #1c2e40;
+    --cv-bg-card-header: #243a50;
+    --cv-bg-canvas: #0e1620;
+    --cv-bg-input: #141e2a;
+
+    --cv-border: #263545;
+    --cv-border-subtle: #1e2d3d;
+
+    --cv-text: #d0d8e0;
+    --cv-text-heading: #e8eef4;
+    --cv-text-muted: #7a8a9a;
+    --cv-text-section: #4a5568;
+
+    --cv-accent-hover: #2B95F0;
+    --cv-accent-glow: rgba(0, 120, 212, 0.25);
+    --cv-code-blue: #4DA8FF;
+    --cv-unknown: #3A4A5A;
+
+    --bs-body-bg: #101820;
+    --bs-body-color: #d0d8e0;
+    --bs-border-color: #263545;
+    --bs-tertiary-bg: #1c2e40;
+    --bs-emphasis-color: #e8eef4;
+    --bs-secondary-color: #7a8a9a;
+    --bs-link-color: #0078D4;
+    --bs-link-hover-color: #2B95F0;
+    --bs-code-color: #4DA8FF;
+}
+
+/* ===== Light Mode Bootstrap Overrides ===== */
+[data-bs-theme="light"] {
+    --bs-body-bg: #f5f6f8;
+    --bs-body-color: #24292f;
+    --bs-border-color: #d0d7de;
+    --bs-tertiary-bg: #f6f8fa;
+    --bs-emphasis-color: #1b1f24;
+    --bs-secondary-color: #656d76;
+    --bs-link-color: #0078D4;
+    --bs-link-hover-color: #005FAD;
+    --bs-code-color: #0550AE;
+}
+
+/* ===== Bootstrap Component Overrides — Both Themes ===== */
+
+/* Primary buttons — Arista Blue */
+.btn-primary {
+    --bs-btn-bg: #0078D4;
+    --bs-btn-border-color: #0078D4;
+    --bs-btn-hover-bg: #005FAD;
+    --bs-btn-hover-border-color: #005FAD;
+    --bs-btn-active-bg: #004C8C;
+    --bs-btn-active-border-color: #004C8C;
+    --bs-btn-color: #fff;
+}
+.btn-success {
+    --bs-btn-bg: #00875A;
+    --bs-btn-border-color: #00875A;
+    --bs-btn-hover-bg: #006B48;
+    --bs-btn-hover-border-color: #006B48;
+}
+.btn-danger {
+    --bs-btn-bg: #CF3040;
+    --bs-btn-border-color: #CF3040;
+    --bs-btn-hover-bg: #B02838;
+    --bs-btn-hover-border-color: #B02838;
+}
+.btn-warning {
+    --bs-btn-bg: #D4A017;
+    --bs-btn-border-color: #D4A017;
+    --bs-btn-hover-bg: #B88A10;
+    --bs-btn-hover-border-color: #B88A10;
+}
+.btn-info {
+    --bs-btn-bg: #0098B8;
+    --bs-btn-border-color: #0098B8;
+    --bs-btn-hover-bg: #007A95;
+    --bs-btn-hover-border-color: #007A95;
+}
+.btn-outline-primary {
+    --bs-btn-color: #0078D4;
+    --bs-btn-border-color: #0078D4;
+    --bs-btn-hover-bg: #0078D4;
+    --bs-btn-hover-border-color: #0078D4;
+    --bs-btn-hover-color: #fff;
+}
+.btn-outline-secondary {
+    --bs-btn-color: var(--cv-text-muted);
+    --bs-btn-border-color: var(--cv-border);
+    --bs-btn-hover-bg: var(--cv-bg-card-header);
+    --bs-btn-hover-border-color: var(--cv-border);
+    --bs-btn-hover-color: var(--cv-text);
+}
+.btn-outline-success {
+    --bs-btn-color: #00875A;
+    --bs-btn-border-color: #00875A;
+    --bs-btn-hover-bg: #00875A;
+    --bs-btn-hover-border-color: #00875A;
+    --bs-btn-hover-color: #fff;
+}
+.btn-outline-danger {
+    --bs-btn-color: #CF3040;
+    --bs-btn-border-color: #CF3040;
+    --bs-btn-hover-bg: #CF3040;
+    --bs-btn-hover-border-color: #CF3040;
+    --bs-btn-hover-color: #fff;
+}
+.btn-outline-warning {
+    --bs-btn-color: #D4A017;
+    --bs-btn-border-color: #D4A017;
+    --bs-btn-hover-bg: #D4A017;
+    --bs-btn-hover-border-color: #D4A017;
+    --bs-btn-hover-color: #fff;
+}
+.btn-outline-info {
+    --bs-btn-color: #0098B8;
+    --bs-btn-border-color: #0098B8;
+    --bs-btn-hover-bg: #0098B8;
+    --bs-btn-hover-border-color: #0098B8;
+    --bs-btn-hover-color: #fff;
+}
+
+/* Badge overrides */
+.bg-success { background-color: #00875A !important; }
+.bg-warning { background-color: #D4A017 !important; }
+.bg-danger { background-color: #CF3040 !important; }
+.bg-primary { background-color: #0078D4 !important; }
+.bg-secondary { background-color: #5A6B7A !important; }
+.bg-info { background-color: #0098B8 !important; }
+
+/* Text color overrides */
+.text-success { color: #00875A !important; }
+.text-warning { color: #D4A017 !important; }
+.text-danger { color: #CF3040 !important; }
+.text-primary { color: #0078D4 !important; }
+.text-info { color: #0098B8 !important; }
+
+/* Form overrides */
+.form-control, .form-select {
+    background-color: var(--cv-bg-input);
+    border-color: var(--cv-border);
+    color: var(--cv-text);
+}
+.input-group-text {
+    background-color: var(--cv-bg-card-header);
+    border-color: var(--cv-border);
+    color: var(--cv-text-muted);
+}
+
+/* Table overrides */
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-border-color: var(--cv-border);
+}
+
+/* Nav tabs */
+.nav-tabs {
+    --bs-nav-tabs-border-color: var(--cv-border);
+    --bs-nav-tabs-link-active-bg: var(--cv-bg-card);
+    --bs-nav-tabs-link-active-border-color: var(--cv-border) var(--cv-border) var(--cv-bg-card);
+    --bs-nav-tabs-link-active-color: var(--cv-text-heading);
+}
+
+/* ===== Theme Toggle Button ===== */
+.cv-theme-toggle {
+    display: block;
+    width: calc(100% - 32px);
+    margin: 8px 16px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    color: #8b949e;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+}
+.cv-theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #d0d8e0;
+}

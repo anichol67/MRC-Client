@@ -1,78 +1,85 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}MRC emu{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <script>
+        (function() {
+            var t = localStorage.getItem('cv-theme');
+            if (t === 'dark') document.documentElement.setAttribute('data-bs-theme', 'dark');
+        })();
+    </script>
     <style>
-        body { background: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        body { background: var(--cv-bg-body); color: var(--cv-text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 
-        /* CloudVision-style sidebar nav */
-        .cv-sidebar { position: fixed; top: 0; left: 0; width: 200px; height: 100vh; background: #161b22;
-                      border-right: 1px solid #30363d; padding-top: 0; overflow-y: auto; z-index: 1000; }
+        /* Sidebar — always dark regardless of theme */
+        .cv-sidebar { position: fixed; top: 0; left: 0; width: 200px; height: 100vh; background: #1B2A3C;
+                      border-right: 1px solid #263545; padding-top: 0; overflow-y: auto; z-index: 1000;
+                      display: flex; flex-direction: column; }
         .cv-brand { display: block; padding: 16px 16px 12px; font-size: 1.1rem; font-weight: 700;
-                    color: #58a6ff; text-decoration: none; border-bottom: 1px solid #30363d; }
-        .cv-brand:hover { color: #79c0ff; }
+                    color: #0078D4; text-decoration: none; border-bottom: 1px solid #263545; }
+        .cv-brand:hover { color: #2B95F0; }
         .cv-brand .mode-badge { font-size: 0.6rem; vertical-align: super; }
-        .cv-nav { list-style: none; padding: 8px 0; margin: 0; }
+        .cv-brand-arista { display: block; font-size: 0.55rem; letter-spacing: 2px;
+                           color: #7a8a9a; font-weight: 400; margin-bottom: 2px; }
+        .cv-nav { list-style: none; padding: 8px 0; margin: 0; flex: 1; }
         .cv-nav-section { padding: 10px 16px 4px; font-size: 0.65rem; text-transform: uppercase;
-                          letter-spacing: 1px; color: #484f58; font-weight: 600; }
-        .cv-nav a { display: block; padding: 7px 16px 7px 20px; color: #8b949e; text-decoration: none;
+                          letter-spacing: 1px; color: #4a5568; font-weight: 600; }
+        .cv-nav a { display: block; padding: 7px 16px 7px 20px; color: #7a8a9a; text-decoration: none;
                     font-size: 0.85rem; border-left: 3px solid transparent; transition: all 0.15s; }
-        .cv-nav a:hover { color: #c9d1d9; background: #1c2129; }
-        .cv-nav a.active { color: #58a6ff; border-left-color: #58a6ff; background: #1c2129; font-weight: 600; }
+        .cv-nav a:hover { color: #d0d8e0; background: #243a50; }
+        .cv-nav a.active { color: #0078D4; border-left-color: #0078D4; background: #243a50; font-weight: 600; }
 
         /* Main content area */
         .cv-main { margin-left: 200px; padding: 20px 24px; min-height: 100vh; }
 
         /* Cards — CloudVision style */
-        .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 1rem; }
-        .card-header { background: #1c2129; border-bottom: 1px solid #30363d; font-weight: 600;
-                       font-size: 0.9rem; padding: 10px 16px; color: #c9d1d9; }
+        .card { background: var(--cv-bg-card); border: 1px solid var(--cv-border); border-radius: 6px; margin-bottom: 1rem; }
+        .card-header { background: var(--cv-bg-card-header); border-bottom: 1px solid var(--cv-border); font-weight: 600;
+                       font-size: 0.9rem; padding: 10px 16px; color: var(--cv-text); }
         .card-body { padding: 12px 16px; }
 
         /* Tables */
-        .table { --bs-table-bg: transparent; --bs-table-color: #c9d1d9; --bs-table-border-color: #30363d; }
-        .table thead th { border-bottom-color: #30363d; color: #8b949e; font-weight: 600; font-size: 0.8rem;
+        .table { --bs-table-bg: transparent; --bs-table-color: var(--cv-text); --bs-table-border-color: var(--cv-border); }
+        .table thead th { border-bottom-color: var(--cv-border); color: var(--cv-text-muted); font-weight: 600; font-size: 0.8rem;
                           text-transform: uppercase; letter-spacing: 0.5px; }
 
         /* Forms */
-        .form-control, .form-select { background: #0d1117; border-color: #30363d; color: #c9d1d9; }
-        .form-control:focus, .form-select:focus { background: #0d1117; border-color: #58a6ff; color: #c9d1d9;
-                                                   box-shadow: 0 0 0 2px rgba(88,166,255,0.2); }
-        .form-label { color: #8b949e; font-size: 0.82rem; font-weight: 500; }
-
-        /* Buttons — blue accent */
-        .btn-primary { background: #238636; border-color: #238636; }
-        .btn-primary:hover { background: #2ea043; border-color: #2ea043; }
+        .form-control, .form-select { background: var(--cv-bg-input); border-color: var(--cv-border); color: var(--cv-text); }
+        .form-control:focus, .form-select:focus { background: var(--cv-bg-input); border-color: var(--cv-accent); color: var(--cv-text);
+                                                   box-shadow: 0 0 0 2px var(--cv-accent-glow); }
+        .form-label { color: var(--cv-text-muted); font-size: 0.82rem; font-weight: 500; }
 
         /* Status badges */
-        .badge-good { background-color: #238636; }
-        .badge-skip { background-color: #d29922; color: #000; }
-        .badge-denied { background-color: #da3633; }
-        .badge-bad { background-color: #484f58; }
+        .badge-good { background-color: var(--cv-good); }
+        .badge-skip { background-color: var(--cv-skip); color: #000; }
+        .badge-denied { background-color: var(--cv-bad); }
+        .badge-bad { background-color: var(--cv-denied); }
 
         .hex-dump { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.82rem; white-space: pre;
-                    color: #79c0ff; }
+                    color: var(--cv-code-blue); }
         .bitmap-bit { display: inline-block; width: 12px; height: 18px; text-align: center;
-                      font-family: monospace; font-size: 0.75rem; border: 1px solid #30363d; margin: 1px; }
-        .bitmap-bit.set { background-color: #238636; color: #fff; }
-        .bitmap-bit.unset { background-color: #161b22; color: #484f58; }
+                      font-family: monospace; font-size: 0.75rem; border: 1px solid var(--cv-border); margin: 1px; }
+        .bitmap-bit.set { background-color: var(--cv-good); color: #fff; }
+        .bitmap-bit.unset { background-color: var(--cv-bg-card); color: var(--cv-text-section); }
         .mode-badge { font-size: 0.65rem; vertical-align: middle; }
 
         /* Page header */
-        .cv-page-header { font-size: 1.3rem; font-weight: 600; color: #e6edf3; margin-bottom: 16px;
-                          padding-bottom: 8px; border-bottom: 1px solid #30363d; }
+        .cv-page-header { font-size: 1.3rem; font-weight: 600; color: var(--cv-text-heading); margin-bottom: 16px;
+                          padding-bottom: 8px; border-bottom: 1px solid var(--cv-border); }
 
         /* Responsive: collapse sidebar on small screens */
         @media (max-width: 992px) {
-            .cv-sidebar { width: 100%; height: auto; position: relative; }
+            .cv-sidebar { width: 100%; height: auto; position: relative; flex-direction: row; flex-wrap: wrap; }
             .cv-main { margin-left: 0; }
-            .cv-nav { display: flex; flex-wrap: wrap; }
+            .cv-nav { display: flex; flex-wrap: wrap; flex: none; }
             .cv-nav a { flex: 0 0 auto; border-left: none; border-bottom: 3px solid transparent; }
-            .cv-nav a.active { border-bottom-color: #58a6ff; border-left: none; }
+            .cv-nav a.active { border-bottom-color: #0078D4; border-left: none; }
             .cv-nav-section { display: none; }
+            .cv-theme-toggle { display: none; }
         }
     </style>
     {% block extra_css %}{% endblock %}
@@ -80,7 +87,7 @@
 <body>
     <!-- Sidebar Navigation -->
     <nav class="cv-sidebar">
-        <a class="cv-brand" href="/">MRC emu
+        <a class="cv-brand" href="/"><span class="cv-brand-arista">ARISTA</span>MRC emu
             {% if config.get('OFFLINE_MODE', False) %}
             <span class="badge bg-warning text-dark mode-badge">OFFLINE</span>
             {% else %}
@@ -106,6 +113,9 @@
             <li><a href="/traffic" class="{% if request.path == '/traffic' %}active{% endif %}">Traffic</a></li>
             <li><a href="/faults" class="{% if request.path == '/faults' %}active{% endif %}">Faults</a></li>
         </ul>
+        <button class="cv-theme-toggle" onclick="toggleTheme()" id="theme-toggle-btn" title="Switch theme">
+            &#9788; Light Mode
+        </button>
     </nav>
 
     <!-- Main Content -->
@@ -121,6 +131,21 @@
             const resp = await fetch(url, opts);
             return resp.json();
         }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-bs-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-bs-theme', next);
+            localStorage.setItem('cv-theme', next);
+            updateToggleBtn(next);
+            if (typeof onThemeChange === 'function') onThemeChange(next);
+        }
+        function updateToggleBtn(theme) {
+            const btn = document.getElementById('theme-toggle-btn');
+            if (btn) btn.innerHTML = theme === 'dark' ? '&#9790; Dark Mode' : '&#9788; Light Mode';
+        }
+        updateToggleBtn(document.documentElement.getAttribute('data-bs-theme') || 'light');
     </script>
     {% block extra_js %}{% endblock %}
 </body>

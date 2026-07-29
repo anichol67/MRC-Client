@@ -20,7 +20,7 @@ def _get_or_create_generator(config_data=None):
             hosts_per_leaf=int(config_data.get('hosts_per_leaf', 1)),
             ipv6_base=config_data.get('ipv6_base', 'fd00::/32'),
             srv6_base=config_data.get('srv6_base', 'fcbb::/32'),
-            ceos_image=config_data.get('ceos_image', 'ceos:latest'),
+            ceos_image=config_data.get('ceos_image', 'arista/ceos:latest'),
             mrc_image=config_data.get('mrc_image', 'mrc-emulator:latest'),
         )
         gen = TopologyGenerator(config)

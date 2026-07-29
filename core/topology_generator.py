@@ -51,7 +51,7 @@ class TopologyConfig:
     hosts_per_leaf: int = 1
     ipv6_base: str = 'fd00::/32'
     srv6_base: str = 'fcbb::/32'
-    ceos_image: str = 'ceos:4.36.0.1F'
+    ceos_image: str = 'arista/ceos:latest'
     mrc_image: str = 'ghcr.io/anichol67/mrc-emu:latest'
     management_network: str = '172.20.0.0/24'
     qps_per_host_pair: int = 1

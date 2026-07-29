@@ -3,8 +3,8 @@
 {% block extra_css %}
 <style>
     #topo-svg-container {
-        background: #1a1a2e;
-        border: 1px solid #333;
+        background: var(--cv-bg-canvas);
+        border: 1px solid var(--cv-border);
         border-radius: 6px;
         overflow: auto;
         min-height: 540px;
@@ -14,26 +14,26 @@
     .node-icon { pointer-events: none; fill: rgba(255,255,255,0.7); }
     .node-rect:hover { stroke-width: 3; filter: brightness(1.3); cursor: pointer; }
     .node-tooltip, .link-tooltip {
-        position: absolute; background: #222; color: #eee; border: 1px solid #555;
+        position: absolute; background: var(--cv-bg-card); color: var(--cv-text-heading); border: 1px solid var(--cv-border);
         border-radius: 6px; padding: 8px 12px; font-size: 0.78rem; font-family: 'Courier New', monospace;
         pointer-events: none; z-index: 1000; max-width: 340px; white-space: pre-line;
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
-    .node-tooltip strong, .link-tooltip strong { color: #8be9fd; }
-    .node-label { font-family: 'Courier New', monospace; font-size: 11px; fill: #fff;
+    .node-tooltip strong, .link-tooltip strong { color: var(--cv-code-blue); }
+    .node-label { font-family: 'Courier New', monospace; font-size: 11px; fill: var(--cv-text-heading);
                   pointer-events: none; text-anchor: middle; dominant-baseline: central; }
     .topo-link { cursor: pointer; stroke-linecap: round; }
     .topo-link:hover { stroke-width: 4; filter: brightness(1.5); }
     .path-overlay { pointer-events: none; stroke-linecap: round; }
-    .plane-box { fill: none; stroke: #444; stroke-width: 1; stroke-dasharray: 6 3; rx: 8; ry: 8; }
-    .plane-label { font-size: 13px; fill: #888; font-weight: bold; }
+    .plane-box { fill: none; stroke: var(--cv-border); stroke-width: 1; stroke-dasharray: 6 3; rx: 8; ry: 8; }
+    .plane-label { font-size: 13px; fill: var(--cv-text-muted); font-weight: bold; }
     .state-badge { display: inline-block; padding: 2px 8px; border-radius: 4px;
                    font-size: 0.8rem; font-weight: 600; color: #fff; }
-    .state-GOOD { background-color: #198754; }
-    .state-SKIP { background-color: #ffc107; color: #000; }
-    .state-DENIED { background-color: #6c757d; }
-    .state-ASSUMED_BAD { background-color: #dc3545; }
-    .state-UNKNOWN { background-color: #444; }
+    .state-GOOD { background-color: var(--cv-good); }
+    .state-SKIP { background-color: var(--cv-skip); color: #000; }
+    .state-DENIED { background-color: var(--cv-denied); }
+    .state-ASSUMED_BAD { background-color: var(--cv-bad); }
+    .state-UNKNOWN { background-color: var(--cv-unknown); }
     #path-state-table th, #path-state-table td { font-size: 0.82rem; vertical-align: middle; }
     .legend-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px;
                      margin-right: 4px; vertical-align: middle; }
@@ -43,8 +43,8 @@
     .counter-val { font-family: 'Courier New', monospace; font-weight: bold; }
     .poll-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
                       margin-right: 6px; }
-    .poll-on { background: #198754; animation: pulse 1s infinite; }
-    .poll-off { background: #6c757d; }
+    .poll-on { background: var(--cv-good); animation: pulse 1s infinite; }
+    .poll-off { background: var(--cv-denied); }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 </style>
 {% endblock %}
@@ -65,15 +65,15 @@
         <div id="topo-svg-container"></div>
         <div id="hover-tooltip" class="node-tooltip" style="display:none;"></div>
         <div class="mt-2 d-flex flex-wrap gap-3">
-            <small><span class="legend-swatch" style="background:#3b82f6"></span>Spine</small>
-            <small><span class="legend-swatch" style="background:#22c55e"></span>Leaf</small>
-            <small><span class="legend-swatch" style="background:#06b6d4"></span>Host</small>
-            <small><span class="legend-swatch" style="background:#555"></span>Link (normal)</small>
-            <small><span class="legend-swatch" style="background:#dc3545"></span>Link (failed)</small>
-            <small><span class="legend-swatch" style="background:#198754"></span>GOOD</small>
-            <small><span class="legend-swatch" style="background:#ffc107"></span>SKIP</small>
-            <small><span class="legend-swatch" style="background:#6c757d"></span>DENIED</small>
-            <small><span class="legend-swatch" style="background:#dc3545; border: 1px dashed #fff;"></span>ASSUMED_BAD</small>
+            <small><span class="legend-swatch" style="background:var(--cv-accent)"></span>Spine</small>
+            <small><span class="legend-swatch" style="background:var(--cv-good)"></span>Leaf</small>
+            <small><span class="legend-swatch" style="background:#0098B8"></span>Host</small>
+            <small><span class="legend-swatch" style="background:var(--cv-border)"></span>Link (normal)</small>
+            <small><span class="legend-swatch" style="background:var(--cv-bad)"></span>Link (failed)</small>
+            <small><span class="legend-swatch" style="background:var(--cv-good)"></span>GOOD</small>
+            <small><span class="legend-swatch" style="background:var(--cv-skip)"></span>SKIP</small>
+            <small><span class="legend-swatch" style="background:var(--cv-denied)"></span>DENIED</small>
+            <small><span class="legend-swatch" style="background:var(--cv-bad); border: 1px dashed var(--cv-text-muted);"></span>ASSUMED_BAD</small>
         </div>
     </div>
 
@@ -108,7 +108,7 @@
             </div>
             <div class="card-body p-0" style="max-height: 260px; overflow-y: auto;">
                 <table class="table table-sm table-hover mb-0" id="path-state-table">
-                    <thead class="sticky-top" style="background:#212529">
+                    <thead class="sticky-top" style="background:var(--cv-bg-card)">
                         <tr>
                             <th>EV</th><th>State</th><th>RTT (us)</th>
                             <th>ECN %</th><th>Loss %</th>
@@ -178,21 +178,38 @@
 <script>
 (function() {
     // ── Color constants ──
-    const C = {
-        GOOD:        '#198754',
-        SKIP:        '#ffc107',
-        DENIED:      '#6c757d',
-        ASSUMED_BAD: '#dc3545',
-        UNKNOWN:     '#444',
-        link_normal: '#555',
-        link_failed: '#dc3545',
-        spine_fill:  '#3b82f6',
-        leaf_fill:   '#22c55e',
-        host_fill:   '#06b6d4',
-        spine_stroke:'#2563eb',
-        leaf_stroke: '#16a34a',
-        host_stroke: '#0891b2',
+    const C_LIGHT = {
+        GOOD:        '#00875A',
+        SKIP:        '#D4A017',
+        DENIED:      '#5A6B7A',
+        ASSUMED_BAD: '#CF3040',
+        UNKNOWN:     '#8b949e',
+        link_normal: '#b0b8c4',
+        link_failed: '#CF3040',
+        spine_fill:  '#4A9AE8',
+        leaf_fill:   '#3EB07A',
+        host_fill:   '#30B0D0',
+        spine_stroke:'#0078D4',
+        leaf_stroke: '#00875A',
+        host_stroke: '#0098B8',
     };
+    const C_DARK = {
+        GOOD:        '#00875A',
+        SKIP:        '#D4A017',
+        DENIED:      '#5A6B7A',
+        ASSUMED_BAD: '#CF3040',
+        UNKNOWN:     '#3A4A5A',
+        link_normal: '#3A5068',
+        link_failed: '#CF3040',
+        spine_fill:  '#0078D4',
+        leaf_fill:   '#00875A',
+        host_fill:   '#0098B8',
+        spine_stroke:'#005FAD',
+        leaf_stroke: '#006B48',
+        host_stroke: '#007A95',
+    };
+    function getC() { return document.documentElement.getAttribute('data-bs-theme') === 'dark' ? C_DARK : C_LIGHT; }
+    let C = getC();
 
     function stateColor(state) {
         return C[state] || C.UNKNOWN;
@@ -872,6 +889,9 @@
         hideTip: hideTip,
         _nodePos: {},
     };
+
+    // ── Theme change ──
+    window.onThemeChange = function() { C = getC(); renderSVG(); drawPathOverlays(); };
 
     // ── Boot ──
     document.addEventListener('DOMContentLoaded', init);

@@ -901,7 +901,7 @@ python3 app.py
 
 **Docker images:**
 - `ghcr.io/anichol67/mrc-emu:latest` — MRC emulator (hosts + controller), pulled from GitHub Container Registry (private)
-- `ceos:4.36.0.1F` — Arista cEOS (switches), must be imported locally from Arista-provided tar file (`image-pull-policy: Never`)
+- `arista/ceos:latest` — Arista cEOS (switches), must be imported locally from Arista-provided tar file (`image-pull-policy: Never`)
 
 **One-time server setup:**
 
@@ -910,7 +910,7 @@ python3 app.py
 docker login ghcr.io -u anichol67 -p <GITHUB_TOKEN>
 
 # Import cEOS image from Arista tar file
-docker import cEOS64-lab-4.36.0.1F.tar ceos:4.36.0.1F
+docker import cEOS64-lab-4.36.0.1F.tar arista/ceos:latest
 ```
 
 **Deploy:**
@@ -926,7 +926,7 @@ containerlab deploy -t topology.clab.yml
 
 ```bash
 # Run offline on any machine
-python3 generate_deployment.py --planes 2 --leafs 4 --spines 2 --ceos-image ceos:4.36.0.1F
+python3 generate_deployment.py --planes 2 --leafs 4 --spines 2 --ceos-image arista/ceos:latest
 # Commit and push updated topology.clab.yml + configs/
 ```
 

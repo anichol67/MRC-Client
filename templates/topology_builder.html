@@ -2,18 +2,18 @@
 {% block title %}Topology Builder — MRC emu{% endblock %}
 {% block extra_css %}
 <style>
-    .builder-section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
-    .builder-section h6 { color: #58a6ff; margin-bottom: 12px; font-size: 0.9rem; }
+    .builder-section { background: var(--cv-bg-card); border: 1px solid var(--cv-border); border-radius: 6px; padding: 16px; margin-bottom: 12px; }
+    .builder-section h6 { color: var(--cv-accent); margin-bottom: 12px; font-size: 0.9rem; }
     .config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-    .config-item label { font-size: 0.78rem; color: #8b949e; }
+    .config-item label { font-size: 0.78rem; color: var(--cv-text-muted); }
     .config-item input, .config-item select { font-size: 0.85rem; }
     .action-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-    .output-box { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px;
+    .output-box { background: var(--cv-bg-canvas); border: 1px solid var(--cv-border); border-radius: 6px; padding: 12px;
                   font-family: monospace; font-size: 0.78rem; max-height: 400px; overflow-y: auto;
-                  white-space: pre-wrap; color: #c9d1d9; }
+                  white-space: pre-wrap; color: var(--cv-text); }
     .file-list { list-style: none; padding: 0; }
-    .file-list li { padding: 4px 8px; font-size: 0.82rem; color: #c9d1d9; border-bottom: 1px solid #21262d; }
-    .file-list li code { color: #58a6ff; }
+    .file-list li { padding: 4px 8px; font-size: 0.82rem; color: var(--cv-text); border-bottom: 1px solid var(--cv-border-subtle); }
+    .file-list li code { color: var(--cv-accent); }
     .status-msg { font-size: 0.78rem; margin-top: 8px; }
 </style>
 {% endblock %}
@@ -50,7 +50,7 @@
         </div>
         <div class="config-item">
             <label>cEOS Image</label>
-            <input type="text" id="cfg-ceos" class="form-control form-control-sm" value="ceos:latest">
+            <input type="text" id="cfg-ceos" class="form-control form-control-sm" value="arista/ceos:latest">
         </div>
         <div class="config-item">
             <label>QPs per Host Pair</label>
@@ -71,15 +71,15 @@
     <h6>Generated Files</h6>
     <div class="row">
         <div class="col-md-4">
-            <h6 style="font-size:0.78rem; color:#8b949e;">Topology</h6>
+            <h6 style="font-size:0.78rem; color:var(--cv-text-muted);">Topology</h6>
             <ul class="file-list" id="file-list-topo"></ul>
         </div>
         <div class="col-md-4">
-            <h6 style="font-size:0.78rem; color:#8b949e;">Switch Configs</h6>
+            <h6 style="font-size:0.78rem; color:var(--cv-text-muted);">Switch Configs</h6>
             <ul class="file-list" id="file-list-switches"></ul>
         </div>
         <div class="col-md-4">
-            <h6 style="font-size:0.78rem; color:#8b949e;">Host Scripts</h6>
+            <h6 style="font-size:0.78rem; color:var(--cv-text-muted);">Host Scripts</h6>
             <ul class="file-list" id="file-list-hosts"></ul>
         </div>
     </div>
@@ -94,7 +94,7 @@
 <!-- Deployment -->
 <div class="builder-section">
     <h6>Deployment</h6>
-    <p style="font-size:0.82rem; color:#8b949e;">
+    <p style="font-size:0.82rem; color:var(--cv-text-muted);">
         After generating, deploy the fabric with Containerlab:
     </p>
     <div class="output-box" style="max-height:80px;">
@@ -136,7 +136,7 @@ containerlab deploy -t topology.clab.yml
             const switches = r.nodes.filter(n => n.role !== 'host');
 
             document.getElementById('gen-status').innerHTML =
-                `<span style="color:#238636">✓ Generated: ${switches.length} switches, ${hosts.length} hosts, ${Object.keys(r.paths).length} path pairs</span>`;
+                `<span style="color:#00875A">✓ Generated: ${switches.length} switches, ${hosts.length} hosts, ${Object.keys(r.paths).length} path pairs</span>`;
 
             // Show file lists
             document.getElementById('files-section').style.display = '';
@@ -163,7 +163,7 @@ containerlab deploy -t topology.clab.yml
 
         } catch(e) {
             document.getElementById('gen-status').innerHTML =
-                `<span style="color:#da3633">Error: ${e.message}</span>`;
+                `<span style="color:#CF3040">Error: ${e.message}</span>`;
         }
     }
 
@@ -205,7 +205,7 @@ containerlab deploy -t topology.clab.yml
 
     async function pushToSwitches() {
         document.getElementById('deploy-status').innerHTML =
-            '<span style="color:#d29922">Pushing configs to switches via eAPI...</span>';
+            '<span style="color:#D4A017">Pushing configs to switches via eAPI...</span>';
         try {
             const r = await apiCall('/api/topology/provision', 'POST', {action: 'push'});
             const results = Object.entries(r).map(([name, res]) =>
@@ -213,21 +213,21 @@ containerlab deploy -t topology.clab.yml
             document.getElementById('deploy-status').innerHTML = results;
         } catch(e) {
             document.getElementById('deploy-status').innerHTML =
-                `<span style="color:#da3633">Error: ${e.message}</span>`;
+                `<span style="color:#CF3040">Error: ${e.message}</span>`;
         }
     }
 
     async function testConnectivity() {
         document.getElementById('deploy-status').innerHTML =
-            '<span style="color:#d29922">Testing connectivity...</span>';
+            '<span style="color:#D4A017">Testing connectivity...</span>';
         try {
             const r = await apiCall('/api/topology/provision', 'POST', {action: 'test'});
             const results = Object.entries(r).map(([name, ok]) =>
-                `${name}: ${ok ? '<span style="color:#238636">✓ reachable</span>' : '<span style="color:#da3633">✗ unreachable</span>'}`).join('<br>');
+                `${name}: ${ok ? '<span style="color:#00875A">✓ reachable</span>' : '<span style="color:#CF3040">✗ unreachable</span>'}`).join('<br>');
             document.getElementById('deploy-status').innerHTML = results;
         } catch(e) {
             document.getElementById('deploy-status').innerHTML =
-                `<span style="color:#da3633">Error: ${e.message}</span>`;
+                `<span style="color:#CF3040">Error: ${e.message}</span>`;
         }
     }
 </script>
