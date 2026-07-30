@@ -1,17 +1,22 @@
 {% extends "base.html" %}
 {% block title %}Configuration — MRC emu{% endblock %}
+{% block extra_css %}
+<style>
+    .section-collapse { cursor: pointer; user-select: none; }
+    .section-collapse .chevron { display: inline-block; transition: transform 0.2s; font-size: 12px; margin-right: 6px; }
+    .section-collapse.collapsed .chevron { transform: rotate(-90deg); }
+    .section-collapse.collapsed + .section-body { display: none; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="page-header">Network Configuration</div>
 
-<div class="tabs-bar" style="max-width:400px;">
-    <button class="tab-btn active" onclick="switchTab(this,'tab-view')">View</button>
-    <button class="tab-btn" onclick="switchTab(this,'tab-edit')">Edit</button>
-</div>
-
-<!-- View Tab — read-only topology view -->
-<div class="tab-pane" id="tab-view">
-    <div class="panel">
-        <h3>Fabric Nodes</h3>
+<!-- Fabric Nodes — collapsible -->
+<div class="panel">
+    <div class="section-collapse" onclick="this.classList.toggle('collapsed')">
+        <h3><span class="chevron">▾</span> Fabric Nodes</h3>
+    </div>
+    <div class="section-body">
         <table class="data-table" id="nodes-table">
             <thead>
                 <tr>
@@ -25,135 +30,139 @@
             </tbody>
         </table>
     </div>
+</div>
 
-    <div class="panel">
-        <h3>Links</h3>
-        <div style="max-height:300px; overflow-y:auto;">
-            <table class="data-table" id="links-table">
-                <thead>
-                    <tr><th>Node A</th><th>Interface</th><th>IPv6</th><th>Node B</th><th>Interface</th><th style="text-align:right">IPv6</th></tr>
-                </thead>
-                <tbody id="links-body">
-                    <tr><td colspan="6" class="text-muted" style="text-align:center">Loading...</td></tr>
-                </tbody>
-            </table>
-        </div>
+<!-- Links — collapsible -->
+<div class="panel">
+    <div class="section-collapse" onclick="this.classList.toggle('collapsed')">
+        <h3><span class="chevron">▾</span> Links</h3>
+    </div>
+    <div class="section-body" style="max-height:300px; overflow-y:auto;">
+        <table class="data-table" id="links-table">
+            <thead>
+                <tr><th>Node A</th><th>Interface</th><th>IPv6</th><th>Node B</th><th>Interface</th><th style="text-align:right">IPv6</th></tr>
+            </thead>
+            <tbody id="links-body">
+                <tr><td colspan="6" class="text-muted" style="text-align:center">Loading...</td></tr>
+            </tbody>
+        </table>
     </div>
 </div>
 
-<!-- Edit Tab — modify SRv6 configuration -->
-<div class="tab-pane" id="tab-edit" style="display:none;">
-    <div class="grid grid-sidebar">
-        <div>
-            <!-- SRv6 Block Configuration -->
-            <div class="panel">
-                <h3>SRv6 Block</h3>
-                <div class="field">
-                    <label>Plane 0 SRv6 Block</label>
-                    <input type="text" id="srv6-block-p0" value="fc00:42::/32">
-                </div>
-                <div class="field">
-                    <label>Plane 1 SRv6 Block</label>
-                    <input type="text" id="srv6-block-p1" value="fc00:43::/32">
-                </div>
-                <label class="field-check mt-2">
-                    <input type="checkbox" id="srv6-same-block" onchange="toggleSameBlock()">
-                    Same block for both planes
-                </label>
-            </div>
+<!-- Hosts — collapsible -->
+<div class="panel">
+    <div class="section-collapse" onclick="this.classList.toggle('collapsed')">
+        <h3><span class="chevron">▾</span> Hosts</h3>
+    </div>
+    <div class="section-body">
+        <table class="data-table" id="hosts-table">
+            <thead>
+                <tr><th>Host</th><th>Plane 0 (eth1)</th><th>Plane 1 (eth2)</th></tr>
+            </thead>
+            <tbody id="hosts-body">
+                <tr><td colspan="3" class="text-muted" style="text-align:center">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 
-            <!-- Encapsulation Source -->
-            <div class="panel">
-                <h3>Encapsulation Source</h3>
-                <div class="field">
-                    <label>Source IPv6 Base</label>
-                    <input type="text" id="encap-base" value="2001:db8::/32">
-                    <div class="hint">Global IPv6 block for SRv6 encapsulation source addresses</div>
-                </div>
-            </div>
-
-            <!-- uSID Mode -->
-            <div class="panel">
-                <h3>uSID Assignment</h3>
-                <div class="field">
-                    <label>Mode</label>
-                    <select id="usid-mode" onchange="toggleUsidMode()">
-                        <option value="per-layer">Per-layer-per-plane base</option>
-                        <option value="per-plane">Per-plane base</option>
-                        <option value="individual">Individual</option>
-                    </select>
-                </div>
-
-                <div id="usid-per-layer">
-                    <div class="field-row mt-2">
-                        <div class="field">
-                            <label>P0 Spine Base</label>
-                            <input type="text" id="usid-p0-spine" value="0x10">
-                        </div>
-                        <div class="field">
-                            <label>P0 Leaf Base</label>
-                            <input type="text" id="usid-p0-leaf" value="0x20">
-                        </div>
+<!-- Edit SRv6 Configuration — collapsible -->
+<div class="panel">
+    <div class="section-collapse" onclick="this.classList.toggle('collapsed')">
+        <h3><span class="chevron">▾</span> Edit SRv6 Configuration</h3>
+    </div>
+    <div class="section-body">
+        <div class="grid grid-sidebar">
+            <div>
+                <!-- SRv6 Block -->
+                <div style="margin-bottom:12px;">
+                    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">SRv6 Block</div>
+                    <div class="field">
+                        <label>Plane 0 SRv6 Block</label>
+                        <input type="text" id="srv6-block-p0" value="fc00:42::/32">
                     </div>
-                    <div class="field-row">
-                        <div class="field">
-                            <label>P1 Spine Base</label>
-                            <input type="text" id="usid-p1-spine" value="0x10">
-                        </div>
-                        <div class="field">
-                            <label>P1 Leaf Base</label>
-                            <input type="text" id="usid-p1-leaf" value="0x20">
-                        </div>
+                    <div class="field">
+                        <label>Plane 1 SRv6 Block</label>
+                        <input type="text" id="srv6-block-p1" value="fc00:43::/32">
+                    </div>
+                    <label class="field-check mt-1">
+                        <input type="checkbox" id="srv6-same-block" onchange="toggleSameBlock()">
+                        Same block for both planes
+                    </label>
+                </div>
+
+                <!-- Encapsulation Source -->
+                <div style="margin-bottom:12px;">
+                    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Encapsulation Source</div>
+                    <div class="field">
+                        <label>Source IPv6 Base</label>
+                        <input type="text" id="encap-base" value="2001:db8::/32">
+                        <div class="hint">Global IPv6 block for SRv6 encapsulation source addresses</div>
                     </div>
                 </div>
 
-                <div id="usid-per-plane" style="display:none;">
-                    <div class="field-row mt-2">
-                        <div class="field">
-                            <label>Plane 0 Base uSID</label>
-                            <input type="text" id="usid-p0-base" value="0x10">
+                <!-- uSID Mode -->
+                <div style="margin-bottom:12px;">
+                    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">uSID Assignment</div>
+                    <div class="field">
+                        <label>Mode</label>
+                        <select id="usid-mode" onchange="toggleUsidMode()">
+                            <option value="per-layer">Per-layer-per-plane base</option>
+                            <option value="per-plane">Per-plane base</option>
+                            <option value="individual">Individual</option>
+                        </select>
+                    </div>
+
+                    <div id="usid-per-layer">
+                        <div class="field-row mt-2">
+                            <div class="field"><label>P0 Spine Base</label><input type="text" id="usid-p0-spine" value="0x10"></div>
+                            <div class="field"><label>P0 Leaf Base</label><input type="text" id="usid-p0-leaf" value="0x20"></div>
                         </div>
-                        <div class="field">
-                            <label>Plane 1 Base uSID</label>
-                            <input type="text" id="usid-p1-base" value="0x10">
+                        <div class="field-row">
+                            <div class="field"><label>P1 Spine Base</label><input type="text" id="usid-p1-spine" value="0x10"></div>
+                            <div class="field"><label>P1 Leaf Base</label><input type="text" id="usid-p1-leaf" value="0x20"></div>
                         </div>
+                    </div>
+
+                    <div id="usid-per-plane" style="display:none;">
+                        <div class="field-row mt-2">
+                            <div class="field"><label>Plane 0 Base uSID</label><input type="text" id="usid-p0-base" value="0x10"></div>
+                            <div class="field"><label>Plane 1 Base uSID</label><input type="text" id="usid-p1-base" value="0x10"></div>
+                        </div>
+                    </div>
+
+                    <div id="usid-individual" style="display:none;">
+                        <div class="note-box mt-2">Set individual uSID values in the preview table after clicking Preview.</div>
                     </div>
                 </div>
 
-                <div id="usid-individual" style="display:none;">
-                    <div class="note-box mt-2">Set individual uSID values in the table below after clicking Preview.</div>
-                </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="panel">
                 <div class="action-bar">
                     <button class="btn-primary" onclick="previewConfig()">Preview Changes</button>
                     <button class="btn-secondary" onclick="resetConfig()">Reset to Defaults</button>
                 </div>
             </div>
-        </div>
 
-        <!-- Preview / Push -->
-        <div>
-            <div class="panel" id="preview-panel" style="display:none;">
-                <h3>Configuration Preview</h3>
-                <table class="data-table" id="preview-table">
-                    <thead>
-                        <tr><th>Node</th><th>uSID</th><th>SRv6 Locator</th><th>Encap Source</th><th>Status</th></tr>
-                    </thead>
-                    <tbody id="preview-body"></tbody>
-                </table>
-                <div class="action-bar mt-2">
-                    <button class="btn-accent" onclick="pushAll()">Push to All Switches</button>
-                    <div class="field-row" style="align-items:center;">
-                        <div class="field" style="margin:0;">
-                            <select id="push-target"></select>
+            <!-- Preview + Push -->
+            <div>
+                <div id="preview-panel" style="display:none;">
+                    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Configuration Preview</div>
+                    <table class="data-table" id="preview-table">
+                        <thead>
+                            <tr><th>Node</th><th>uSID</th><th>SRv6 Locator</th><th>Encap Source</th><th>Status</th></tr>
+                        </thead>
+                        <tbody id="preview-body"></tbody>
+                    </table>
+                    <div class="action-bar mt-2">
+                        <button class="btn-accent" onclick="pushAll()">Push to All Switches</button>
+                        <div class="field-row" style="align-items:center;">
+                            <div class="field" style="margin:0;">
+                                <select id="push-target"></select>
+                            </div>
+                            <button class="btn-ghost btn-sm" onclick="pushSingle()">Push Selected</button>
                         </div>
-                        <button class="btn-ghost btn-sm" onclick="pushSingle()">Push Selected</button>
                     </div>
+                    <div id="push-status" class="mt-2" style="font-size:12px;"></div>
                 </div>
-                <div id="push-status" class="mt-2" style="font-size:12px;"></div>
             </div>
         </div>
     </div>
@@ -161,13 +170,6 @@
 {% endblock %}
 {% block extra_js %}
 <script>
-function switchTab(btn, paneId) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
-    btn.classList.add('active');
-    document.getElementById(paneId).style.display = '';
-}
-
 function toggleSameBlock() {
     const same = document.getElementById('srv6-same-block').checked;
     const p1 = document.getElementById('srv6-block-p1');
@@ -214,6 +216,19 @@ async function loadTopology() {
             </tr>`;
         });
         document.getElementById('links-body').innerHTML = linksHtml || '<tr><td colspan="6" class="text-muted" style="text-align:center">No links</td></tr>';
+
+        let hostsHtml = '';
+        r.nodes.filter(n => n.role === 'host').forEach(n => {
+            const pi = n.plane_interfaces || {};
+            const p0 = pi['0'] || {};
+            const p1 = pi['1'] || {};
+            hostsHtml += `<tr>
+                <td><strong>${n.name}</strong></td>
+                <td><code>${p0.ipv6 || '-'}</code></td>
+                <td><code>${p1.ipv6 || '-'}</code></td>
+            </tr>`;
+        });
+        document.getElementById('hosts-body').innerHTML = hostsHtml || '<tr><td colspan="3" class="text-muted" style="text-align:center">No hosts</td></tr>';
     } catch(e) {
         document.getElementById('nodes-body').innerHTML = '<tr><td colspan="7" class="text-muted" style="text-align:center">Topology not generated</td></tr>';
     }
@@ -319,6 +334,52 @@ async function pushSingle() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', loadTopology);
+function saveEditState() {
+    const state = {
+        srv6BlockP0: document.getElementById('srv6-block-p0').value,
+        srv6BlockP1: document.getElementById('srv6-block-p1').value,
+        sameBlock: document.getElementById('srv6-same-block').checked,
+        encapBase: document.getElementById('encap-base').value,
+        usidMode: document.getElementById('usid-mode').value,
+        usidP0Spine: document.getElementById('usid-p0-spine').value,
+        usidP0Leaf: document.getElementById('usid-p0-leaf').value,
+        usidP1Spine: document.getElementById('usid-p1-spine').value,
+        usidP1Leaf: document.getElementById('usid-p1-leaf').value,
+        usidP0Base: document.getElementById('usid-p0-base').value,
+        usidP1Base: document.getElementById('usid-p1-base').value,
+    };
+    localStorage.setItem('mrc-config-edit', JSON.stringify(state));
+}
+
+function restoreEditState() {
+    try {
+        const state = JSON.parse(localStorage.getItem('mrc-config-edit'));
+        if (!state) return;
+        document.getElementById('srv6-block-p0').value = state.srv6BlockP0 || 'fc00:42::/32';
+        document.getElementById('srv6-block-p1').value = state.srv6BlockP1 || 'fc00:43::/32';
+        document.getElementById('srv6-same-block').checked = !!state.sameBlock;
+        document.getElementById('encap-base').value = state.encapBase || '2001:db8::/32';
+        document.getElementById('usid-mode').value = state.usidMode || 'per-layer';
+        document.getElementById('usid-p0-spine').value = state.usidP0Spine || '0x10';
+        document.getElementById('usid-p0-leaf').value = state.usidP0Leaf || '0x20';
+        document.getElementById('usid-p1-spine').value = state.usidP1Spine || '0x10';
+        document.getElementById('usid-p1-leaf').value = state.usidP1Leaf || '0x20';
+        document.getElementById('usid-p0-base').value = state.usidP0Base || '0x10';
+        document.getElementById('usid-p1-base').value = state.usidP1Base || '0x10';
+        toggleSameBlock();
+        toggleUsidMode();
+    } catch(e) {}
+}
+
+document.querySelectorAll('#srv6-block-p0,#srv6-block-p1,#encap-base,#usid-p0-spine,#usid-p0-leaf,#usid-p1-spine,#usid-p1-leaf,#usid-p0-base,#usid-p1-base').forEach(el => {
+    el.addEventListener('input', saveEditState);
+});
+document.getElementById('srv6-same-block').addEventListener('change', saveEditState);
+document.getElementById('usid-mode').addEventListener('change', saveEditState);
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadTopology();
+    restoreEditState();
+});
 </script>
 {% endblock %}

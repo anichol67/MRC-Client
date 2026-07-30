@@ -1202,6 +1202,9 @@ When confirmed, the controller:
 - Configuration tab: SRv6 block, uSID values, encapsulation source block, P2P addresses (read-only)
 - Controller auto-loads fixed topology on startup — no manual generation step needed
 - All API endpoints and page routes auto-create the topology generator if not already loaded
+- Configuration page: single-page layout with collapsible sections (Fabric Nodes, Links, Hosts, Edit SRv6)
+- Edit inputs persist in localStorage across tab navigation
+- Hosts table shows per-plane IPv6 addresses
 - Requirements expanded to 74 total
 
 ---
