@@ -77,6 +77,13 @@
 | 61 | Controller port 8080 exposed on sandbox host for GUI access | §61 |
 | 62 | Multi-platform Docker image build (linux/amd64 + linux/arm64) | §62 |
 | 63 | Public GitHub Container Registry for mrc-emu image (no auth required) | §63 |
+| 64 | Phase 1: Fixed base topology (2 planes, 4 leafs, 2 spines, 4 hosts, 1 controller) | §64 |
+| 65 | Phase 1: Static management IPs — no user-configurable topology or mgmt IP changes | §65 |
+| 66 | Phase 1: Topology Builder View tab — read-only topology view with IPv6/SRv6/uSID details | §66 |
+| 67 | Phase 1: Topology Builder Edit tab — modify IPv6 and SRv6 configuration on live switches | §67 |
+| 68 | Phase 1: SRv6 base address configurable per plane or both planes | §68 |
+| 69 | Phase 1: uSID derivation modes — per-plane base, per-layer-per-plane base, or individual | §69 |
+| 70 | Phase 1: Push config to single switch or all switches via eAPI | §70 |
 
 ---
 
@@ -825,6 +832,90 @@ docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/anichol67/mrc-
 
 ---
 
+## Phase 1 — Fixed Topology with Configuration Management
+
+### 64. Fixed Base Topology
+**Decision**: Phase 1 uses a single pre-built topology that ships in the repo. No dynamic topology generation or modification.
+
+- 2 planes × (4 leafs + 2 spines) = 12 Arista cEOS switches
+- 4 MRC host XPUs (each connected to both planes)
+- 1 management-only controller
+- All configs (`.cfg` and `.sh` files) committed in `configs/`
+- Deploy with a single command: `containerlab deploy -t topology.clab.yml`
+
+**Why**: Phase 1 focuses on the MRC packet generation and simulation capabilities. The topology is fixed to simplify deployment and avoid configuration errors. Topology generation moves to phase 2.
+
+### 65. Static Management IPs
+**Decision**: All management IPv4 addresses are hardcoded in `topology.clab.yml`. No user-configurable topology dimensions or management IP changes in phase 1.
+
+| Node group | IP range |
+|-----------|----------|
+| Plane 0 spines | `172.20.0.11-12` |
+| Plane 0 leafs | `172.20.0.21-24` |
+| Plane 1 spines | `172.20.0.31-32` |
+| Plane 1 leafs | `172.20.0.41-44` |
+| Hosts | `172.20.0.51-54` |
+| Controller | `172.20.0.100` |
+
+**Why**: Fixed IPs enable direct SSH access without DNS resolution. The sandbox environment cannot write to `/etc/hosts` and Docker DNS doesn't resolve on the host.
+
+### 66. Topology Builder — View Tab
+**Decision**: The Topology Builder page's first tab is a read-only view of the fixed topology.
+
+- Displays all nodes with: name, role, plane, loopback IPv6, SRv6 locator, uSID, interfaces
+- Shows link connectivity between nodes with interface names and IPv6 addresses
+- No ability to add/remove nodes or change the topology structure
+
+**Why**: Provides operational visibility into the running fabric without risk of accidental changes.
+
+### 67. Topology Builder — Edit Tab
+**Decision**: The second tab allows editing IPv6 routing and SRv6 configuration on the live switches.
+
+Workflow:
+1. User selects what to modify (IPv6 addresses, SRv6 locators, uSID values)
+2. User makes changes in the form
+3. User reviews and confirms changes
+4. User pushes to a single selected switch or all switches via eAPI
+
+Credentials: `admin`/`admin` (pre-configured, not user-editable in phase 1).
+
+**Why**: Allows iterative testing of different SRv6 configurations on the live fabric without redeploying.
+
+### 68. SRv6 Base Address Configuration
+**Decision**: The SRv6 base address (locator prefix) can be configured at two levels:
+
+- **Both planes**: Set one SRv6 base address applied to both planes (e.g., `fcbb::/32`)
+- **Per-plane**: Set different SRv6 base addresses for plane 0 and plane 1
+
+When set, all node locators in the affected plane(s) are re-derived from the base.
+
+**Why**: Different planes may use different SRv6 address spaces in production fabrics. Supporting per-plane bases enables testing of this configuration.
+
+### 69. uSID Derivation Modes
+**Decision**: Three modes for assigning uSID values to nodes:
+
+| Mode | Description | Example |
+|------|------------|---------|
+| **Per-plane base** | One base uSID per plane; all nodes (spines + leafs) derive sequentially | Plane 0 base `0x0010` → spine0=`0x0010`, spine1=`0x0011`, leaf0=`0x0012`, leaf1=`0x0013`... |
+| **Per-layer-per-plane base** | Separate base for spines and leafs within each plane | P0 spine base `0x0010` → spine0=`0x0010`, spine1=`0x0011`; P0 leaf base `0x0020` → leaf0=`0x0020`, leaf1=`0x0021` |
+| **Individual** | Manually set each node's uSID value independently | Full control, no derivation |
+
+The current default uses per-layer-per-plane encoding: `[plane][role][index]` where role 1=spine, 2=leaf.
+
+**Why**: Different deployment scenarios require different uSID assignment strategies. The per-layer-per-plane mode matches the OCP MRC spec's F3216 encoding recommendation, while individual mode allows testing arbitrary uSID layouts.
+
+### 70. Push Config to Switches via eAPI
+**Decision**: After confirming changes in the Edit tab, the user can push configuration to:
+
+- **Single switch**: Select a specific node and push only its updated config
+- **All switches**: Push updated configs to all 12 switches in one operation
+
+Push uses eAPI (JSON-RPC over HTTPS) to the switch's management IP with admin/admin credentials. The push wraps commands in `enable` → `configure terminal` → commands → `end` → `write memory`.
+
+**Why**: Per-switch push enables incremental testing. Push-all enables bulk reconfiguration.
+
+---
+
 ## Conversation Log
 
 ### 2026-07-21 — Initial build
@@ -994,6 +1085,16 @@ docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/anichol67/mrc-
 - All 14 templates updated — zero Bootstrap classes remain
 - Custom tab switching for topology.html (was Bootstrap `data-bs-toggle="tab"`)
 - Topology SVG dual color constants (`C_LIGHT`/`C_DARK`) updated for design guide palette
+
+### 2026-07-30 — Phase 1 workflow definition
+- Defined phase 1 deployment model: fixed base topology, no dynamic generation
+- Single deploy command: `containerlab deploy -t topology.clab.yml`
+- All configs pre-built and committed in repo
+- Topology Builder repurposed: View tab (read-only topology) + Edit tab (IPv6/SRv6 config changes)
+- Edit tab supports SRv6 base address per plane or both planes
+- uSID derivation: per-plane base, per-layer-per-plane base (different base for spines vs leafs), or individual per-node
+- Push config to single switch or all switches via eAPI
+- Requirements expanded to 70 total
 
 ---
 
