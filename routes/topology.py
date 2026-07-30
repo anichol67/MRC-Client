@@ -19,10 +19,17 @@ def _get_or_create_generator(config_data=None):
             spines_per_plane=int(config_data.get('spines_per_plane', 2)),
             hosts_per_leaf=int(config_data.get('hosts_per_leaf', 1)),
             ipv6_base=config_data.get('ipv6_base', 'fd00::/32'),
-            srv6_base=config_data.get('srv6_base', 'fcbb::/32'),
+            srv6_base=config_data.get('srv6_base', 'fc00:42::/32'),
+            srv6_base_plane1=config_data.get('srv6_base_plane1', 'fc00:43::/32'),
+            srv6_encap_base=config_data.get('srv6_encap_base', '2001:db8::/32'),
             ceos_image=config_data.get('ceos_image', 'arista/ceos:latest'),
             mrc_image=config_data.get('mrc_image', 'mrc-emulator:latest'),
         )
+        gen = TopologyGenerator(config)
+        gen.generate()
+        _topology_state['generator'] = gen
+    if _topology_state['generator'] is None:
+        config = TopologyConfig()
         gen = TopologyGenerator(config)
         gen.generate()
         _topology_state['generator'] = gen
@@ -36,7 +43,7 @@ def topology_builder_page():
 
 @topology_bp.route('/configuration')
 def configuration_page():
-    gen = _topology_state.get('generator')
+    gen = _get_or_create_generator()
     topo_data = gen.to_dict() if gen else None
     return render_template('configuration.html', topo=topo_data)
 
@@ -44,7 +51,7 @@ def configuration_page():
 @topology_bp.route('/')
 @topology_bp.route('/topology')
 def topology_page():
-    gen = _topology_state.get('generator')
+    gen = _get_or_create_generator()
     topo_data = gen.to_dict() if gen else None
     mgmt_ips = _topology_state.get('management_ips', {})
     return render_template('topology.html', topo=topo_data, mgmt_ips=mgmt_ips)
@@ -52,7 +59,7 @@ def topology_page():
 
 @topology_bp.route('/topology_viz')
 def topology_viz_page():
-    gen = _topology_state.get('generator')
+    gen = _get_or_create_generator()
     topo_data = gen.to_dict() if gen else None
     return render_template('topology_viz.html', topo=topo_data, path_states=None)
 
@@ -61,7 +68,7 @@ def topology_viz_page():
 def simulation_page():
     from core.collectives import CollectiveType
     collective_types = [{'value': ct.name, 'label': ct.name.replace('_', ' ').title()} for ct in CollectiveType]
-    gen = _topology_state.get('generator')
+    gen = _get_or_create_generator()
     hosts = [n.name for n in gen.nodes if n.role == 'host'] if gen else []
     topo_data = gen.to_dict() if gen else None
     return render_template('simulation.html', collective_types=collective_types,
@@ -77,7 +84,7 @@ def api_generate():
 
 @topology_bp.route('/api/topology/clab_yaml')
 def api_clab_yaml():
-    gen = _topology_state.get('generator')
+    gen = _get_or_create_generator()
     if gen is None:
         return jsonify({'error': 'Generate topology first'}), 400
     yaml_content = gen.generate_clab_yaml()
@@ -87,7 +94,7 @@ def api_clab_yaml():
 
 @topology_bp.route('/api/topology/addressing')
 def api_addressing():
-    gen = _topology_state.get('generator')
+    gen = _get_or_create_generator()
     if gen is None:
         return jsonify({'error': 'Generate topology first'}), 400
     return jsonify(gen.generate_addressing_plan())
@@ -95,7 +102,7 @@ def api_addressing():
 
 @topology_bp.route('/api/topology/paths/<host_name>')
 def api_paths(host_name):
-    gen = _topology_state.get('generator')
+    gen = _get_or_create_generator()
     if gen is None:
         return jsonify({'error': 'Generate topology first'}), 400
     paths = gen.get_paths_for_host(host_name)
@@ -104,7 +111,7 @@ def api_paths(host_name):
 
 @topology_bp.route('/api/topology/ev_profile/<host_name>')
 def api_ev_profile(host_name):
-    gen = _topology_state.get('generator')
+    gen = _get_or_create_generator()
     if gen is None:
         return jsonify({'error': 'Generate topology first'}), 400
     return jsonify(gen.get_ev_profile_for_host(host_name))
@@ -114,7 +121,7 @@ def api_ev_profile(host_name):
 def api_set_management_ips():
     data = request.json
     _topology_state['management_ips'] = data.get('nodes', {})
-    gen = _topology_state.get('generator')
+    gen = _get_or_create_generator()
     if gen:
         gen.set_management_ips(data.get('nodes', {}))
     return jsonify({'success': True, 'count': len(data.get('nodes', {}))})
@@ -123,7 +130,7 @@ def api_set_management_ips():
 @topology_bp.route('/api/topology/provision', methods=['POST'])
 def api_provision():
     data = request.json
-    gen = _topology_state.get('generator')
+    gen = _get_or_create_generator()
     if gen is None:
         return jsonify({'error': 'Generate topology first'}), 400
 
@@ -177,7 +184,7 @@ def api_provision():
 
 @topology_bp.route('/api/topology/configs')
 def api_download_configs():
-    gen = _topology_state.get('generator')
+    gen = _get_or_create_generator()
     if gen is None:
         return jsonify({'error': 'Generate topology first'}), 400
 

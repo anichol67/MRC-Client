@@ -1200,6 +1200,8 @@ When confirmed, the controller:
 - Loopback0 set to SRv6 locator prefix (block + uSID = `/48`)
 - Host config fixed — only SRv6 overlay changes, controller updates in-memory state
 - Configuration tab: SRv6 block, uSID values, encapsulation source block, P2P addresses (read-only)
+- Controller auto-loads fixed topology on startup — no manual generation step needed
+- All API endpoints and page routes auto-create the topology generator if not already loaded
 - Requirements expanded to 74 total
 
 ---
