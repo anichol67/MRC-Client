@@ -79,6 +79,7 @@ topology:
     host0:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
+      image-pull-policy: Always
       mgmt-ipv4: 172.20.0.51
       binds:
       - configs/host0startup.sh:/startup.sh
@@ -86,6 +87,7 @@ topology:
     host1:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
+      image-pull-policy: Always
       mgmt-ipv4: 172.20.0.52
       binds:
       - configs/host1startup.sh:/startup.sh
@@ -93,6 +95,7 @@ topology:
     host2:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
+      image-pull-policy: Always
       mgmt-ipv4: 172.20.0.53
       binds:
       - configs/host2startup.sh:/startup.sh
@@ -100,6 +103,7 @@ topology:
     host3:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
+      image-pull-policy: Always
       mgmt-ipv4: 172.20.0.54
       binds:
       - configs/host3startup.sh:/startup.sh
@@ -107,6 +111,7 @@ topology:
     controller:
       kind: linux
       image: ghcr.io/anichol67/mrc-emu:latest
+      image-pull-policy: Always
       mgmt-ipv4: 172.20.0.100
       ports:
       - "3080:8080"
