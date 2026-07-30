@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Guide &mdash; Arista Calculator Theme</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230065A3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='18' cy='5' r='3'/%3E%3Ccircle cx='6' cy='12' r='3'/%3E%3Ccircle cx='18' cy='19' r='3'/%3E%3Cline x1='8.59' y1='13.51' x2='15.42' y2='17.49'/%3E%3Cline x1='15.41' y1='6.51' x2='8.59' y2='10.49'/%3E%3C/svg%3E">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+  /* ═══════════════════════════════════════════════
+     THEME TOKENS — copy this block into your project
+     ═══════════════════════════════════════════════ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f7f8fa;
+    --bg3: #eef0f4;
+    --panel-bg: #ffffff;
+    --text: #1a1a2e;
+    --text2: #4a4a68;
+    --text3: #8b8fa8;
+    --border: #dde0e8;
+    --border2: #c8ccd6;
+
+    --primary: #0065A3;
+    --primary-hover: #004f80;
+    --primary-light: #e6f1f8;
+    --primary-text: #003d66;
+    --primary-glow: rgba(0, 101, 163, 0.15);
+
+    --accent: #6CC24A;
+    --accent-hover: #5aad3a;
+
+    --teal50: #edf7ed; --teal600: #5aad3a; --teal800: #3d7a28;
+    --coral50: #fef2f2; --coral600: #dc2626; --coral800: #991b1b;
+    --info-bg: #e6f1f8; --info-text: #003d66; --info-border: #0065A3;
+
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+    --sidebar-w: 360px;
+    --topbar-h: 56px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121a2b;
+      --bg2: #1a2540;
+      --bg3: #0c1220;
+      --panel-bg: #1a2540;
+      --text: #f0f2f8;
+      --text2: #b8bdd0;
+      --text3: #6b7294;
+      --border: #2a3554;
+      --border2: #3d4a6a;
+      --primary: #4da6e0;
+      --primary-hover: #3b94ce;
+      --primary-light: #0d2240;
+      --primary-text: #a3d4f5;
+      --primary-glow: rgba(77, 166, 224, 0.15);
+      --accent: #7ed95c;
+      --accent-hover: #6cc24a;
+      --teal50: #1a3a2a; --teal800: #7ed95c;
+      --coral50: #3a1a1a; --coral800: #fca5a5;
+      --info-bg: #0d2240; --info-text: #a3d4f5; --info-border: #4da6e0;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121a2b;
+    --bg2: #1a2540;
+    --bg3: #0c1220;
+    --panel-bg: #1a2540;
+    --text: #f0f2f8;
+    --text2: #b8bdd0;
+    --text3: #6b7294;
+    --border: #2a3554;
+    --border2: #3d4a6a;
+    --primary: #4da6e0;
+    --primary-hover: #3b94ce;
+    --primary-light: #0d2240;
+    --primary-text: #a3d4f5;
+    --primary-glow: rgba(77, 166, 224, 0.15);
+    --accent: #7ed95c;
+    --accent-hover: #6cc24a;
+    --teal50: #1a3a2a; --teal800: #7ed95c;
+    --coral50: #3a1a1a; --coral800: #fca5a5;
+    --info-bg: #0d2240; --info-text: #a3d4f5; --info-border: #4da6e0;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+
+  /* ═══════════════════════════════════════════════
+     BASE STYLES — typography, body, scrollbar
+     ═══════════════════════════════════════════════ */
+  body {
+    font-family: 'Barlow', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg3);
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* ═══════════════════════════════════════════════
+     TOP BAR
+     ═══════════════════════════════════════════════ */
+  .topbar {
+    position: sticky;
+    top: 0;
+    height: var(--topbar-h);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    box-shadow: var(--shadow-sm);
+    z-index: 200;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .topbar-logo { height: 22px; display: flex; align-items: center; color: var(--text); }
+  .topbar-logo svg { height: 22px; width: auto; }
+  .topbar h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+  .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+  .theme-toggle {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 6px;
+    cursor: pointer; color: var(--text3);
+    transition: all 0.15s ease;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .theme-toggle:hover { border-color: var(--primary); color: var(--primary); }
+  .theme-toggle svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .theme-toggle .icon-moon { display: none; }
+  :root[data-theme="dark"] .theme-toggle .icon-sun { display: none; }
+  :root[data-theme="dark"] .theme-toggle .icon-moon { display: block; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .theme-toggle .icon-sun { display: none; }
+    :root:not([data-theme="light"]) .theme-toggle .icon-moon { display: block; }
+  }
+
+  /* ═══════════════════════════════════════════════
+     FORM ELEMENTS
+     ═══════════════════════════════════════════════ */
+  .field { margin-bottom: 8px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: block;
+    font-size: 12px; font-weight: 500; color: var(--text2);
+    margin-bottom: 3px;
+  }
+  .field input, .field select {
+    font-family: inherit; font-size: 13px;
+    padding: 6px 10px; border-radius: 6px; width: 100%; min-width: 0;
+    border: 1px solid var(--border); background: var(--bg2); color: var(--text);
+    outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .field input:focus, .field select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px var(--primary-glow);
+  }
+  .field .hint { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .field select:disabled { opacity: 0.5; cursor: not-allowed; background: var(--bg3); }
+  .field-row { display: flex; gap: 8px; }
+  .field-row .field { flex: 1; min-width: 0; }
+  .or-divider {
+    display: flex; align-items: center; gap: 10px; margin: 8px 0;
+    color: var(--text3); font-size: 11px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.08em;
+  }
+  .or-divider::before, .or-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ═══════════════════════════════════════════════
+     BUTTONS
+     ═══════════════════════════════════════════════ */
+  .calc-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer;
+    border-radius: var(--radius); border: none;
+    background: var(--primary); color: white;
+    transition: all 0.15s ease; font-family: inherit;
+    box-shadow: 0 1px 3px rgba(0, 101, 163, 0.3);
+  }
+  .calc-btn:hover { background: var(--primary-hover); box-shadow: 0 2px 8px rgba(0, 101, 163, 0.4); }
+  .calc-btn:active { transform: scale(0.98); }
+  .calc-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+  .reset-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 10px 16px; font-size: 13px; font-weight: 500; cursor: pointer;
+    border-radius: var(--radius); border: 1px solid var(--border2);
+    background: transparent; color: var(--text2);
+    transition: all 0.15s ease; font-family: inherit;
+  }
+  .reset-btn:hover { background: var(--bg3); color: var(--text); }
+  .reset-btn:active { transform: scale(0.98); }
+
+  .ghost-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 18px;
+    background: transparent; color: var(--primary);
+    border: 1.5px solid var(--primary); border-radius: var(--radius);
+    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+    transition: all 0.15s ease;
+  }
+  .ghost-btn:hover { background: var(--primary); color: white; }
+
+  .section-next-btn {
+    display: inline-block;
+    padding: 4px 16px; font-size: 12px; font-weight: 600;
+    color: var(--primary); background: var(--primary-light);
+    border: none; border-radius: 6px; cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .section-next-btn:hover { background: var(--primary); color: #fff; }
+
+  .accent-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer;
+    border-radius: var(--radius); border: none;
+    background: var(--accent); color: white;
+    transition: all 0.15s ease; font-family: inherit;
+  }
+  .accent-btn:hover { background: var(--accent-hover); }
+
+  /* ═══════════════════════════════════════════════
+     METRIC CARDS
+     ═══════════════════════════════════════════════ */
+  .metrics-grid {
+    display: flex; flex-wrap: nowrap; gap: 10px; margin-bottom: 20px;
+  }
+  .metric-card {
+    flex: 1 1 0; min-width: 0;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 14px 8px;
+    box-shadow: var(--shadow-sm); text-align: center;
+  }
+  .metric-label {
+    font-size: 10px; color: var(--text3); font-weight: 600;
+    margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .metric-val { font-size: 24px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  /* ═══════════════════════════════════════════════
+     RESULT SECTIONS & TABLES
+     ═══════════════════════════════════════════════ */
+  .result-section {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 16px 20px;
+    margin-bottom: 12px; background: var(--bg);
+    box-shadow: var(--shadow-sm);
+  }
+  .result-section h3 {
+    font-size: 14px; font-weight: 600; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px; color: var(--text);
+  }
+  .result-section h3 svg {
+    width: 16px; height: 16px; stroke: var(--primary); fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  .breakdown-table { width: 100%; font-size: 13px; border-collapse: collapse; }
+  .breakdown-table td { padding: 8px 0; color: var(--text2); vertical-align: middle; }
+  .breakdown-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+  .breakdown-table tr + tr td { border-top: 1px solid var(--border); }
+  .breakdown-table .subtotal td { border-top: 2px solid var(--border2); font-weight: 600; color: var(--text); padding-top: 10px; }
+  .breakdown-table .subtotal td:last-child { color: var(--primary); font-size: 14px; }
+
+  /* ═══════════════════════════════════════════════
+     BADGES
+     ═══════════════════════════════════════════════ */
+  .tier-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 14px; border-radius: 20px;
+    font-size: 12px; font-weight: 600;
+  }
+  .tier-1 { background: var(--teal50); color: var(--teal800); border: 1px solid rgba(5, 150, 105, 0.2); }
+  .tier-2 { background: var(--primary-light); color: var(--primary-text); border: 1px solid var(--primary-glow); }
+  .tier-3 { background: var(--coral50); color: var(--coral800); border: 1px solid rgba(220, 38, 38, 0.15); }
+  .advantage-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .advantage-badge-good { background: var(--teal50); color: var(--teal800); }
+  .advantage-badge-warn { background: var(--coral50); color: var(--coral800); }
+
+  /* ═══════════════════════════════════════════════
+     CALLOUT BOXES
+     ═══════════════════════════════════════════════ */
+  .note-box {
+    background: var(--info-bg); border-left: 3px solid var(--info-border);
+    border-radius: 0 var(--radius) var(--radius) 0; padding: 10px 14px;
+    font-size: 12px; color: var(--info-text); margin-top: 12px; line-height: 1.5;
+  }
+  .warn-box {
+    background: #fffbeb; border-left: 3px solid #f59e0b;
+    border-radius: 0 var(--radius) var(--radius) 0; padding: 10px 14px;
+    font-size: 12px; color: #92400e; margin-top: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .warn-box { background: #451a03; border-color: #f59e0b; color: #fde68a; }
+  }
+  :root[data-theme="dark"] .warn-box { background: #451a03; border-color: #f59e0b; color: #fde68a; }
+  .error-msg {
+    background: var(--coral50); color: var(--coral800);
+    font-size: 13px; font-weight: 500; padding: 12px 16px;
+    border-radius: var(--radius); border-left: 3px solid var(--coral600);
+  }
+
+  /* ═══════════════════════════════════════════════
+     TOOLTIPS
+     ═══════════════════════════════════════════════ */
+  .info-tip {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; cursor: help; margin-left: 4px;
+    vertical-align: middle; line-height: 1; flex-shrink: 0;
+    position: relative; color: var(--text3);
+  }
+  .info-tip svg { width: 14px; height: 14px; fill: currentColor; }
+  .info-tip::after {
+    content: attr(data-tip);
+    position: absolute; bottom: calc(100% + 6px); left: 50%;
+    transform: translateX(-50%); white-space: normal; width: max-content;
+    max-width: 260px; padding: 6px 10px; border-radius: 6px;
+    background: var(--text); color: var(--bg); font-size: 12px;
+    font-weight: 400; font-style: normal; line-height: 1.4;
+    pointer-events: none; opacity: 0; transition: opacity 0.15s;
+    z-index: 100; text-align: left;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  }
+  .info-tip:hover::after { opacity: 1; }
+  .info-tip:hover svg { color: var(--accent); }
+
+  /* ═══════════════════════════════════════════════
+     PILL TOGGLES
+     ═══════════════════════════════════════════════ */
+  .optic-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; vertical-align: middle; }
+  .optic-toggle-btn {
+    padding: 4px 12px; font-size: 11px; font-weight: 600; border: none; cursor: pointer; font-family: inherit;
+    background: var(--bg2); color: var(--text2); transition: all 0.15s;
+  }
+  .optic-toggle-btn.active { background: var(--primary); color: #fff; }
+  .optic-toggle-btn:not(.active):hover { background: var(--bg3); }
+
+  /* ═══════════════════════════════════════════════
+     TABS
+     ═══════════════════════════════════════════════ */
+  .results-tabs {
+    display: flex; border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; margin-bottom: 16px; background: var(--bg2);
+  }
+  .results-tab-btn {
+    flex: 1; padding: 8px 12px; font-size: 12px; font-weight: 600; font-family: inherit;
+    border: none; cursor: pointer; background: var(--bg2); color: var(--text2);
+    transition: all 0.15s; white-space: nowrap; text-align: center;
+  }
+  .results-tab-btn:not(:last-child) { border-right: 1px solid var(--border); }
+  .results-tab-btn.active { background: var(--primary); color: #fff; }
+  .results-tab-btn:not(.active):hover { background: var(--bg3); }
+
+  /* ═══════════════════════════════════════════════
+     RADIO CARD SELECTOR
+     ═══════════════════════════════════════════════ */
+  .tier-selector { display: flex; gap: 6px; }
+  .tier-opt { flex: 1; position: relative; cursor: pointer; }
+  .tier-opt input[type=radio] { position: absolute; opacity: 0; width: 0; height: 0; }
+  .tier-opt-inner {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 7px 6px; border-radius: var(--radius);
+    border: 1.5px solid var(--border); background: var(--bg2);
+    transition: all 0.15s ease; text-align: center; user-select: none;
+  }
+  .tier-opt input:checked + .tier-opt-inner {
+    border-color: var(--primary); background: var(--primary-light);
+    box-shadow: 0 0 0 1px var(--primary-glow);
+  }
+  .tier-opt-inner:hover { border-color: var(--primary); }
+  .tier-opt-icon { font-size: 16px; line-height: 1; color: var(--text3); }
+  .tier-opt-name { font-size: 12px; font-weight: 600; color: var(--text); }
+  .tier-opt-range { font-size: 10px; color: var(--text3); }
+  .tier-opt input:checked + .tier-opt-inner .tier-opt-name,
+  .tier-opt input:checked + .tier-opt-inner .tier-opt-icon { color: var(--primary-text); }
+  .tier-opt input:checked + .tier-opt-inner .tier-opt-range { color: var(--primary); }
+
+  /* ═══════════════════════════════════════════════
+     COLLAPSIBLE SECTIONS
+     ═══════════════════════════════════════════════ */
+  .input-section {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg);
+  }
+  .input-section-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; cursor: pointer; user-select: none;
+    transition: background 0.15s;
+  }
+  .input-section-header:hover { background: var(--bg2); }
+  .input-section-header .section-icon {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: var(--primary-light);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .input-section-header .section-icon svg {
+    width: 14px; height: 14px; stroke: var(--primary); fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .input-section-header .section-title { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+  .input-section-header .chevron { width: 16px; height: 16px; color: var(--text3); transition: transform 0.2s ease; }
+  .input-section.collapsed .chevron { transform: rotate(-90deg); }
+  .section-summary {
+    font-size: 11px; color: var(--text3); margin-left: auto;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 180px; flex-shrink: 1;
+  }
+  .input-section:not(.collapsed) .section-summary { display: none; }
+  .input-section-body { padding: 2px 10px 10px; }
+  .input-section.collapsed .input-section-body { display: none; }
+
+  /* ═══════════════════════════════════════════════
+     EMPTY STATE
+     ═══════════════════════════════════════════════ */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 200px; text-align: center; color: var(--text3); padding: 40px;
+  }
+  .empty-state-icon {
+    width: 64px; height: 64px; border-radius: 16px;
+    background: var(--bg2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+  }
+  .empty-state-icon svg {
+    width: 28px; height: 28px; stroke: var(--text3); fill: none;
+    stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .empty-state h2 { font-size: 16px; font-weight: 600; color: var(--text2); margin-bottom: 4px; }
+  .empty-state p { font-size: 13px; max-width: 280px; }
+
+  /* ═══════════════════════════════════════════════
+     MODAL / OVERLAY
+     ═══════════════════════════════════════════════ */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-panel {
+    background: var(--panel-bg); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg); width: 520px; max-width: 92vw;
+    max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+  }
+  .modal-header h2 { font-size: 16px; font-weight: 700; margin: 0; }
+  .modal-close {
+    background: none; border: none; font-size: 20px; cursor: pointer;
+    color: var(--text3); padding: 4px; line-height: 1;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 20px; overflow-y: auto; font-size: 13px; line-height: 1.6; }
+
+  /* ═══════════════════════════════════════════════
+     COMPARISON CARDS
+     ═══════════════════════════════════════════════ */
+  .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .compare-card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 16px; font-size: 13px;
+  }
+  .compare-card.active { border-color: var(--primary); border-width: 2px; }
+  .compare-card h4 { margin: 0 0 10px; font-size: 14px; color: var(--text); }
+  .compare-card .stat-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); }
+  .compare-card .stat-row:last-child { border-bottom: none; }
+  .compare-card .stat-label { color: var(--text2); font-size: 12px; }
+  .compare-card .stat-value { font-weight: 600; color: var(--text); font-size: 13px; }
+
+  /* ═══════════════════════════════════════════════
+     DESIGN GUIDE LAYOUT — not part of the template
+     ═══════════════════════════════════════════════ */
+  .guide-body { max-width: 960px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  .guide-section {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 24px;
+    margin-bottom: 20px; box-shadow: var(--shadow-sm);
+  }
+  .guide-section h2 {
+    font-size: 16px; font-weight: 700; color: var(--primary);
+    margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .guide-label {
+    display: block; font-size: 11px; font-weight: 600; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; margin-top: 16px;
+  }
+  .guide-label:first-child { margin-top: 0; }
+  .guide-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+  .guide-row > * { flex-shrink: 0; }
+
+  .swatch-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+  .swatch {
+    width: 80px; height: 56px; border-radius: var(--radius);
+    border: 1px solid var(--border); display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end; padding: 4px;
+    font-size: 9px; font-weight: 600; font-family: 'Fira Code', monospace;
+  }
+
+  .code-block {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 16px;
+    font-family: 'Fira Code', monospace; font-size: 12px;
+    line-height: 1.6; overflow-x: auto; margin-top: 8px;
+    color: var(--text2);
+  }
+  .code-block .kw { color: var(--primary); }
+  .code-block .val { color: var(--accent); font-weight: 600; }
+  .code-block .cm { color: var(--text3); }
+
+  .spacer { height: 12px; }
+
+  @media (max-width: 640px) {
+    .comparison-grid { grid-template-columns: 1fr; }
+    .metrics-grid { flex-wrap: wrap; }
+    .metrics-grid .metric-card { flex: 1 1 80px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     TOP BAR
+     ═══════════════════════════════════════════════ -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo"><svg viewBox="0 0 1115 175" xmlns="http://www.w3.org/2000/svg"><g fill="currentColor"><path d="M391.027,103.426c36.994,0,55.491-25.688,55.491-51.378c0-25.688-18.498-50.353-57.546-50.353c-28.773-1.029-134.617-1.029-134.617-1.029v173.668h32.879V28.413c25.691,0,90.43,0,103.79,0c18.496,0,27.745,6.163,27.745,23.635c0,14.385-9.247,22.606-26.718,22.606h-86.315l102.761,98.648h40.078l-73.991-71.932C381.78,103.426,390,103.426,391.027,103.426z"/><rect x="480.429" y="0.669" width="31.856" height="173.665"/><polygon points="916.137,27.387 916.137,0.669 848.313,0.669 816.457,0.669 759.938,0.669 741.441,27.387 816.457,27.387 816.457,174.334 848.313,174.334 848.313,27.387"/><path d="M678.756,72.6c-16.441,0-57.543,0-81.182,0c-16.438,0-25.689-7.192-25.689-21.58c0-16.44,11.305-23.633,25.689-23.633c22.609,0,110.98,0,110.98,0l14.387-26.718c0,0-107.898,0-126.395,0c-28.775,0-52.407,21.577-52.407,51.382c0,26.715,22.608,48.294,53.434,48.294c17.473,0,69.877,0,81.182,0c18.5,0,28.775,8.224,28.775,23.637c0,13.357-11.305,22.608-28.775,22.608H566.748l-16.44,27.744c0,0,98.649,0,132.558,0c33.912,0,52.406-24.658,52.406-52.404C735.275,96.233,713.695,72.6,678.756,72.6z"/><path d="M104.325,11.972C97.133,23.272,1.564,174.334,1.564,174.334h33.91l31.858-51.381h67.822l17.47-27.746H84.8l36.993-59.602l86.321,137.697h33.911c0,0-94.542-149.001-102.765-162.359C130.013-2.413,113.574-1.387,104.325,11.972z"/><path d="M1079.523,174.334h33.912c0,0-94.539-149.003-102.764-162.362c-9.244-15.415-25.689-14.385-34.938-1.028c-7.195,11.301-102.762,162.359-102.762,162.359h33.91l31.855-51.378h68.852l17.467-27.746h-67.82l36.996-59.603L1079.523,174.334z"/></g></svg></div>
+    <h1>Design Guide <span style="font-weight:400;font-size:14px;opacity:0.6">Template Reference</span></h1>
+  </div>
+  <div class="topbar-right">
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+      <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="guide-body">
+
+<!-- ═══════════════════════════════════════════════
+     1. COLOUR PALETTE
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Colour Palette</h2>
+
+  <span class="guide-label">Backgrounds</span>
+  <div class="swatch-grid">
+    <div class="swatch" style="background:var(--bg);color:var(--text3);">--bg</div>
+    <div class="swatch" style="background:var(--bg2);color:var(--text3);">--bg2</div>
+    <div class="swatch" style="background:var(--bg3);color:var(--text3);">--bg3</div>
+    <div class="swatch" style="background:var(--panel-bg);color:var(--text3);">--panel-bg</div>
+  </div>
+
+  <span class="guide-label">Text</span>
+  <div class="swatch-grid">
+    <div class="swatch" style="background:var(--text);color:var(--bg);">--text</div>
+    <div class="swatch" style="background:var(--text2);color:var(--bg);">--text2</div>
+    <div class="swatch" style="background:var(--text3);color:var(--bg);">--text3</div>
+  </div>
+
+  <span class="guide-label">Brand</span>
+  <div class="swatch-grid">
+    <div class="swatch" style="background:var(--primary);color:#fff;">--primary</div>
+    <div class="swatch" style="background:var(--primary-hover);color:#fff;">--primary-hover</div>
+    <div class="swatch" style="background:var(--primary-light);color:var(--primary-text);">--primary-light</div>
+    <div class="swatch" style="background:var(--accent);color:#fff;">--accent</div>
+    <div class="swatch" style="background:var(--accent-hover);color:#fff;">--accent-hover</div>
+  </div>
+
+  <span class="guide-label">Semantic</span>
+  <div class="swatch-grid">
+    <div class="swatch" style="background:var(--teal50);color:var(--teal800);">success</div>
+    <div class="swatch" style="background:#fffbeb;color:#92400e;border-color:#f59e0b;">warning</div>
+    <div class="swatch" style="background:var(--coral50);color:var(--coral800);">error</div>
+    <div class="swatch" style="background:var(--info-bg);color:var(--info-text);">info</div>
+  </div>
+
+  <span class="guide-label">Borders &amp; Shadows</span>
+  <div class="swatch-grid">
+    <div class="swatch" style="background:var(--border);color:var(--text);">--border</div>
+    <div class="swatch" style="background:var(--border2);color:var(--bg);">--border2</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="guide-row" style="gap:24px;">
+    <div style="padding:16px 24px;background:var(--bg);border-radius:var(--radius);box-shadow:var(--shadow-sm);font-size:12px;color:var(--text2);">shadow-sm</div>
+    <div style="padding:16px 24px;background:var(--bg);border-radius:var(--radius);box-shadow:var(--shadow);font-size:12px;color:var(--text2);">shadow</div>
+    <div style="padding:16px 24px;background:var(--bg);border-radius:var(--radius);box-shadow:var(--shadow-lg);font-size:12px;color:var(--text2);">shadow-lg</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     2. TYPOGRAPHY
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Typography</h2>
+  <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">Font: <strong>Barlow</strong> (400, 500, 600, 700) via Google Fonts</p>
+
+  <div style="font-size:24px;font-weight:700;letter-spacing:-0.02em;">Heading / Metric Value (700, 24px)</div>
+  <div style="font-size:16px;font-weight:600;margin-top:8px;">Page Title (600, 16px)</div>
+  <div style="font-size:14px;font-weight:600;margin-top:8px;">Section Heading (600, 14px)</div>
+  <div style="font-size:13px;margin-top:8px;">Body Text (400, 13px)</div>
+  <div style="font-size:12px;color:var(--text2);margin-top:8px;">Label / Secondary (500, 12px)</div>
+  <div style="font-size:11px;color:var(--text3);margin-top:8px;">Hint / Caption (400, 11px)</div>
+  <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-top:8px;">OVERLINE / METRIC LABEL (600, 10px)</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     3. BUTTONS
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Buttons</h2>
+
+  <span class="guide-label">Primary action</span>
+  <div class="guide-row">
+    <button class="calc-btn">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Calculate
+    </button>
+    <button class="accent-btn">Save Changes</button>
+  </div>
+
+  <span class="guide-label">Secondary / Outline</span>
+  <div class="guide-row">
+    <button class="reset-btn">Reset</button>
+    <button class="ghost-btn">
+      <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+      View Topology
+    </button>
+  </div>
+
+  <span class="guide-label">Inline / Small</span>
+  <div class="guide-row">
+    <button class="section-next-btn">Next &rarr;</button>
+  </div>
+
+  <span class="guide-label">HTML</span>
+  <div class="code-block">
+    <span class="cm">&lt;!-- Primary --&gt;</span><br>
+    &lt;button <span class="kw">class</span>=<span class="val">"calc-btn"</span>&gt;Calculate&lt;/button&gt;<br><br>
+    <span class="cm">&lt;!-- Secondary --&gt;</span><br>
+    &lt;button <span class="kw">class</span>=<span class="val">"reset-btn"</span>&gt;Reset&lt;/button&gt;<br><br>
+    <span class="cm">&lt;!-- Ghost / Outline --&gt;</span><br>
+    &lt;button <span class="kw">class</span>=<span class="val">"ghost-btn"</span>&gt;View&lt;/button&gt;<br><br>
+    <span class="cm">&lt;!-- Accent (green) --&gt;</span><br>
+    &lt;button <span class="kw">class</span>=<span class="val">"accent-btn"</span>&gt;Save&lt;/button&gt;<br><br>
+    <span class="cm">&lt;!-- Inline / Small --&gt;</span><br>
+    &lt;button <span class="kw">class</span>=<span class="val">"section-next-btn"</span>&gt;Next &amp;rarr;&lt;/button&gt;
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     4. FORM ELEMENTS
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Form Elements</h2>
+
+  <span class="guide-label">Text input with label and hint</span>
+  <div style="max-width:320px;">
+    <div class="field">
+      <label>GPU Count</label>
+      <input type="number" value="1024" placeholder="Enter count...">
+      <div class="hint">Total GPUs in the cluster</div>
+    </div>
+  </div>
+
+  <span class="guide-label">Select dropdown</span>
+  <div style="max-width:320px;">
+    <div class="field">
+      <label>Platform</label>
+      <select>
+        <option>Auto-select</option>
+        <option>7060X6-64PE</option>
+        <option>7060XE7-64YE</option>
+        <option>7800R4-36P2-LC</option>
+      </select>
+    </div>
+  </div>
+
+  <span class="guide-label">Disabled select</span>
+  <div style="max-width:320px;">
+    <div class="field">
+      <label>Spine Platform</label>
+      <select disabled><option>Not available</option></select>
+    </div>
+  </div>
+
+  <span class="guide-label">Side-by-side fields</span>
+  <div style="max-width:400px;">
+    <div class="field-row">
+      <div class="field">
+        <label>Links per GPU</label>
+        <select><option>1</option><option>2</option><option>4</option><option selected>8</option></select>
+      </div>
+      <div class="field">
+        <label>Host Speed</label>
+        <select><option>100G</option><option>200G</option><option selected>400G</option><option>800G</option></select>
+      </div>
+    </div>
+  </div>
+
+  <span class="guide-label">OR divider</span>
+  <div style="max-width:320px;">
+    <div class="field">
+      <label>GPU Count</label>
+      <input type="number" value="512">
+    </div>
+    <div class="or-divider">or</div>
+    <div class="field">
+      <label>Total NICs</label>
+      <input type="number" placeholder="Enter NIC count...">
+    </div>
+  </div>
+
+  <span class="guide-label">HTML</span>
+  <div class="code-block">
+    <span class="cm">&lt;!-- Single field --&gt;</span><br>
+    &lt;div <span class="kw">class</span>=<span class="val">"field"</span>&gt;<br>
+    &nbsp;&nbsp;&lt;label&gt;GPU Count&lt;/label&gt;<br>
+    &nbsp;&nbsp;&lt;input type="number" value="1024"&gt;<br>
+    &nbsp;&nbsp;&lt;div <span class="kw">class</span>=<span class="val">"hint"</span>&gt;Total GPUs&lt;/div&gt;<br>
+    &lt;/div&gt;<br><br>
+    <span class="cm">&lt;!-- Side-by-side --&gt;</span><br>
+    &lt;div <span class="kw">class</span>=<span class="val">"field-row"</span>&gt;<br>
+    &nbsp;&nbsp;&lt;div class="field"&gt;...&lt;/div&gt;<br>
+    &nbsp;&nbsp;&lt;div class="field"&gt;...&lt;/div&gt;<br>
+    &lt;/div&gt;<br><br>
+    <span class="cm">&lt;!-- Divider --&gt;</span><br>
+    &lt;div <span class="kw">class</span>=<span class="val">"or-divider"</span>&gt;or&lt;/div&gt;
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     5. RADIO CARD SELECTOR
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Radio Card Selector</h2>
+  <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">Mutually exclusive options styled as cards. Uses hidden radio inputs.</p>
+
+  <div class="tier-selector" style="max-width:500px;">
+    <label class="tier-opt">
+      <input type="radio" name="demo-tier" checked>
+      <div class="tier-opt-inner">
+        <div class="tier-opt-icon">&#x25CB;</div>
+        <div class="tier-opt-name">Small</div>
+        <div class="tier-opt-range">1&ndash;64</div>
+      </div>
+    </label>
+    <label class="tier-opt">
+      <input type="radio" name="demo-tier">
+      <div class="tier-opt-inner">
+        <div class="tier-opt-icon">&#x25CE;</div>
+        <div class="tier-opt-name">Medium</div>
+        <div class="tier-opt-range">64&ndash;512</div>
+      </div>
+    </label>
+    <label class="tier-opt">
+      <input type="radio" name="demo-tier">
+      <div class="tier-opt-inner">
+        <div class="tier-opt-icon">&#x25C9;</div>
+        <div class="tier-opt-name">Large</div>
+        <div class="tier-opt-range">512&ndash;2k</div>
+      </div>
+    </label>
+    <label class="tier-opt">
+      <input type="radio" name="demo-tier">
+      <div class="tier-opt-inner">
+        <div class="tier-opt-icon">&#x2B24;</div>
+        <div class="tier-opt-name">Mega</div>
+        <div class="tier-opt-range">2k+</div>
+      </div>
+    </label>
+  </div>
+
+  <span class="guide-label">HTML</span>
+  <div class="code-block">
+    &lt;div <span class="kw">class</span>=<span class="val">"tier-selector"</span>&gt;<br>
+    &nbsp;&nbsp;&lt;label <span class="kw">class</span>=<span class="val">"tier-opt"</span>&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;input type="radio" name="tier" checked&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;div <span class="kw">class</span>=<span class="val">"tier-opt-inner"</span>&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="tier-opt-icon"&gt;&amp;#x25CB;&lt;/div&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="tier-opt-name"&gt;Small&lt;/div&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="tier-opt-range"&gt;1&ndash;64&lt;/div&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;/div&gt;<br>
+    &nbsp;&nbsp;&lt;/label&gt;<br>
+    &nbsp;&nbsp;<span class="cm">&lt;!-- repeat for each option --&gt;</span><br>
+    &lt;/div&gt;
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     6. PILL TOGGLES & TABS
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Pill Toggles &amp; Tabs</h2>
+
+  <span class="guide-label">Pill toggle (inline)</span>
+  <div class="guide-row" style="align-items:center;">
+    <span style="font-size:13px;color:var(--text2);">Optic type</span>
+    <div class="optic-toggle">
+      <button class="optic-toggle-btn active" onclick="pillToggle(this)">Conventional</button>
+      <button class="optic-toggle-btn" onclick="pillToggle(this)">LPO</button>
+    </div>
+    &nbsp;&nbsp;
+    <span style="font-size:13px;color:var(--text2);">Power</span>
+    <div class="optic-toggle">
+      <button class="optic-toggle-btn active" onclick="pillToggle(this)">Typical</button>
+      <button class="optic-toggle-btn" onclick="pillToggle(this)">80%</button>
+      <button class="optic-toggle-btn" onclick="pillToggle(this)">Max</button>
+    </div>
+  </div>
+
+  <span class="guide-label">Tab bar (full-width)</span>
+  <div style="max-width:500px;">
+    <div class="results-tabs">
+      <button class="results-tab-btn active" onclick="tabSwitch(this)">Fabric Summary</button>
+      <button class="results-tab-btn" onclick="tabSwitch(this)">Optics &amp; Power</button>
+      <button class="results-tab-btn" onclick="tabSwitch(this)">Scale Plan</button>
+    </div>
+  </div>
+
+  <span class="guide-label">HTML</span>
+  <div class="code-block">
+    <span class="cm">&lt;!-- Pill toggle --&gt;</span><br>
+    &lt;div <span class="kw">class</span>=<span class="val">"optic-toggle"</span>&gt;<br>
+    &nbsp;&nbsp;&lt;button class="optic-toggle-btn active"&gt;Option A&lt;/button&gt;<br>
+    &nbsp;&nbsp;&lt;button class="optic-toggle-btn"&gt;Option B&lt;/button&gt;<br>
+    &lt;/div&gt;<br><br>
+    <span class="cm">&lt;!-- Tab bar --&gt;</span><br>
+    &lt;div <span class="kw">class</span>=<span class="val">"results-tabs"</span>&gt;<br>
+    &nbsp;&nbsp;&lt;button class="results-tab-btn active"&gt;Tab 1&lt;/button&gt;<br>
+    &nbsp;&nbsp;&lt;button class="results-tab-btn"&gt;Tab 2&lt;/button&gt;<br>
+    &lt;/div&gt;
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     7. METRIC CARDS
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Metric Cards</h2>
+
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">GPUs</div>
+      <div class="metric-val">1,024</div>
+      <div class="metric-sub">8 per host</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Leaf Switches</div>
+      <div class="metric-val">128</div>
+      <div class="metric-sub">7060X6-64PE</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Spine Switches</div>
+      <div class="metric-val">64</div>
+      <div class="metric-sub">7060X6-64PE</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Bandwidth</div>
+      <div class="metric-val">409.6T</div>
+      <div class="metric-sub">non-blocking</div>
+    </div>
+  </div>
+
+  <span class="guide-label">With tooltip</span>
+  <div class="metrics-grid" style="max-width:300px;">
+    <div class="metric-card">
+      <div class="metric-label">
+        Oversubscription
+        <span class="info-tip" data-tip="Ratio of total host bandwidth to total spine bandwidth. 1:1 means non-blocking.">
+          <svg viewBox="0 0 20 20"><path d="M10 0C4.48 0 0 4.48 0 10s4.48 10 10 10 10-4.48 10-10S15.52 0 10 0zm1 15H9v-2h2v2zm0-4H9V5h2v6z"/></svg>
+        </span>
+      </div>
+      <div class="metric-val">1:1</div>
+      <div class="metric-sub">non-blocking</div>
+    </div>
+  </div>
+
+  <span class="guide-label">HTML</span>
+  <div class="code-block">
+    &lt;div <span class="kw">class</span>=<span class="val">"metrics-grid"</span>&gt;<br>
+    &nbsp;&nbsp;&lt;div <span class="kw">class</span>=<span class="val">"metric-card"</span>&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="metric-label"&gt;LABEL&lt;/div&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="metric-val"&gt;1,024&lt;/div&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="metric-sub"&gt;subtitle&lt;/div&gt;<br>
+    &nbsp;&nbsp;&lt;/div&gt;<br>
+    &lt;/div&gt;
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     8. RESULT SECTIONS & TABLES
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Result Sections &amp; Tables</h2>
+
+  <div class="result-section">
+    <h3>
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Leaf Breakdown
+    </h3>
+    <table class="breakdown-table">
+      <tr><td>Platform</td><td>7060X6-64PE</td></tr>
+      <tr><td>Host-facing ports</td><td>48</td></tr>
+      <tr><td>Uplinks to spine</td><td>16</td></tr>
+      <tr><td>Leaf switches required</td><td>128</td></tr>
+      <tr class="subtotal"><td>Total leaf ports</td><td>8,192</td></tr>
+    </table>
+  </div>
+
+  <span class="guide-label">HTML</span>
+  <div class="code-block">
+    &lt;div <span class="kw">class</span>=<span class="val">"result-section"</span>&gt;<br>
+    &nbsp;&nbsp;&lt;h3&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;svg ...&gt;...&lt;/svg&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;Section Title<br>
+    &nbsp;&nbsp;&lt;/h3&gt;<br>
+    &nbsp;&nbsp;&lt;table <span class="kw">class</span>=<span class="val">"breakdown-table"</span>&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;tr&gt;&lt;td&gt;Label&lt;/td&gt;&lt;td&gt;Value&lt;/td&gt;&lt;/tr&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;tr class="subtotal"&gt;&lt;td&gt;Total&lt;/td&gt;&lt;td&gt;123&lt;/td&gt;&lt;/tr&gt;<br>
+    &nbsp;&nbsp;&lt;/table&gt;<br>
+    &lt;/div&gt;
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     9. BADGES
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Badges</h2>
+
+  <span class="guide-label">Tier / Status badges</span>
+  <div class="guide-row">
+    <span class="tier-badge tier-1">Single-Tier</span>
+    <span class="tier-badge tier-2">Two-Tier Clos</span>
+    <span class="tier-badge tier-3">Three-Tier Clos</span>
+  </div>
+
+  <span class="guide-label">Advantage badges</span>
+  <div class="guide-row">
+    <span class="advantage-badge advantage-badge-good">Lower latency</span>
+    <span class="advantage-badge advantage-badge-good">Fewer switches</span>
+    <span class="advantage-badge advantage-badge-warn">Higher oversubscription</span>
+  </div>
+
+  <span class="guide-label">HTML</span>
+  <div class="code-block">
+    &lt;span <span class="kw">class</span>=<span class="val">"tier-badge tier-1"</span>&gt;Status&lt;/span&gt;<br>
+    &lt;span <span class="kw">class</span>=<span class="val">"tier-badge tier-2"</span>&gt;Active&lt;/span&gt;<br>
+    &lt;span <span class="kw">class</span>=<span class="val">"tier-badge tier-3"</span>&gt;Critical&lt;/span&gt;<br><br>
+    &lt;span <span class="kw">class</span>=<span class="val">"advantage-badge advantage-badge-good"</span>&gt;Positive&lt;/span&gt;<br>
+    &lt;span <span class="kw">class</span>=<span class="val">"advantage-badge advantage-badge-warn"</span>&gt;Warning&lt;/span&gt;
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     10. CALLOUT BOXES
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Callout Boxes</h2>
+
+  <span class="guide-label">Info / Note</span>
+  <div class="note-box">
+    This topology uses a full-mesh Clos fabric with 1:1 oversubscription, providing non-blocking connectivity between all endpoints.
+  </div>
+
+  <span class="guide-label">Warning</span>
+  <div class="warn-box">
+    The selected platform cannot support the requested GPU count. Consider upgrading to a chassis-based solution.
+  </div>
+
+  <span class="guide-label">Error</span>
+  <div class="error-msg">
+    Invalid configuration: links per GPU exceeds available downlink ports on the selected leaf platform.
+  </div>
+
+  <span class="guide-label">HTML</span>
+  <div class="code-block">
+    &lt;div <span class="kw">class</span>=<span class="val">"note-box"</span>&gt;Info text...&lt;/div&gt;<br>
+    &lt;div <span class="kw">class</span>=<span class="val">"warn-box"</span>&gt;Warning text...&lt;/div&gt;<br>
+    &lt;div <span class="kw">class</span>=<span class="val">"error-msg"</span>&gt;Error text...&lt;/div&gt;
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     11. TOOLTIPS
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Tooltips</h2>
+  <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">
+    CSS-only tooltips via <code style="font-family:'Fira Code',monospace;background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:11px;">data-tip</code> attribute.
+    Hover the icons below.
+  </p>
+
+  <div style="font-size:13px;display:flex;align-items:center;gap:4px;">
+    Oversubscription ratio
+    <span class="info-tip" data-tip="Ratio of downlink to uplink bandwidth. 1:1 = non-blocking; 2:1 = 50% oversubscribed.">
+      <svg viewBox="0 0 20 20"><path d="M10 0C4.48 0 0 4.48 0 10s4.48 10 10 10 10-4.48 10-10S15.52 0 10 0zm1 15H9v-2h2v2zm0-4H9V5h2v6z"/></svg>
+    </span>
+  </div>
+
+  <span class="guide-label">HTML</span>
+  <div class="code-block">
+    &lt;span <span class="kw">class</span>=<span class="val">"info-tip"</span> <span class="kw">data-tip</span>=<span class="val">"Tooltip text here"</span>&gt;<br>
+    &nbsp;&nbsp;&lt;svg viewBox="0 0 20 20"&gt;&lt;path d="M10 0C4.48..."&gt;&lt;/svg&gt;<br>
+    &lt;/span&gt;
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     12. COLLAPSIBLE SECTIONS
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Collapsible Sections</h2>
+  <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">Click headers to toggle. Toggle the <code style="font-family:'Fira Code',monospace;background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:11px;">.collapsed</code> class on <code style="font-family:'Fira Code',monospace;background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:11px;">.input-section</code>.</p>
+
+  <div style="max-width:360px;display:flex;flex-direction:column;gap:4px;">
+    <div class="input-section" onclick="this.classList.toggle('collapsed')">
+      <div class="input-section-header">
+        <div class="section-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m-7.07-3.93l4.24-4.24m5.66-5.66l4.24-4.24M1 12h6m6 0h6m-3.93 7.07l-4.24-4.24m-5.66-5.66L4.93 4.93"/></svg>
+        </div>
+        <span class="section-title">Cluster Size</span>
+        <span class="section-summary">1,024 GPUs</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="input-section-body">
+        <div class="field">
+          <label>GPU Count</label>
+          <input type="number" value="1024">
+        </div>
+        <button class="section-next-btn" onclick="event.stopPropagation()">Next &rarr;</button>
+      </div>
+    </div>
+
+    <div class="input-section collapsed" onclick="this.classList.toggle('collapsed')">
+      <div class="input-section-header">
+        <div class="section-icon">
+          <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <span class="section-title">Network Config</span>
+        <span class="section-summary">400G, 8 links</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="input-section-body">
+        <div class="field">
+          <label>Link Speed</label>
+          <select><option>400G</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-section collapsed" onclick="this.classList.toggle('collapsed')">
+      <div class="input-section-header">
+        <div class="section-icon">
+          <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg>
+        </div>
+        <span class="section-title">Platforms</span>
+        <span class="section-summary">Auto-select</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="input-section-body">
+        <div class="field">
+          <label>Leaf Platform</label>
+          <select><option>Auto-select</option></select>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     13. COMPARISON CARDS
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Comparison Cards</h2>
+
+  <div class="comparison-grid">
+    <div class="compare-card active">
+      <h4>Option A &mdash; Full Mesh</h4>
+      <div class="stat-row"><span class="stat-label">Switches</span><span class="stat-value">128</span></div>
+      <div class="stat-row"><span class="stat-label">Optics</span><span class="stat-value">8,192</span></div>
+      <div class="stat-row"><span class="stat-label">Oversubscription</span><span class="stat-value">1:1</span></div>
+    </div>
+    <div class="compare-card">
+      <h4>Option B &mdash; Rail-Optimized</h4>
+      <div class="stat-row"><span class="stat-label">Switches</span><span class="stat-value">96</span></div>
+      <div class="stat-row"><span class="stat-label">Optics</span><span class="stat-value">6,144</span></div>
+      <div class="stat-row"><span class="stat-label">Oversubscription</span><span class="stat-value">2:1</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     14. EMPTY STATE
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Empty State</h2>
+
+  <div class="empty-state" style="background:var(--bg2);border-radius:var(--radius-lg);border:1px solid var(--border);">
+    <div class="empty-state-icon">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </div>
+    <h2>No results yet</h2>
+    <p>Configure your cluster parameters in the sidebar and click Calculate to see results.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     15. MODAL / OVERLAY
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Modal / Overlay</h2>
+  <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">Click below to open a demo modal. Toggle the <code style="font-family:'Fira Code',monospace;background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:11px;">.active</code> class on the overlay.</p>
+
+  <button class="ghost-btn" onclick="document.getElementById('demo-modal').classList.add('active')">Open Modal</button>
+
+  <span class="guide-label">HTML</span>
+  <div class="code-block">
+    &lt;div <span class="kw">class</span>=<span class="val">"modal-overlay"</span> id="my-modal"&gt;<br>
+    &nbsp;&nbsp;&lt;div <span class="kw">class</span>=<span class="val">"modal-panel"</span>&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="modal-header"&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;h2&gt;Title&lt;/h2&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;button class="modal-close"&gt;&amp;times;&lt;/button&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;/div&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="modal-body"&gt;Content...&lt;/div&gt;<br>
+    &nbsp;&nbsp;&lt;/div&gt;<br>
+    &lt;/div&gt;<br><br>
+    <span class="cm">// Open: el.classList.add('active')</span><br>
+    <span class="cm">// Close: el.classList.remove('active')</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     16. LAYOUT PATTERN
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>App Layout Pattern</h2>
+  <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">
+    The calculator uses a fixed topbar + fixed sidebar + scrollable main content area. Here's the structural skeleton.
+  </p>
+
+  <div class="code-block">
+    &lt;body&gt;<br>
+    &nbsp;&nbsp;&lt;div <span class="kw">class</span>=<span class="val">"topbar"</span>&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="topbar-left"&gt;Logo + Title&lt;/div&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="topbar-right"&gt;Theme toggle&lt;/div&gt;<br>
+    &nbsp;&nbsp;&lt;/div&gt;<br><br>
+    &nbsp;&nbsp;&lt;div <span class="kw">class</span>=<span class="val">"sidebar"</span>&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="sidebar-scroll"&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="input-section"&gt;...&lt;/div&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;/div&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="sidebar-footer"&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;button class="calc-btn"&gt;Calculate&lt;/button&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;button class="reset-btn"&gt;Reset&lt;/button&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;/div&gt;<br>
+    &nbsp;&nbsp;&lt;/div&gt;<br><br>
+    &nbsp;&nbsp;&lt;div <span class="kw">class</span>=<span class="val">"main-content"</span>&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="results-layout"&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="results-col"&gt;Results here&lt;/div&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;div class="diagram-col"&gt;Diagram here&lt;/div&gt;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;/div&gt;<br>
+    &nbsp;&nbsp;&lt;/div&gt;<br>
+    &lt;/body&gt;
+  </div>
+
+  <span class="guide-label">Key CSS variables</span>
+  <div class="code-block">
+    <span class="kw">--topbar-h</span>: <span class="val">56px</span>;  <span class="cm">/* fixed top bar height */</span><br>
+    <span class="kw">--sidebar-w</span>: <span class="val">360px</span>; <span class="cm">/* fixed sidebar width */</span><br>
+    <span class="kw">--radius</span>: <span class="val">8px</span>;     <span class="cm">/* default border radius */</span><br>
+    <span class="kw">--radius-lg</span>: <span class="val">12px</span>;  <span class="cm">/* panels & cards */</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     17. DARK MODE
+     ═══════════════════════════════════════════════ -->
+<div class="guide-section">
+  <h2>Dark Mode</h2>
+  <p style="font-size:12px;color:var(--text2);line-height:1.6;">
+    The theme system uses CSS custom properties with three layers of specificity:
+  </p>
+  <ol style="font-size:12px;color:var(--text2);line-height:1.8;padding-left:20px;margin-top:8px;">
+    <li><strong>:root</strong> &mdash; light mode defaults</li>
+    <li><strong>@media (prefers-color-scheme: dark) / :root:not([data-theme="light"])</strong> &mdash; auto dark</li>
+    <li><strong>:root[data-theme="dark"]</strong> &mdash; forced dark override</li>
+  </ol>
+  <p style="font-size:12px;color:var(--text2);margin-top:8px;line-height:1.6;">
+    Toggle by setting <code style="font-family:'Fira Code',monospace;background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:11px;">data-theme</code> on <code style="font-family:'Fira Code',monospace;background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:11px;">&lt;html&gt;</code> and persisting to <code style="font-family:'Fira Code',monospace;background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:11px;">localStorage</code>. All components
+    use <code style="font-family:'Fira Code',monospace;background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:11px;">var(--token)</code> references so they adapt automatically.
+  </p>
+
+  <span class="guide-label">Theme toggle script</span>
+  <div class="code-block">
+    <span class="kw">function</span> toggleTheme() {<br>
+    &nbsp;&nbsp;<span class="kw">const</span> html = document.documentElement;<br>
+    &nbsp;&nbsp;<span class="kw">const</span> current = html.getAttribute(<span class="val">'data-theme'</span>);<br>
+    &nbsp;&nbsp;<span class="kw">const</span> next = current === <span class="val">'dark'</span> ? <span class="val">'light'</span> : <span class="val">'dark'</span>;<br>
+    &nbsp;&nbsp;html.setAttribute(<span class="val">'data-theme'</span>, next);<br>
+    &nbsp;&nbsp;localStorage.setItem(<span class="val">'theme'</span>, next);<br>
+    }
+  </div>
+</div>
+
+</div><!-- /guide-body -->
+
+<!-- ═══════════════════════════════════════════════
+     DEMO MODAL
+     ═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="demo-modal" onclick="if(event.target===this)this.classList.remove('active')">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Example Modal</h2>
+      <button class="modal-close" onclick="document.getElementById('demo-modal').classList.remove('active')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p>This is the modal/overlay pattern. It uses a backdrop with blur, a centered panel, and a close button.</p>
+      <div class="spacer"></div>
+      <p>Click the backdrop or the &times; button to dismiss.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Theme toggle
+  (function() {
+    const saved = localStorage.getItem('theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+  })();
+
+  function toggleTheme() {
+    const html = document.documentElement;
+    const current = html.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+  }
+
+  // Pill toggle
+  function pillToggle(btn) {
+    btn.parentElement.querySelectorAll('.optic-toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  // Tab switch
+  function tabSwitch(btn) {
+    btn.parentElement.querySelectorAll('.results-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+</script>
+</body>
+</html>
