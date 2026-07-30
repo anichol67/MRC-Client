@@ -2,75 +2,71 @@
 {% block title %}Traffic — MRC Emulator{% endblock %}
 {% block content %}
 <h4>NCCL Collective Traffic</h4>
-<div class="row">
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">Configure Collective</div>
-            <div class="card-body">
-                <div class="mb-2"><label class="form-label">Collective Type</label>
-                    <select id="tr-type" class="form-select form-select-sm" onchange="updateTrafficFields()">
-                        {% for ct in collective_types %}
-                        <option value="{{ ct.value }}">{{ ct.label }}</option>
-                        {% endfor %}
+<div class="grid grid-sidebar">
+    <div>
+        <div class="panel">
+            <div class="panel-header">Configure Collective</div>
+            <div class="field"><label>Collective Type</label>
+                <select id="tr-type" onchange="updateTrafficFields()">
+                    {% for ct in collective_types %}
+                    <option value="{{ ct.value }}">{{ ct.label }}</option>
+                    {% endfor %}
+                </select></div>
+            <div class="field"><label>Message Size (bytes)</label>
+                <input type="number" id="tr-msgsize" value="1048576"></div>
+            <div class="field"><label>Chunk Size (bytes)</label>
+                <input type="number" id="tr-chunksize" value="4096"></div>
+            <div id="root-field" style="display:none">
+                <div class="field"><label>Root Host (Broadcast)</label>
+                    <select id="tr-root">
+                        {% for h in hosts %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
                     </select></div>
-                <div class="mb-2"><label class="form-label">Message Size (bytes)</label>
-                    <input type="number" id="tr-msgsize" class="form-control form-control-sm" value="1048576"></div>
-                <div class="mb-2"><label class="form-label">Chunk Size (bytes)</label>
-                    <input type="number" id="tr-chunksize" class="form-control form-control-sm" value="4096"></div>
-                <div id="root-field" style="display:none">
-                    <div class="mb-2"><label class="form-label">Root Host (Broadcast)</label>
-                        <select id="tr-root" class="form-select form-select-sm">
-                            {% for h in hosts %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
-                        </select></div>
-                </div>
-                <div class="mb-2"><label class="form-label">Participating Hosts</label>
-                    <div id="host-checkboxes">
-                        {% for h in hosts %}
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input host-cb" type="checkbox" value="{{ h }}" id="cb-{{ h }}" checked>
-                            <label class="form-check-label" for="cb-{{ h }}">{{ h }}</label>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% if not hosts %}
-                    <small class="text-muted">Generate a topology first to populate hosts.</small>
-                    {% endif %}
-                </div>
-                <div class="mb-2"><label class="form-label">Custom Ring Order (optional, comma-separated)</label>
-                    <input type="text" id="tr-ring" class="form-control form-control-sm" placeholder="p0-host0,p0-host2,p1-host1,..."></div>
-                <button class="btn btn-primary btn-sm" onclick="generatePlan()">Generate Flow Plan</button>
             </div>
+            <div class="field"><label>Participating Hosts</label>
+                <div id="host-checkboxes">
+                    {% for h in hosts %}
+                    <label class="field-check">
+                        <input class="host-cb" type="checkbox" value="{{ h }}" id="cb-{{ h }}" checked>
+                        {{ h }}
+                    </label>
+                    {% endfor %}
+                </div>
+                {% if not hosts %}
+                <small class="text-muted">Generate a topology first to populate hosts.</small>
+                {% endif %}
+            </div>
+            <div class="field"><label>Custom Ring Order (optional, comma-separated)</label>
+                <input type="text" id="tr-ring" placeholder="p0-host0,p0-host2,p1-host1,..."></div>
+            <button class="btn-primary btn-sm" onclick="generatePlan()">Generate Flow Plan</button>
         </div>
         {% if orchestrator %}
-        <div class="card">
-            <div class="card-header">Execution Control</div>
-            <div class="card-body">
-                <div class="mb-2">
-                    <strong>Step {{ orchestrator.get_progress().current_step + 1 }} / {{ orchestrator.get_progress().total_steps }}</strong>
-                    <div class="progress mt-1"><div class="progress-bar" style="width: {{ orchestrator.get_progress().percent }}%">{{ orchestrator.get_progress().percent }}%</div></div>
-                </div>
-                <button class="btn btn-sm btn-success me-1" onclick="advanceStep()">Next Step</button>
-                <button class="btn btn-sm btn-outline-secondary me-1" onclick="resetPlan()">Reset</button>
-                <hr class="my-2">
-                <strong class="d-block mb-1">Offline Simulation</strong>
-                <button class="btn btn-sm btn-info me-1" onclick="simulateStep()">Simulate Step</button>
-                <button class="btn btn-sm btn-warning me-1" onclick="simulateAll()">Simulate All</button>
-                <button class="btn btn-sm btn-outline-danger" onclick="resetSimulation()">Reset Simulation</button>
+        <div class="panel">
+            <div class="panel-header">Execution Control</div>
+            <div style="margin-bottom:8px">
+                <strong>Step {{ orchestrator.get_progress().current_step + 1 }} / {{ orchestrator.get_progress().total_steps }}</strong>
+                <div class="progress-bar-container" style="margin-top:4px"><div class="progress-bar-fill" style="width: {{ orchestrator.get_progress().percent }}%">{{ orchestrator.get_progress().percent }}%</div></div>
             </div>
+            <button class="btn-accent btn-sm" onclick="advanceStep()" style="margin-right:4px">Next Step</button>
+            <button class="btn-secondary btn-sm" onclick="resetPlan()" style="margin-right:4px">Reset</button>
+            <hr style="border-top: 1px solid var(--border); margin: 8px 0;">
+            <strong style="display:block;margin-bottom:4px">Offline Simulation</strong>
+            <button class="btn-info btn-sm" onclick="simulateStep()" style="margin-right:4px">Simulate Step</button>
+            <button class="btn-warn btn-sm" onclick="simulateAll()" style="margin-right:4px">Simulate All</button>
+            <button class="btn-danger btn-sm" onclick="resetSimulation()">Reset Simulation</button>
         </div>
         {% endif %}
     </div>
-    <div class="col-md-8">
+    <div>
         {% if plan %}
-        <div class="card">
-            <div class="card-header">
+        <div class="panel">
+            <div class="panel-header">
                 Flow Plan: {{ plan.collective_type }} — {{ plan.num_steps }} steps, {{ plan.total_flows }} flows, {{ plan.total_bytes }} bytes
             </div>
-            <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+            <div style="max-height: 500px; overflow-y: auto;">
                 {% for step_num in range(plan.num_steps) %}
-                <div class="mb-2">
+                <div style="margin-bottom:8px">
                     <strong>Step {{ step_num }}</strong>
-                    <table class="table table-sm mb-0">
+                    <table class="data-table">
                         <thead><tr><th>Source</th><th>Dest</th><th>Chunk</th><th>Size</th><th>Description</th></tr></thead>
                         <tbody>
                         {% for flow in plan.steps[step_num] %}
@@ -91,36 +87,34 @@
         {% else %}
         <div class="text-muted">Select a collective and generate a flow plan.</div>
         {% endif %}
-        <div class="card mt-2">
-            <div class="card-header">Current Step Flows</div>
-            <div class="card-body"><pre id="step-output">&mdash;</pre></div>
+        <div class="panel" style="margin-top:8px">
+            <div class="panel-header">Current Step Flows</div>
+            <pre id="step-output">&mdash;</pre>
         </div>
-        <div class="card mt-2">
-            <div class="card-header">Simulation Results</div>
-            <div class="card-body">
-                <div class="row mb-2">
-                    <div class="col-md-3"><strong>cwnd:</strong> <span id="sim-cwnd">&mdash;</span></div>
-                    <div class="col-md-3"><strong>inflight:</strong> <span id="sim-inflight">&mdash;</span></div>
-                    <div class="col-md-3"><strong>RTT est:</strong> <span id="sim-rtt">&mdash;</span></div>
-                    <div class="col-md-3"><strong>Step:</strong> <span id="sim-step">&mdash;</span></div>
-                </div>
-                <div class="row mb-2">
-                    <div class="col-md-3"><strong>Packets:</strong> <span id="sim-packets">&mdash;</span></div>
-                    <div class="col-md-3"><strong>Dropped:</strong> <span id="sim-dropped">&mdash;</span></div>
-                    <div class="col-md-3"><strong>Trimmed:</strong> <span id="sim-trimmed">&mdash;</span></div>
-                    <div class="col-md-3"><strong>ECN:</strong> <span id="sim-ecn">&mdash;</span></div>
-                </div>
-                <div class="mb-2">
-                    <strong>EV State Summary:</strong> <span id="sim-ev-summary">&mdash;</span>
-                </div>
-                <div class="mb-2">
-                    <strong>cwnd Timeline:</strong>
-                    <pre id="sim-timeline" style="max-height:120px; overflow-y:auto; font-size:0.8em;">&mdash;</pre>
-                </div>
-                <div>
-                    <strong>Recent Packet Summaries:</strong>
-                    <pre id="sim-packets-log" style="max-height:200px; overflow-y:auto; font-size:0.8em;">&mdash;</pre>
-                </div>
+        <div class="panel" style="margin-top:8px">
+            <div class="panel-header">Simulation Results</div>
+            <div class="grid grid-4" style="margin-bottom:8px">
+                <div><strong>cwnd:</strong> <span id="sim-cwnd">&mdash;</span></div>
+                <div><strong>inflight:</strong> <span id="sim-inflight">&mdash;</span></div>
+                <div><strong>RTT est:</strong> <span id="sim-rtt">&mdash;</span></div>
+                <div><strong>Step:</strong> <span id="sim-step">&mdash;</span></div>
+            </div>
+            <div class="grid grid-4" style="margin-bottom:8px">
+                <div><strong>Packets:</strong> <span id="sim-packets">&mdash;</span></div>
+                <div><strong>Dropped:</strong> <span id="sim-dropped">&mdash;</span></div>
+                <div><strong>Trimmed:</strong> <span id="sim-trimmed">&mdash;</span></div>
+                <div><strong>ECN:</strong> <span id="sim-ecn">&mdash;</span></div>
+            </div>
+            <div style="margin-bottom:8px">
+                <strong>EV State Summary:</strong> <span id="sim-ev-summary">&mdash;</span>
+            </div>
+            <div style="margin-bottom:8px">
+                <strong>cwnd Timeline:</strong>
+                <pre id="sim-timeline" style="max-height:120px; overflow-y:auto; font-size:0.8em;">&mdash;</pre>
+            </div>
+            <div>
+                <strong>Recent Packet Summaries:</strong>
+                <pre id="sim-packets-log" style="max-height:200px; overflow-y:auto; font-size:0.8em;">&mdash;</pre>
             </div>
         </div>
     </div>

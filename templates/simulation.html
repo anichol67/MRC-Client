@@ -2,104 +2,18 @@
 {% block title %}Simulation — MRC emu{% endblock %}
 {% block extra_css %}
 <style>
-    /* Top control bar */
-    .ctrl-bar { background: var(--cv-bg-card); border: 1px solid var(--cv-border); border-radius: 6px; padding: 10px 16px; margin-bottom: 12px; }
+    .ctrl-bar { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 10px 16px; margin-bottom: 12px; }
     .ctrl-bar .ctrl-group { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; }
-    .ctrl-bar label { font-size: 0.72rem; color: var(--cv-text-muted); margin-bottom: 0; white-space: nowrap; }
-    .ctrl-bar input, .ctrl-bar select { max-width: 110px; }
-    .ctrl-bar .btn { font-size: 0.78rem; }
-
-    /* Metrics bar */
-    .metrics-bar { background: var(--cv-bg-card); border: 1px solid var(--cv-border); border-radius: 6px; padding: 8px 16px; margin-bottom: 12px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
-    .metric-item { text-align: center; cursor: help; }
-    .metric-item small { display: block; font-size: 0.65rem; color: var(--cv-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .metric-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1rem; color: var(--cv-text-heading); }
-    .metric-val.danger { color: var(--cv-bad); }
-    .metric-val.warning { color: var(--cv-skip); }
-
-    /* Topology container — full width, tall */
-    #sim-svg-container { background: var(--cv-bg-canvas); border: 1px solid var(--cv-border); border-radius: 6px;
-                         overflow: hidden; position: relative; cursor: grab; width: 100%; height: 60vh; min-height: 450px; }
-    #sim-svg-container.grabbing { cursor: grabbing; }
-
-    /* CloudVision tile nodes — sizes controlled by tileSizeIdx */
-    .cv-tile { cursor: pointer; }
-    .cv-tile:hover .cv-tile-bg { filter: brightness(1.25); }
-    .cv-tile-bg { rx: 6; ry: 6; }
-    .cv-tile-name { font-family: -apple-system, sans-serif; fill: var(--cv-text-heading); font-weight: 600; }
-    .cv-tile-role { font-family: -apple-system, sans-serif; fill: var(--cv-text-muted); }
-    .cv-tile-usid { font-family: monospace; fill: var(--cv-accent); }
-    .cv-selected { stroke: #FFD166 !important; stroke-width: 3 !important; stroke-dasharray: 5 2; }
-
-    /* Links — uniform width for all connections */
-    .topo-link { cursor: pointer; stroke-linecap: round; stroke-width: 2.5; }
-    .topo-link:hover { stroke-width: 4; }
-    .link-failed { stroke: var(--cv-bad) !important; }
-    .link-failed-pulse { animation: failPulse 1s infinite; }
-    @keyframes failPulse { 0%,100%{stroke-opacity:1} 50%{stroke-opacity:0.3} }
-    .path-overlay { pointer-events: none; stroke-linecap: round; stroke-width: 8; stroke-opacity: 0.5; }
-    .flow-dot { pointer-events: none; }
-    .plane-box { fill: rgba(0,120,212,0.06); stroke: var(--cv-border); stroke-width: 1; rx: 10; }
-    [data-bs-theme="dark"] .plane-box { fill: rgba(28,46,64,0.5); }
-    .plane-label { font-size: 14px; fill: var(--cv-text-muted); font-weight: 700; letter-spacing: 1px; }
-    .failure-flash { fill: rgba(207,48,64,0.15); rx: 10; animation: flashFade 2s ease-out forwards; }
-    @keyframes flashFade { 0%{opacity:1} 100%{opacity:0} }
-
-    /* Tooltip */
-    .sim-tooltip { position:absolute; background:var(--cv-bg-card); color:var(--cv-text-heading); border:1px solid var(--cv-border);
-                   border-radius:6px; padding:10px 14px; font-size:0.78rem; font-family:monospace;
-                   pointer-events:none; z-index:1000; white-space:pre-line; display:none;
-                   box-shadow:0 8px 24px rgba(0,0,0,0.5); max-width:360px; }
-    .sim-tooltip strong { color:var(--cv-accent); }
-    .sim-tooltip code { color:var(--cv-code-blue); }
-
-    .zoom-controls { position:absolute; top:10px; right:10px; z-index:10; display:flex; flex-direction:column; gap:2px; }
-    .zoom-controls button { background:var(--cv-bg-card); border:1px solid var(--cv-border); color:var(--cv-text); width:30px; height:30px; font-size:1rem; cursor:pointer; }
-    .zoom-controls button:hover { background:var(--cv-bg-card-header); }
-
-    /* Bottom panels */
-    .bottom-panels { display: flex; gap: 12px; margin-top: 12px; }
-    .bottom-panels .card { flex: 1; min-width: 0; }
-    .ev-row td { padding: 4px 8px; color: var(--cv-text-heading); }
-    .ev-row td code { color: var(--cv-text-heading); }
-    .ev-table-sm .ev-row td, .ev-table-sm th { font-size: 0.78rem; }
-    .ev-table-md .ev-row td, .ev-table-md th { font-size: 0.92rem; }
-    .ev-table-lg .ev-row td, .ev-table-lg th { font-size: 1.08rem; }
-    #ev-table th { color: var(--cv-text); }
-    .state-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; }
-    .sim-log { font-family:monospace; max-height:180px; overflow-y:auto; color: var(--cv-text-heading); }
-    .log-text-sm .sim-log { font-size: 0.72rem; }
-    .log-text-md .sim-log { font-size: 0.9rem; }
-    .log-text-lg .sim-log { font-size: 1.08rem; }
-    .ctrl-text-sm .ctrl-bar label, .ctrl-text-sm .ctrl-bar .btn, .ctrl-text-sm .ctrl-bar input, .ctrl-text-sm .ctrl-bar select { font-size: 0.72rem; }
-    .ctrl-text-md .ctrl-bar label, .ctrl-text-md .ctrl-bar .btn, .ctrl-text-md .ctrl-bar input, .ctrl-text-md .ctrl-bar select { font-size: 0.88rem; }
-    .ctrl-text-lg .ctrl-bar label, .ctrl-text-lg .ctrl-bar .btn, .ctrl-text-lg .ctrl-bar input, .ctrl-text-lg .ctrl-bar select { font-size: 1.05rem; }
-    .collapse-btn { font-size:0.8rem; color:var(--cv-text-muted); cursor:pointer; background:none; border:none; padding:0; }
-    .collapse-btn:hover { color:var(--cv-text-heading); }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-    .running-pulse { animation: pulse 1s infinite; }
-
-    /* Link failure styles */
-    .link-failed-dash { stroke-dasharray: 8 4 !important; stroke: var(--cv-bad) !important; stroke-width: 4 !important; }
-
-    /* Right-click context menu */
-    .ctx-menu { position:absolute; background:var(--cv-bg-card); border:1px solid var(--cv-border); border-radius:6px;
-                padding:4px 0; z-index:2000; min-width:160px; box-shadow:0 8px 24px rgba(0,0,0,0.6); display:none; }
-    .ctx-menu-item { padding:5px 14px; font-size:0.78rem; color:var(--cv-text); cursor:pointer; }
-    .ctx-menu-item:hover { background:var(--cv-bg-card-header); color:var(--cv-text-heading); }
-    .ctx-menu-item.danger { color:var(--cv-bad); }
-    .ctx-menu-sep { height:1px; background:var(--cv-border); margin:4px 0; }
-
-    /* Panel resizable */
-    .panel-header { background:var(--cv-bg-card); border-bottom:1px solid var(--cv-border); padding:6px 12px;
-                    display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; }
-    .panel-header h6 { margin:0; font-size:0.8rem; color:var(--cv-text-muted); }
-    .panel-maximize { font-size:0.72rem; color:var(--cv-accent); cursor:pointer; background:none; border:none; margin-left:8px; }
-    .panel-maximize:hover { color:var(--cv-accent-hover); }
+    .ctrl-bar label { font-size: 11px; color: var(--text2); margin-bottom: 0; white-space: nowrap; font-weight: 500; }
+    .ctrl-bar input, .ctrl-bar select { max-width: 110px; font-size: 12px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg2); color: var(--text); }
+    .ctrl-bar input:focus, .ctrl-bar select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-glow); outline: none; }
+    .ctrl-text-sm .ctrl-bar label, .ctrl-text-sm .ctrl-bar input, .ctrl-text-sm .ctrl-bar select { font-size: 10px; }
+    .ctrl-text-md .ctrl-bar label, .ctrl-text-md .ctrl-bar input, .ctrl-text-md .ctrl-bar select { font-size: 12px; }
+    .ctrl-text-lg .ctrl-bar label, .ctrl-text-lg .ctrl-bar input, .ctrl-text-lg .ctrl-bar select { font-size: 14px; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="cv-page-header d-flex justify-content-between align-items-center">
+<div class="page-header d-flex justify-between align-center">
     Simulation <span id="run-indicator"></span>
     <span>
         <button class="panel-maximize" onclick="cycleCtrlText()" title="Controls text size">Aa</button>
@@ -109,66 +23,66 @@
 
 <!-- Top: Controls bar (collapsible, horizontal) -->
 <div class="ctrl-bar ctrl-text-md" id="ctrl-bar">
-    <div class="d-flex flex-wrap align-items-end gap-2">
+    <div class="d-flex flex-wrap align-center gap-2">
         <div class="ctrl-group">
-            <div><label>Collective</label><select id="sim-collective" class="form-select form-select-sm">
+            <div><label>Collective</label><select id="sim-collective">
                 {% for ct in collective_types %}<option value="{{ ct.value }}">{{ ct.label }}</option>{% endfor %}
             </select></div>
-            <div><label>Duration (s)</label><input type="number" id="sim-duration" class="form-control form-control-sm" value="30"></div>
-            <div><label>Interval (ms)</label><input type="number" id="sim-interval" class="form-control form-control-sm" value="500"></div>
-            <div><label>Msg Size</label><input type="number" id="sim-msgsize" class="form-control form-control-sm" value="65536"></div>
-            <div><label>Chunk</label><input type="number" id="sim-chunksize" class="form-control form-control-sm" value="4096"></div>
+            <div><label>Duration (s)</label><input type="number" id="sim-duration" value="30"></div>
+            <div><label>Interval (ms)</label><input type="number" id="sim-interval" value="500"></div>
+            <div><label>Msg Size</label><input type="number" id="sim-msgsize" value="65536"></div>
+            <div><label>Chunk</label><input type="number" id="sim-chunksize" value="4096"></div>
         </div>
         <div class="ctrl-group">
-            <button class="btn btn-success btn-sm" id="btn-start" onclick="startSimulation()">Start</button>
-            <button class="btn btn-danger btn-sm" id="btn-stop" onclick="stopSimulation()" disabled>Stop</button>
-            <button class="btn btn-outline-secondary btn-sm" onclick="clearCounters()" title="Clear packet counters">Clear Counters</button>
+            <button class="btn-accent btn-sm" id="btn-start" onclick="startSimulation()">Start</button>
+            <button class="btn-danger btn-sm" id="btn-stop" onclick="stopSimulation()" disabled>Stop</button>
+            <button class="btn-secondary btn-sm" onclick="clearCounters()" title="Clear packet counters">Clear Counters</button>
         </div>
         <div class="ctrl-group">
-            <div><label>Flow Mode</label><select id="flow-mode" class="form-select form-select-sm">
+            <div><label>Flow Mode</label><select id="flow-mode">
                 <option value="collective">NCCL Collective</option>
                 <option value="unidirectional">Unidirectional Pair</option>
                 <option value="bidirectional">Bidirectional Pair</option>
             </select></div>
-            <div><label>Source</label><select id="sim-src" class="form-select form-select-sm">
+            <div><label>Source</label><select id="sim-src">
                 <option value="">—</option>{% for h in hosts %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
             </select></div>
-            <div><label>Destination</label><select id="sim-dst" class="form-select form-select-sm">
+            <div><label>Destination</label><select id="sim-dst">
                 <option value="">—</option>{% for h in hosts %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
             </select></div>
-            <div><label>EV Profile</label><select id="ev-profile-mode" class="form-select form-select-sm">
+            <div><label>EV Profile</label><select id="ev-profile-mode">
                 <option value="auto">Auto (from topology)</option>
                 <option value="manual">Use existing profile</option>
             </select></div>
-            <div><label>EV Probes</label><select id="probe-mode" class="form-select form-select-sm">
+            <div><label>EV Probes</label><select id="probe-mode">
                 <option value="auto">Auto (periodic)</option>
                 <option value="manual">Manual only</option>
             </select></div>
-            <button class="btn btn-outline-primary btn-sm" onclick="showSimPaths()">Paths</button>
+            <button class="btn-ghost btn-sm" onclick="showSimPaths()">Paths</button>
         </div>
         <div class="ctrl-group">
             <label>Hosts</label>
-            {% for h in hosts %}<label class="form-check-label ms-1" style="font-size:0.72rem"><input class="form-check-input sim-host-cb" type="checkbox" value="{{ h }}" checked> {{ h }}</label>{% endfor %}
+            {% for h in hosts %}<label class="field-check" style="font-size:0.72rem"><input class="sim-host-cb" type="checkbox" value="{{ h }}" checked> {{ h }}</label>{% endfor %}
         </div>
     </div>
     <div id="fail-status" class="mt-1" style="font-size:0.72rem;"></div>
 </div>
 
 <!-- Metrics bar -->
-<div class="metrics-bar" id="metrics-bar">
-    <div class="metric-item" title="Congestion Window — max bytes the sender can have in-flight before waiting for SACKs (§8.3.1)"><small>CWND</small><div class="metric-val" id="m-cwnd">—</div></div>
-    <div class="metric-item" title="Inflight bytes — total bytes sent but not yet acknowledged by the responder (§8.3.1)"><small>Inflight</small><div class="metric-val" id="m-inflight">—</div></div>
-    <div class="metric-item" title="Total packets sent across all EVs/paths during this simulation"><small>Packets</small><div class="metric-val" id="m-packets">0</div></div>
-    <div class="metric-item" title="Packets dropped in the fabric (no SACK received) — triggers ACK timeout and EV state transition (§7.4.1)"><small>Dropped</small><div class="metric-val danger" id="m-dropped">0</div></div>
-    <div class="metric-item" title="ECN-marked packets — SACK received with m=SKIP_ONCE indicating path congestion (§9.3.1)"><small>ECN</small><div class="metric-val warning" id="m-ecn">0</div></div>
-    <div class="metric-item" title="Trimmed packets — payload removed by switch, NACK with TRIMMED reason sent to sender (§7.5.3)"><small>Trimmed</small><div class="metric-val" id="m-trimmed">0</div></div>
-    <div class="metric-item" title="Round-trip time estimate in microseconds — used by NSCC to detect congestion (§8.2, Table 8-1)"><small>RTT (us)</small><div class="metric-val" id="m-rtt">—</div></div>
-    <div class="metric-item" title="Current step / total steps in the flow plan cycle"><small>Step</small><div class="metric-val" id="m-step">0/0</div></div>
-    <div class="metric-item" title="EV state summary — G=GOOD (active), S=SKIP (congested), B=ASSUMED_BAD (failed) per spec Figure 5"><small>EV State</small><div id="m-ev-summary" style="font-size:0.78rem;">—</div></div>
+<div class="metrics-grid" id="metrics-bar">
+    <div class="metric-card" title="Congestion Window — max bytes the sender can have in-flight before waiting for SACKs (§8.3.1)"><div class="metric-label">CWND</div><div class="metric-val" id="m-cwnd">—</div></div>
+    <div class="metric-card" title="Inflight bytes — total bytes sent but not yet acknowledged by the responder (§8.3.1)"><div class="metric-label">Inflight</div><div class="metric-val" id="m-inflight">—</div></div>
+    <div class="metric-card" title="Total packets sent across all EVs/paths during this simulation"><div class="metric-label">Packets</div><div class="metric-val" id="m-packets">0</div></div>
+    <div class="metric-card" title="Packets dropped in the fabric (no SACK received) — triggers ACK timeout and EV state transition (§7.4.1)"><div class="metric-label">Dropped</div><div class="metric-val danger" id="m-dropped">0</div></div>
+    <div class="metric-card" title="ECN-marked packets — SACK received with m=SKIP_ONCE indicating path congestion (§9.3.1)"><div class="metric-label">ECN</div><div class="metric-val warning" id="m-ecn">0</div></div>
+    <div class="metric-card" title="Trimmed packets — payload removed by switch, NACK with TRIMMED reason sent to sender (§7.5.3)"><div class="metric-label">Trimmed</div><div class="metric-val" id="m-trimmed">0</div></div>
+    <div class="metric-card" title="Round-trip time estimate in microseconds — used by NSCC to detect congestion (§8.2, Table 8-1)"><div class="metric-label">RTT (us)</div><div class="metric-val" id="m-rtt">—</div></div>
+    <div class="metric-card" title="Current step / total steps in the flow plan cycle"><div class="metric-label">Step</div><div class="metric-val" id="m-step">0/0</div></div>
+    <div class="metric-card" title="EV state summary — G=GOOD (active), S=SKIP (congested), B=ASSUMED_BAD (failed) per spec Figure 5"><div class="metric-label">EV State</div><div id="m-ev-summary" style="font-size:0.78rem;">—</div></div>
 </div>
 
 <!-- Topology view — full width -->
-<div id="sim-svg-container">
+<div id="sim-svg-container" class="sim-svg-container">
     <div class="zoom-controls">
         <button onclick="simZoom(1.2)" title="Zoom in">+</button>
         <button onclick="simZoom(0.8)" title="Zoom out">−</button>
@@ -184,14 +98,14 @@
     <div class="ctx-menu-item" onclick="ctxAction('ecn')">Degrade (ECN)</div>
     <div class="ctx-menu-item" onclick="ctxAction('partial_loss')">Degrade (Partial Loss)</div>
     <div class="ctx-menu-sep"></div>
-    <div class="ctx-menu-item" onclick="ctxAction('restore')" style="color:#00875A">Restore</div>
+    <div class="ctx-menu-item restore" onclick="ctxAction('restore')">Restore</div>
     <div class="ctx-menu-sep"></div>
-    <div class="ctx-menu-item" onclick="clearFailures()" class="danger">Clear All Failures</div>
+    <div class="ctx-menu-item danger" onclick="clearFailures()">Clear All Failures</div>
 </div>
 
 <!-- Bottom panels: EV state (expanded) + Event log (minimised) -->
 <div class="bottom-panels">
-    <div class="card" id="panel-evstate" style="flex:1;">
+    <div class="panel" id="panel-evstate" style="flex:1;">
         <div class="panel-header" onclick="togglePanel('panel-evstate')">
             <h6>EV Path State</h6>
             <span>
@@ -200,19 +114,19 @@
                 <button class="collapse-btn" id="panel-evstate-btn" onclick="event.stopPropagation();togglePanel('panel-evstate')">−</button>
             </span>
         </div>
-        <div class="card-body p-0" id="panel-evstate-body" style="max-height:220px; overflow-y:auto;">
-            <table class="table table-sm mb-0 ev-table-md" id="ev-table">
+        <div id="panel-evstate-body" style="max-height:220px; overflow-y:auto;">
+            <table class="data-table ev-table-md" id="ev-table">
                 <thead><tr><th>EV</th><th>State</th><th>Plane</th><th>Spine</th><th>Pkts</th><th title="Percentage of total traffic using this path">BW%</th><th>Src IPv6</th><th>SRv6 Path</th><th>RTT</th><th>ECN</th></tr></thead>
                 <tbody id="ev-table-body"><tr><td colspan="10" class="text-muted text-center">Select src → dst hosts to show paths</td></tr></tbody>
             </table>
         </div>
     </div>
-    <div class="card log-text-md" id="panel-eventlog" style="flex:1;">
+    <div class="panel log-text-md" id="panel-eventlog" style="flex:1;">
         <div class="panel-header" onclick="togglePanel('panel-eventlog')">
             <h6>MRC Event Log</h6>
             <span><button class="panel-maximize" onclick="event.stopPropagation();cycleLogText()" title="Log text size">Aa</button><button class="panel-maximize" onclick="event.stopPropagation();maximizePanel('panel-eventlog')" title="Maximize">⤢</button><button class="collapse-btn" id="panel-eventlog-btn" onclick="event.stopPropagation();togglePanel('panel-eventlog')">+</button></span>
         </div>
-        <div class="card-body p-2" id="panel-eventlog-body" style="display:none;"><div class="sim-log" id="event-log"></div></div>
+        <div id="panel-eventlog-body" style="display:none;"><div class="sim-log" id="event-log"></div></div>
     </div>
 </div>
 {% endblock %}
@@ -220,20 +134,20 @@
 <script>
 (function() {
     const C_LIGHT = {
-        spine:'#E8F0FE', spine_stripe:'#0078D4', spine_text:'#0550AE',
-        leaf:'#E6F4EA', leaf_stripe:'#00875A', leaf_text:'#0B6E3E',
-        host:'#E0F7FA', host_stripe:'#0098B8', host_text:'#006B82',
-        link:'#d0d7de', failed:'#CF3040',
-        GOOD:'#00875A', SKIP:'#D4A017', DENIED:'#5A6B7A', ASSUMED_BAD:'#CF3040',
+        spine:'#d0e4f7', spine_stripe:'#0065A3', spine_text:'#003d66',
+        leaf:'#daf0dc', leaf_stripe:'#3d7a28', leaf_text:'#2d5a1e',
+        host:'#d0f0f5', host_stripe:'#0891b2', host_text:'#065666',
+        link:'#dde0e8', failed:'#dc2626',
+        GOOD:'#3d7a28', SKIP:'#b8860b', DENIED:'#6b7294', ASSUMED_BAD:'#dc2626',
     };
     const C_DARK = {
-        spine:'#0e2a4d', spine_stripe:'#0078D4', spine_text:'#7AB8F0',
-        leaf:'#0e3328', leaf_stripe:'#00875A', leaf_text:'#6BD4A0',
-        host:'#0e2838', host_stripe:'#0098B8', host_text:'#5AC8E0',
-        link:'#263545', failed:'#CF3040',
-        GOOD:'#00875A', SKIP:'#D4A017', DENIED:'#5A6B7A', ASSUMED_BAD:'#CF3040',
+        spine:'#0d2240', spine_stripe:'#4da6e0', spine_text:'#a3d4f5',
+        leaf:'#1a3a2a', leaf_stripe:'#7ed95c', leaf_text:'#a8e8a0',
+        host:'#0e2838', host_stripe:'#30b0d0', host_text:'#80d8e8',
+        link:'#2a3554', failed:'#fca5a5',
+        GOOD:'#7ed95c', SKIP:'#f59e0b', DENIED:'#6b7294', ASSUMED_BAD:'#fca5a5',
     };
-    function getC() { return document.documentElement.getAttribute('data-bs-theme') === 'dark' ? C_DARK : C_LIGHT; }
+    function getC() { return document.documentElement.getAttribute('data-theme') === 'dark' ? C_DARK : C_LIGHT; }
     let C = getC();
     const tileSizes = [
         { w: 120, h: 48, name: 11, role: 8.5, usid: 8, nameY: 17, roleY: 29, usidY: 40, stripe: 4, dotR: 4 },
@@ -253,7 +167,7 @@
     let selectedSrc = '', selectedDst = '';
     let zoomLevel = 1, panX = 0, panY = 0, isPanning = false, panStartX = 0, panStartY = 0;
 
-    function stateColor(s) { return C[s] || '#5A6B7A'; }
+    function stateColor(s) { return C[s] || '#6b7294'; }
 
     // Panel collapse/maximize
     window.togglePanel = function(panelId) {
@@ -714,14 +628,14 @@
         const newEvents = events.slice(lastEventCount);
         newEvents.forEach(evt => {
             const typeColor = {
-                'ECN_RECEIVED': '#D4A017', 'SACK_GENERATED': '#4DA8FF',
-                'SACK_RECEIVED': '#0078D4', 'NACK_RECEIVED': '#D4A017',
-                'ACK_TIMEOUT': '#CF3040', 'EV_STATE_CHANGE': '#FFD166',
-                'PROBE_SENT': '#4DA8FF', 'PROBE_RESPONSE': '#00875A',
-                'CWND_CHANGE': '#7a8a9a', 'TRAFFIC_SHIFT': '#00875A',
-            }[evt.type] || '#d0d8e0';
-            const specRef = evt.spec_ref ? ` <span style="color:#4a5568">(${evt.spec_ref})</span>` : '';
-            el.innerHTML = `<div><span style="color:#4a5568">[T=${evt.time}s]</span> <span style="color:${typeColor}">${evt.detail}</span>${specRef}</div>` + el.innerHTML;
+                'ECN_RECEIVED': '#b8860b', 'SACK_GENERATED': '#0065A3',
+                'SACK_RECEIVED': '#0065A3', 'NACK_RECEIVED': '#b8860b',
+                'ACK_TIMEOUT': '#dc2626', 'EV_STATE_CHANGE': '#b8860b',
+                'PROBE_SENT': '#0065A3', 'PROBE_RESPONSE': '#3d7a28',
+                'CWND_CHANGE': '#8b8fa8', 'TRAFFIC_SHIFT': '#3d7a28',
+            }[evt.type] || '#8b8fa8';
+            const specRef = evt.spec_ref ? ` <span style="color:#8b8fa8">(${evt.spec_ref})</span>` : '';
+            el.innerHTML = `<div><span style="color:#8b8fa8">[T=${evt.time}s]</span> <span style="color:${typeColor}">${evt.detail}</span>${specRef}</div>` + el.innerHTML;
         });
         lastEventCount = events.length;
         if (el.children.length > 500) while (el.children.length > 500) el.removeChild(el.lastChild);
@@ -759,7 +673,7 @@
         const dst = document.getElementById('sim-dst').value;
         if (src && dst && src !== dst && !selectedSrc) { await showSimPaths(); }
         document.getElementById('btn-start').disabled=true; document.getElementById('btn-stop').disabled=false;
-        document.getElementById('run-indicator').innerHTML='<span class="badge bg-success running-pulse ms-2">RUNNING</span>';
+        document.getElementById('run-indicator').innerHTML='<span class="badge badge-success running-pulse" style="margin-left:8px">RUNNING</span>';
         // Set probe mode on simulator
         const probeMode = document.getElementById('probe-mode').value;
         try { await apiCall('/api/traffic/set_probe_mode', 'POST', {probe_mode: probeMode}); } catch(e) {}
@@ -777,7 +691,7 @@
                 if (sr.completed) {
                     // Plan exhausted — restart from step 0, preserving EV state and counters
                     await apiCall('/api/traffic/restart_plan','POST');
-                    log('<span style="color:#0078D4">Plan cycle complete — restarting</span>');
+                    log('<span style="color:#0065A3">Plan cycle complete — restarting</span>');
                     return;
                 }
                 if (sr.error) { stopSimulation(); log('Error: ' + (sr.error || 'unknown')); return; }
@@ -815,7 +729,7 @@
     window.stopSimulation = function() {
         if (simTimer) { clearInterval(simTimer); simTimer=null; }
         document.getElementById('btn-start').disabled=false; document.getElementById('btn-stop').disabled=true;
-        document.getElementById('run-indicator').innerHTML='<span class="badge bg-secondary ms-2">STOPPED</span>';
+        document.getElementById('run-indicator').innerHTML='<span class="badge badge-muted" style="margin-left:8px">STOPPED</span>';
         log('Stopped');
         drawPaths();
     };
@@ -829,7 +743,7 @@
         document.getElementById('m-trimmed').textContent = '0';
         try { await apiCall('/api/traffic/clear_counters', 'POST'); } catch(e) {}
         updateEVTable();
-        log('<span style="color:#0078D4">Packet counters cleared</span>');
+        log('<span style="color:#0065A3">Packet counters cleared</span>');
     };
 
     function updateMetrics(state, step) {
@@ -860,7 +774,7 @@
                     const mFlag = f.response_details?.m_flag_name || 'ECN';
                     log(`<span style="color:${C.SKIP}">Step ${step.step}: ${f.src_host}→${f.dst_host} EV=${evHex} P${plane}S${spine} PSN=${f.psn} — SACK(m=${mFlag}) → ${f.ev_state_after}</span>`);
                 } else {
-                    log(`<span style="color:#7a8a9a">Step ${step.step}: ${f.src_host}→${f.dst_host} EV=${evHex} P${plane}S${spine} PSN=${f.psn} — SACK cwnd=${f.cwnd_after}</span>`);
+                    log(`<span style="color:#8b8fa8">Step ${step.step}: ${f.src_host}→${f.dst_host} EV=${evHex} P${plane}S${spine} PSN=${f.psn} — SACK cwnd=${f.cwnd_after}</span>`);
                 }
             });
         }
@@ -890,8 +804,8 @@
         failedLinks={};
         try { const pr=await apiCall('/api/pathstate'); if(pr&&pr.paths) pathStates=pr.paths; else pathStates.forEach(ps=>{ps.state='GOOD'}); } catch(e){ pathStates.forEach(ps=>{ps.state='GOOD'}); }
         renderFabric(); drawPaths(); updateEVTable();
-        document.getElementById('fail-status').innerHTML='<span style="color:#00875A">Cleared</span>';
-        log('<span style="color:#00875A">All failures cleared — paths restored</span>');
+        document.getElementById('fail-status').innerHTML='<span style="color:#3d7a28">Cleared</span>';
+        log('<span style="color:#3d7a28">All failures cleared — paths restored</span>');
     };
 
     window.onThemeChange = function() { C = getC(); renderFabric(); drawPaths(); };

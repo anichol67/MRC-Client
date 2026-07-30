@@ -1,116 +1,82 @@
 {% extends "base.html" %}
 {% block title %}Topology Builder — MRC emu{% endblock %}
-{% block extra_css %}
-<style>
-    .builder-section { background: var(--cv-bg-card); border: 1px solid var(--cv-border); border-radius: 6px; padding: 16px; margin-bottom: 12px; }
-    .builder-section h6 { color: var(--cv-accent); margin-bottom: 12px; font-size: 0.9rem; }
-    .config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-    .config-item label { font-size: 0.78rem; color: var(--cv-text-muted); }
-    .config-item input, .config-item select { font-size: 0.85rem; }
-    .action-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-    .output-box { background: var(--cv-bg-canvas); border: 1px solid var(--cv-border); border-radius: 6px; padding: 12px;
-                  font-family: monospace; font-size: 0.78rem; max-height: 400px; overflow-y: auto;
-                  white-space: pre-wrap; color: var(--cv-text); }
-    .file-list { list-style: none; padding: 0; }
-    .file-list li { padding: 4px 8px; font-size: 0.82rem; color: var(--cv-text); border-bottom: 1px solid var(--cv-border-subtle); }
-    .file-list li code { color: var(--cv-accent); }
-    .status-msg { font-size: 0.78rem; margin-top: 8px; }
-</style>
-{% endblock %}
 {% block content %}
-<div class="cv-page-header">Topology Builder</div>
+<div class="page-header">Topology Builder</div>
 
 <!-- Fabric Configuration -->
-<div class="builder-section">
-    <h6>Fabric Configuration</h6>
-    <div class="config-grid">
-        <div class="config-item">
-            <label>Planes</label>
-            <input type="number" id="cfg-planes" class="form-control form-control-sm" value="2" min="1" max="8">
-        </div>
-        <div class="config-item">
-            <label>Leafs per Plane</label>
-            <input type="number" id="cfg-leafs" class="form-control form-control-sm" value="4" min="2" max="16">
-        </div>
-        <div class="config-item">
-            <label>Spines per Plane</label>
-            <input type="number" id="cfg-spines" class="form-control form-control-sm" value="2" min="1" max="8">
-        </div>
-        <div class="config-item">
-            <label>Hosts per Leaf</label>
-            <input type="number" id="cfg-hosts" class="form-control form-control-sm" value="1" min="1" max="4">
-        </div>
-        <div class="config-item">
-            <label>IPv6 Base Prefix</label>
-            <input type="text" id="cfg-ipv6" class="form-control form-control-sm" value="fd00::/32">
-        </div>
-        <div class="config-item">
-            <label>SRv6 Base Prefix</label>
-            <input type="text" id="cfg-srv6" class="form-control form-control-sm" value="fcbb::/32">
-        </div>
-        <div class="config-item">
-            <label>cEOS Image</label>
-            <input type="text" id="cfg-ceos" class="form-control form-control-sm" value="arista/ceos:latest">
-        </div>
-        <div class="config-item">
-            <label>QPs per Host Pair</label>
-            <input type="number" id="cfg-qps" class="form-control form-control-sm" value="1" min="1" max="32">
-        </div>
+<div class="panel">
+    <h3>Fabric Configuration</h3>
+    <div class="grid grid-4" style="margin-bottom:12px;">
+        <div class="field"><label>Planes</label>
+            <input type="number" id="cfg-planes" value="2" min="1" max="8"></div>
+        <div class="field"><label>Leafs per Plane</label>
+            <input type="number" id="cfg-leafs" value="4" min="2" max="16"></div>
+        <div class="field"><label>Spines per Plane</label>
+            <input type="number" id="cfg-spines" value="2" min="1" max="8"></div>
+        <div class="field"><label>Hosts per Leaf</label>
+            <input type="number" id="cfg-hosts" value="1" min="1" max="4"></div>
+        <div class="field"><label>IPv6 Base Prefix</label>
+            <input type="text" id="cfg-ipv6" value="fd00::/32"></div>
+        <div class="field"><label>SRv6 Base Prefix</label>
+            <input type="text" id="cfg-srv6" value="fcbb::/32"></div>
+        <div class="field"><label>cEOS Image</label>
+            <input type="text" id="cfg-ceos" value="arista/ceos:latest"></div>
+        <div class="field"><label>QPs per Host Pair</label>
+            <input type="number" id="cfg-qps" value="1" min="1" max="32"></div>
     </div>
     <div class="action-bar">
-        <button class="btn btn-primary btn-sm" onclick="generateTopology()">Generate Topology</button>
-        <button class="btn btn-outline-secondary btn-sm" onclick="downloadClab()">Download .clab.yml</button>
-        <button class="btn btn-outline-secondary btn-sm" onclick="downloadConfigs()">Download Configs</button>
-        <button class="btn btn-outline-info btn-sm" onclick="previewTopology()">Preview</button>
+        <button class="btn-primary" onclick="generateTopology()">Generate Topology</button>
+        <button class="btn-secondary" onclick="downloadClab()">Download .clab.yml</button>
+        <button class="btn-secondary" onclick="downloadConfigs()">Download Configs</button>
+        <button class="btn-info" onclick="previewTopology()">Preview</button>
     </div>
-    <div id="gen-status" class="status-msg"></div>
+    <div id="gen-status" style="font-size:12px;margin-top:8px;"></div>
 </div>
 
 <!-- Generated Files -->
-<div class="builder-section" id="files-section" style="display:none;">
-    <h6>Generated Files</h6>
-    <div class="row">
-        <div class="col-md-4">
-            <h6 style="font-size:0.78rem; color:var(--cv-text-muted);">Topology</h6>
-            <ul class="file-list" id="file-list-topo"></ul>
+<div class="panel" id="files-section" style="display:none;">
+    <h3>Generated Files</h3>
+    <div class="grid grid-3">
+        <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text3);margin-bottom:6px;">Topology</div>
+            <ul id="file-list-topo" style="list-style:none;padding:0;font-size:12px;"></ul>
         </div>
-        <div class="col-md-4">
-            <h6 style="font-size:0.78rem; color:var(--cv-text-muted);">Switch Configs</h6>
-            <ul class="file-list" id="file-list-switches"></ul>
+        <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text3);margin-bottom:6px;">Switch Configs</div>
+            <ul id="file-list-switches" style="list-style:none;padding:0;font-size:12px;"></ul>
         </div>
-        <div class="col-md-4">
-            <h6 style="font-size:0.78rem; color:var(--cv-text-muted);">Host Scripts</h6>
-            <ul class="file-list" id="file-list-hosts"></ul>
+        <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text3);margin-bottom:6px;">Host Scripts</div>
+            <ul id="file-list-hosts" style="list-style:none;padding:0;font-size:12px;"></ul>
         </div>
     </div>
 </div>
 
 <!-- Config Preview -->
-<div class="builder-section" id="preview-section" style="display:none;">
-    <h6>Config Preview <button class="btn btn-outline-secondary btn-sm ms-2" onclick="document.getElementById('preview-section').style.display='none'">Close</button></h6>
-    <div class="output-box" id="config-preview"></div>
+<div class="panel" id="preview-section" style="display:none;">
+    <div class="panel-header">
+        Config Preview
+        <button class="btn-secondary btn-sm" onclick="document.getElementById('preview-section').style.display='none'">Close</button>
+    </div>
+    <pre class="code-output" id="config-preview"></pre>
 </div>
 
 <!-- Deployment -->
-<div class="builder-section">
-    <h6>Deployment</h6>
-    <p style="font-size:0.82rem; color:var(--cv-text-muted);">
-        After generating, deploy the fabric with Containerlab:
-    </p>
-    <div class="output-box" style="max-height:80px;">
-docker build -t mrc-emu .
-containerlab deploy -t topology.clab.yml
-    </div>
+<div class="panel">
+    <h3>Deployment</h3>
+    <p style="font-size:12px;color:var(--text2);">After generating, deploy the fabric with Containerlab:</p>
+    <pre class="code-output" style="max-height:80px;">docker build -t mrc-emu .
+containerlab deploy -t topology.clab.yml</pre>
     <div class="action-bar">
-        <button class="btn btn-outline-warning btn-sm" onclick="pushToSwitches()">Push to Switches (eAPI)</button>
-        <button class="btn btn-outline-info btn-sm" onclick="testConnectivity()">Test Connectivity</button>
+        <button class="btn-warn" onclick="pushToSwitches()">Push to Switches (eAPI)</button>
+        <button class="btn-info" onclick="testConnectivity()">Test Connectivity</button>
     </div>
-    <div id="deploy-status" class="status-msg"></div>
+    <div id="deploy-status" style="font-size:12px;margin-top:8px;"></div>
 </div>
 
 <!-- Fabric Summary -->
-<div class="builder-section" id="summary-section" style="display:none;">
-    <h6>Fabric Summary</h6>
+<div class="panel" id="summary-section" style="display:none;">
+    <h3>Fabric Summary</h3>
     <div id="fabric-summary"></div>
 </div>
 
@@ -136,20 +102,18 @@ containerlab deploy -t topology.clab.yml
             const switches = r.nodes.filter(n => n.role !== 'host');
 
             document.getElementById('gen-status').innerHTML =
-                `<span style="color:#00875A">✓ Generated: ${switches.length} switches, ${hosts.length} hosts, ${Object.keys(r.paths).length} path pairs</span>`;
+                `<span class="success-msg" style="display:inline-block;">✓ Generated: ${switches.length} switches, ${hosts.length} hosts, ${Object.keys(r.paths).length} path pairs</span>`;
 
-            // Show file lists
             document.getElementById('files-section').style.display = '';
             document.getElementById('file-list-topo').innerHTML =
-                '<li><code>topology.clab.yml</code></li>';
+                '<li style="padding:3px 0;border-bottom:1px solid var(--border);"><code>topology.clab.yml</code></li>';
             document.getElementById('file-list-switches').innerHTML =
-                switches.map(n => `<li><code>configs/${n.name}.cfg</code></li>`).join('');
+                switches.map(n => `<li style="padding:3px 0;border-bottom:1px solid var(--border);"><code>configs/${n.name}.cfg</code></li>`).join('');
             document.getElementById('file-list-hosts').innerHTML =
-                hosts.map(n => `<li><code>configs/${n.name}-startup.sh</code></li>`).join('');
+                hosts.map(n => `<li style="padding:3px 0;border-bottom:1px solid var(--border);"><code>configs/${n.name}startup.sh</code></li>`).join('');
 
-            // Show summary
             document.getElementById('summary-section').style.display = '';
-            let summaryHtml = `<div style="font-size:0.82rem;">`;
+            let summaryHtml = `<div style="font-size:13px;">`;
             summaryHtml += `<strong>Planes:</strong> ${config.num_planes} | `;
             summaryHtml += `<strong>Leafs/plane:</strong> ${config.leafs_per_plane} | `;
             summaryHtml += `<strong>Spines/plane:</strong> ${config.spines_per_plane} | `;
@@ -163,13 +127,13 @@ containerlab deploy -t topology.clab.yml
 
         } catch(e) {
             document.getElementById('gen-status').innerHTML =
-                `<span style="color:#CF3040">Error: ${e.message}</span>`;
+                `<span class="error-msg" style="display:inline-block;">Error: ${e.message}</span>`;
         }
     }
 
     async function downloadClab() {
         try {
-            const resp = await fetch('/api/topology/clab_yaml');
+            const resp = await fetch(SCRIPT_ROOT + '/api/topology/clab_yaml');
             const blob = await resp.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -195,7 +159,7 @@ containerlab deploy -t topology.clab.yml
         if (!generatedTopo) { alert('Generate topology first'); return; }
         document.getElementById('preview-section').style.display = '';
         try {
-            const resp = await fetch('/api/topology/clab_yaml');
+            const resp = await fetch(SCRIPT_ROOT + '/api/topology/clab_yaml');
             const yaml = await resp.text();
             document.getElementById('config-preview').textContent = yaml;
         } catch(e) {
@@ -205,7 +169,7 @@ containerlab deploy -t topology.clab.yml
 
     async function pushToSwitches() {
         document.getElementById('deploy-status').innerHTML =
-            '<span style="color:#D4A017">Pushing configs to switches via eAPI...</span>';
+            '<span class="warn-box" style="display:inline-block;">Pushing configs to switches via eAPI...</span>';
         try {
             const r = await apiCall('/api/topology/provision', 'POST', {action: 'push'});
             const results = Object.entries(r).map(([name, res]) =>
@@ -213,21 +177,21 @@ containerlab deploy -t topology.clab.yml
             document.getElementById('deploy-status').innerHTML = results;
         } catch(e) {
             document.getElementById('deploy-status').innerHTML =
-                `<span style="color:#CF3040">Error: ${e.message}</span>`;
+                `<span class="error-msg" style="display:inline-block;">Error: ${e.message}</span>`;
         }
     }
 
     async function testConnectivity() {
         document.getElementById('deploy-status').innerHTML =
-            '<span style="color:#D4A017">Testing connectivity...</span>';
+            '<span class="warn-box" style="display:inline-block;">Testing connectivity...</span>';
         try {
             const r = await apiCall('/api/topology/provision', 'POST', {action: 'test'});
             const results = Object.entries(r).map(([name, ok]) =>
-                `${name}: ${ok ? '<span style="color:#00875A">✓ reachable</span>' : '<span style="color:#CF3040">✗ unreachable</span>'}`).join('<br>');
+                `${name}: ${ok ? '<span style="color:var(--teal800)">✓ reachable</span>' : '<span style="color:var(--coral800)">✗ unreachable</span>'}`).join('<br>');
             document.getElementById('deploy-status').innerHTML = results;
         } catch(e) {
             document.getElementById('deploy-status').innerHTML =
-                `<span style="color:#CF3040">Error: ${e.message}</span>`;
+                `<span class="error-msg" style="display:inline-block;">Error: ${e.message}</span>`;
         }
     }
 </script>

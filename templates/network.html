@@ -3,82 +3,74 @@
 {% block content %}
 <h4>IPv6 Network Configuration</h4>
 {% if not privileged %}
-<div class="alert alert-warning">Read-only mode. Run with sudo for route/neighbor modifications.</div>
+<div class="warn-box">Read-only mode. Run with sudo for route/neighbor modifications.</div>
 {% endif %}
 
-<div class="row">
-    <div class="col-md-7">
-        <div class="card">
-            <div class="card-header">IPv6 Routing Table</div>
-            <div class="card-body">
-                <table class="table table-sm">
-                    <thead><tr><th>Destination</th><th>Next Hop</th><th>Interface</th><th>Metric</th><th>Proto</th><th></th></tr></thead>
-                    <tbody>
-                    {% for r in routes %}
-                    <tr>
-                        <td><code>{{ r.destination }}</code></td>
-                        <td>{{ r.next_hop or '-' }}</td>
-                        <td>{{ r.interface }}</td>
-                        <td>{{ r.metric }}</td>
-                        <td>{{ r.protocol }}</td>
-                        <td><button class="btn btn-sm btn-outline-danger" onclick="delRoute('{{ r.destination }}','{{ r.next_hop }}','{{ r.interface }}')">Del</button></td>
-                    </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+<div class="grid grid-sidebar-wide">
+    <div>
+        <div class="panel">
+            <div class="panel-header">IPv6 Routing Table</div>
+            <table class="data-table">
+                <thead><tr><th>Destination</th><th>Next Hop</th><th>Interface</th><th>Metric</th><th>Proto</th><th></th></tr></thead>
+                <tbody>
+                {% for r in routes %}
+                <tr>
+                    <td><code>{{ r.destination }}</code></td>
+                    <td>{{ r.next_hop or '-' }}</td>
+                    <td>{{ r.interface }}</td>
+                    <td>{{ r.metric }}</td>
+                    <td>{{ r.protocol }}</td>
+                    <td><button class="btn-danger btn-sm" onclick="delRoute('{{ r.destination }}','{{ r.next_hop }}','{{ r.interface }}')">Del</button></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
         </div>
-        <div class="card">
-            <div class="card-header">IPv6 Neighbors</div>
-            <div class="card-body">
-                <table class="table table-sm">
-                    <thead><tr><th>IPv6</th><th>MAC</th><th>Interface</th><th>State</th></tr></thead>
-                    <tbody>
-                    {% for n in neighbors %}
-                    <tr>
-                        <td><code>{{ n.ipv6 }}</code></td>
-                        <td><code>{{ n.mac }}</code></td>
-                        <td>{{ n.interface }}</td>
-                        <td>{{ n.state }}</td>
-                    </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+        <div class="panel">
+            <div class="panel-header">IPv6 Neighbors</div>
+            <table class="data-table">
+                <thead><tr><th>IPv6</th><th>MAC</th><th>Interface</th><th>State</th></tr></thead>
+                <tbody>
+                {% for n in neighbors %}
+                <tr>
+                    <td><code>{{ n.ipv6 }}</code></td>
+                    <td><code>{{ n.mac }}</code></td>
+                    <td>{{ n.interface }}</td>
+                    <td>{{ n.state }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
-    <div class="col-md-5">
-        <div class="card">
-            <div class="card-header">Add Route</div>
-            <div class="card-body">
-                <div class="mb-2"><label class="form-label">Destination</label>
-                    <input type="text" id="rt-dest" class="form-control form-control-sm" placeholder="fd00:1::/64"></div>
-                <div class="mb-2"><label class="form-label">Next Hop</label>
-                    <input type="text" id="rt-nh" class="form-control form-control-sm" placeholder="fe80::1"></div>
-                <div class="mb-2"><label class="form-label">Interface</label>
-                    <select id="rt-iface" class="form-select form-select-sm">
-                        {% for iface in interfaces %}<option value="{{ iface.name }}">{{ iface.name }}</option>{% endfor %}
-                    </select></div>
-                <div class="mb-2"><label class="form-label">Metric</label>
-                    <input type="number" id="rt-metric" class="form-control form-control-sm" value="1024"></div>
-                <button class="btn btn-sm btn-primary" onclick="addRoute()">Add Route</button>
-                <div id="rt-result" class="mt-2"></div>
-            </div>
+    <div>
+        <div class="panel">
+            <div class="panel-header">Add Route</div>
+            <div class="field"><label>Destination</label>
+                <input type="text" id="rt-dest" placeholder="fd00:1::/64"></div>
+            <div class="field"><label>Next Hop</label>
+                <input type="text" id="rt-nh" placeholder="fe80::1"></div>
+            <div class="field"><label>Interface</label>
+                <select id="rt-iface">
+                    {% for iface in interfaces %}<option value="{{ iface.name }}">{{ iface.name }}</option>{% endfor %}
+                </select></div>
+            <div class="field"><label>Metric</label>
+                <input type="number" id="rt-metric" value="1024"></div>
+            <button class="btn-primary btn-sm" onclick="addRoute()">Add Route</button>
+            <div id="rt-result" class="mt-2"></div>
         </div>
-        <div class="card">
-            <div class="card-header">Add Static Neighbor</div>
-            <div class="card-body">
-                <div class="mb-2"><label class="form-label">IPv6</label>
-                    <input type="text" id="neigh-ipv6" class="form-control form-control-sm" placeholder="fd00::2"></div>
-                <div class="mb-2"><label class="form-label">MAC</label>
-                    <input type="text" id="neigh-mac" class="form-control form-control-sm" placeholder="00:11:22:33:44:55"></div>
-                <div class="mb-2"><label class="form-label">Interface</label>
-                    <select id="neigh-iface" class="form-select form-select-sm">
-                        {% for iface in interfaces %}<option value="{{ iface.name }}">{{ iface.name }}</option>{% endfor %}
-                    </select></div>
-                <button class="btn btn-sm btn-primary" onclick="addNeighbor()">Add Neighbor</button>
-                <div id="neigh-result" class="mt-2"></div>
-            </div>
+        <div class="panel">
+            <div class="panel-header">Add Static Neighbor</div>
+            <div class="field"><label>IPv6</label>
+                <input type="text" id="neigh-ipv6" placeholder="fd00::2"></div>
+            <div class="field"><label>MAC</label>
+                <input type="text" id="neigh-mac" placeholder="00:11:22:33:44:55"></div>
+            <div class="field"><label>Interface</label>
+                <select id="neigh-iface">
+                    {% for iface in interfaces %}<option value="{{ iface.name }}">{{ iface.name }}</option>{% endfor %}
+                </select></div>
+            <button class="btn-primary btn-sm" onclick="addNeighbor()">Add Neighbor</button>
+            <div id="neigh-result" class="mt-2"></div>
         </div>
     </div>
 </div>
@@ -92,7 +84,7 @@ async function addRoute() {
         interface: document.getElementById('rt-iface').value,
         metric: parseInt(document.getElementById('rt-metric').value),
     });
-    document.getElementById('rt-result').innerHTML = r.error ? `<div class="alert alert-danger p-1">${r.error}</div>` : '<div class="alert alert-success p-1">Added</div>';
+    document.getElementById('rt-result').innerHTML = r.error ? `<div class="error-msg">${r.error}</div>` : '<div class="success-msg">Added</div>';
 }
 async function delRoute(dest, nh, iface) {
     await apiCall('/api/network/routes', 'DELETE', {destination: dest, next_hop: nh, interface: iface});
@@ -104,7 +96,7 @@ async function addNeighbor() {
         mac: document.getElementById('neigh-mac').value,
         interface: document.getElementById('neigh-iface').value,
     });
-    document.getElementById('neigh-result').innerHTML = r.error ? `<div class="alert alert-danger p-1">${r.error}</div>` : '<div class="alert alert-success p-1">Added</div>';
+    document.getElementById('neigh-result').innerHTML = r.error ? `<div class="error-msg">${r.error}</div>` : '<div class="success-msg">Added</div>';
 }
 </script>
 {% endblock %}

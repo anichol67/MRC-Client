@@ -2,82 +2,76 @@
 {% block title %}Path Probing — MRC Emulator{% endblock %}
 {% block content %}
 <h4>Path Probing</h4>
-<div class="row">
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">Send Probe</div>
-            <div class="card-body">
-                <div class="mb-2"><label class="form-label">Target IPv6</label>
-                    <input type="text" id="pr-target" class="form-control form-control-sm" value="::1"></div>
-                <div class="mb-2"><label class="form-label">Probe Type</label>
-                    <select id="pr-type" class="form-select form-select-sm" onchange="updateProbeFields()">
-                        <option value="EV_PROBE">EV Probe</option>
-                        <option value="RELIABILITY_PROBE">Reliability Probe</option>
-                        <option value="PORT_STATUS_UPDATE">Port Status Update</option>
-                    </select></div>
-                <div class="mb-2"><label class="form-label">EV Value</label>
-                    <input type="text" id="pr-ev" class="form-control form-control-sm" value="0"></div>
-                <div id="rel-probe-fields" style="display:none">
-                    <div class="mb-2"><label class="form-label">Target QPN</label>
-                        <input type="number" id="pr-tqpn" class="form-control form-control-sm" value="3"></div>
-                    <div class="mb-2"><label class="form-label">Source QPN</label>
-                        <input type="number" id="pr-sqpn" class="form-control form-control-sm" value="3"></div>
-                </div>
-                <div id="port-status-fields" style="display:none">
-                    <div class="mb-2"><label class="form-label">Port Status Mask (hex)</label>
-                        <input type="text" id="pr-mask" class="form-control form-control-sm" value="0xF"></div>
-                </div>
-                <button class="btn btn-sm btn-primary" onclick="sendProbe()">Send Probe</button>
-                <div id="pr-result" class="mt-2"></div>
+<div class="grid grid-sidebar">
+    <div>
+        <div class="panel">
+            <div class="panel-header">Send Probe</div>
+            <div class="field mb-2"><label>Target IPv6</label>
+                <input type="text" id="pr-target" value="::1"></div>
+            <div class="field mb-2"><label>Probe Type</label>
+                <select id="pr-type" onchange="updateProbeFields()">
+                    <option value="EV_PROBE">EV Probe</option>
+                    <option value="RELIABILITY_PROBE">Reliability Probe</option>
+                    <option value="PORT_STATUS_UPDATE">Port Status Update</option>
+                </select></div>
+            <div class="field mb-2"><label>EV Value</label>
+                <input type="text" id="pr-ev" value="0"></div>
+            <div id="rel-probe-fields" style="display:none">
+                <div class="field mb-2"><label>Target QPN</label>
+                    <input type="number" id="pr-tqpn" value="3"></div>
+                <div class="field mb-2"><label>Source QPN</label>
+                    <input type="number" id="pr-sqpn" value="3"></div>
             </div>
+            <div id="port-status-fields" style="display:none">
+                <div class="field mb-2"><label>Port Status Mask (hex)</label>
+                    <input type="text" id="pr-mask" value="0xF"></div>
+            </div>
+            <button class="btn-primary btn-sm" onclick="sendProbe()">Send Probe</button>
+            <div id="pr-result" class="mt-2"></div>
         </div>
-        <div class="card">
-            <div class="card-header">Probe All EVs</div>
-            <div class="card-body">
-                <div class="mb-2"><label class="form-label">Target IPv6</label>
-                    <input type="text" id="pra-target" class="form-control form-control-sm" value="::1"></div>
-                <div class="mb-2"><label class="form-label">EV Profile ID</label>
-                    <select id="pra-profile" class="form-select form-select-sm">
-                        {% for p in ev_profiles %}<option value="{{ p.profile_id }}">{{ p.name }} ({{ p.total_count }} EVs)</option>{% endfor %}
-                    </select></div>
-                <div class="mb-2"><label class="form-label">Probe Type</label>
-                    <select id="pra-type" class="form-select form-select-sm">
-                        <option value="EV_PROBE">EV Probe</option>
-                        <option value="RELIABILITY_PROBE">Reliability Probe</option>
-                    </select></div>
-                <button class="btn btn-sm btn-success" onclick="probeAll()">Probe All</button>
-                <div id="pra-result" class="mt-2"></div>
-            </div>
+        <div class="panel">
+            <div class="panel-header">Probe All EVs</div>
+            <div class="field mb-2"><label>Target IPv6</label>
+                <input type="text" id="pra-target" value="::1"></div>
+            <div class="field mb-2"><label>EV Profile ID</label>
+                <select id="pra-profile">
+                    {% for p in ev_profiles %}<option value="{{ p.profile_id }}">{{ p.name }} ({{ p.total_count }} EVs)</option>{% endfor %}
+                </select></div>
+            <div class="field mb-2"><label>Probe Type</label>
+                <select id="pra-type">
+                    <option value="EV_PROBE">EV Probe</option>
+                    <option value="RELIABILITY_PROBE">Reliability Probe</option>
+                </select></div>
+            <button class="btn-accent btn-sm" onclick="probeAll()">Probe All</button>
+            <div id="pra-result" class="mt-2"></div>
         </div>
     </div>
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">Probe Sessions</div>
-            <div class="card-body">
-                {% for target, session in probe_data.get('sessions', {}).items() %}
-                <h6>Target: <code>{{ target }}</code> — {{ session.outstanding|length }} outstanding, {{ session.results|length }} results</h6>
-                {% if session.results %}
-                <table class="table table-sm">
-                    <thead><tr><th>Probe ID</th><th>Type</th><th>EV</th><th>RTT (us)</th><th>Reachable</th><th>M Flag</th></tr></thead>
-                    <tbody>
-                    {% for r in session.results[-20:] %}
-                    <tr>
-                        <td>{{ r.probe_id }}</td>
-                        <td>{{ r.probe_type }}</td>
-                        <td><code>0x{{ '%08X' % r.ev_value }}</code></td>
-                        <td>{{ '%.1f' % r.rtt_us }}</td>
-                        <td><span class="badge {{ 'bg-success' if r.reachable else 'bg-danger' }}">{{ 'Yes' if r.reachable else 'No' }}</span></td>
-                        <td>{{ r.get('m_flag_name', r.get('m_flag', '-')) }}</td>
-                    </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-                {% endif %}
+    <div>
+        <div class="panel">
+            <div class="panel-header">Probe Sessions</div>
+            {% for target, session in probe_data.get('sessions', {}).items() %}
+            <h6>Target: <code>{{ target }}</code> — {{ session.outstanding|length }} outstanding, {{ session.results|length }} results</h6>
+            {% if session.results %}
+            <table class="data-table">
+                <thead><tr><th>Probe ID</th><th>Type</th><th>EV</th><th>RTT (us)</th><th>Reachable</th><th>M Flag</th></tr></thead>
+                <tbody>
+                {% for r in session.results[-20:] %}
+                <tr>
+                    <td>{{ r.probe_id }}</td>
+                    <td>{{ r.probe_type }}</td>
+                    <td><code>0x{{ '%08X' % r.ev_value }}</code></td>
+                    <td>{{ '%.1f' % r.rtt_us }}</td>
+                    <td><span class="badge {{ 'badge-success' if r.reachable else 'badge-danger' }}">{{ 'Yes' if r.reachable else 'No' }}</span></td>
+                    <td>{{ r.get('m_flag_name', r.get('m_flag', '-')) }}</td>
+                </tr>
                 {% endfor %}
-                {% if not probe_data.get('sessions') %}
-                <div class="text-muted">No probe sessions yet. Send a probe to start.</div>
-                {% endif %}
-            </div>
+                </tbody>
+            </table>
+            {% endif %}
+            {% endfor %}
+            {% if not probe_data.get('sessions') %}
+            <div class="text-muted">No probe sessions yet. Send a probe to start.</div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -105,8 +99,8 @@ async function sendProbe() {
     }
     const r = await apiCall('/api/probing/probe', 'POST', body);
     document.getElementById('pr-result').innerHTML = r.error
-        ? `<div class="alert alert-danger p-1">${r.error}</div>`
-        : `<div class="alert alert-info p-1">Probe #${r.probe_id} sent (${r.probe_type})</div>`;
+        ? `<div class="error-msg">${r.error}</div>`
+        : `<div class="note-box">Probe #${r.probe_id} sent (${r.probe_type})</div>`;
 }
 async function probeAll() {
     const r = await apiCall('/api/probing/probe_all', 'POST', {
@@ -115,8 +109,8 @@ async function probeAll() {
         probe_type: document.getElementById('pra-type').value,
     });
     document.getElementById('pra-result').innerHTML = r.error
-        ? `<div class="alert alert-danger p-1">${r.error}</div>`
-        : `<div class="alert alert-success p-1">${r.count} probes queued</div>`;
+        ? `<div class="error-msg">${r.error}</div>`
+        : `<div class="success-msg">${r.count} probes queued</div>`;
 }
 </script>
 {% endblock %}

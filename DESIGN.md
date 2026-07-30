@@ -982,6 +982,19 @@ docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/anichol67/mrc-
 - Static management IPv4 addresses assigned to all nodes for predictable SSH access
 - Requirements expanded to 63 total
 
+### 2026-07-30 — Full restyle to Arista design guide
+- Replaced Bootstrap 5.3 with custom Arista design system from `design-guide.html`
+- Barlow + Fira Code fonts via Google Fonts (was system fonts + Bootstrap)
+- New layout: fixed topbar with Arista SVG logo + dark sidebar nav + scrollable main content
+- Light/dark theme via `data-theme` attribute on `<html>` (was `data-bs-theme`)
+- All CSS tokens defined on `:root` (light) with `[data-theme="dark"]` overrides
+- Primary: `#0065A3` (Arista blue), Accent: `#6CC24A` (Arista green)
+- Component classes: `.panel`, `.data-table`, `.field`, `.btn-primary`/`.btn-secondary`/`.btn-ghost`/`.btn-accent`/`.btn-danger`, `.badge`, `.metrics-grid`, `.tabs-bar`, `.note-box`/`.warn-box`/`.error-msg`
+- Grid layout system: `.grid .grid-sidebar`, `.grid-2`, `.grid-3`, `.grid-4` (replaces Bootstrap row/col)
+- All 14 templates updated — zero Bootstrap classes remain
+- Custom tab switching for topology.html (was Bootstrap `data-bs-toggle="tab"`)
+- Topology SVG dual color constants (`C_LIGHT`/`C_DARK`) updated for design guide palette
+
 ---
 
 ## Running
