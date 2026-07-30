@@ -61,12 +61,15 @@ class EOSNodeConfig:
     role: str                          # 'spine' or 'leaf'
     plane: int
     index: int
-    loopback_ipv6: str
+    loopback_ipv6: str                 # SRv6 locator prefix e.g. 'fc00:42:10::/48'
     interfaces: dict[str, str] = field(default_factory=dict)  # iface -> ipv6/mask
     static_routes: list[dict] = field(default_factory=list)    # [{prefix, next_hop}]
-    srv6_locator: str = ''             # e.g. 'fcbb:0:20::/48'
-    srv6_usid: int = 0                 # e.g. 0x0020
-    srv6_transit: bool = True
+    srv6_block: str = 'fc00:42::/32'   # micro-segment domain block
+    srv6_locator: str = ''             # derived locator prefix e.g. 'fc00:42:10::/48'
+    srv6_usid: int = 0                 # e.g. 0x10
+    srv6_encap_source: str = ''        # global IPv6 for encapsulation source
+    srv6_domain: str = 'MRC'           # micro-segment domain name
+    srv6_locator_name: str = 'LOC1'    # locator name
     srv6_locator_routes: list[dict] = field(default_factory=list)  # [{prefix, next_hop}]
     ecn_enabled: bool = True
     ecn_min_thresh: int = 100          # KB, start marking
@@ -83,9 +86,11 @@ class EOSNodeConfig:
             'loopback_ipv6': self.loopback_ipv6,
             'interfaces': self.interfaces,
             'static_routes': self.static_routes,
+            'srv6_block': self.srv6_block,
             'srv6_locator': self.srv6_locator,
             'srv6_usid': hex(self.srv6_usid) if self.srv6_usid else '0x0',
-            'srv6_transit': self.srv6_transit,
+            'srv6_encap_source': self.srv6_encap_source,
+            'srv6_domain': self.srv6_domain,
             'ecn_enabled': self.ecn_enabled,
             'ecn_min_thresh': self.ecn_min_thresh,
             'ecn_max_thresh': self.ecn_max_thresh,
@@ -186,7 +191,7 @@ class EOSProvisioner:
         cmds.append('ipv6 unicast-routing')
         cmds.append('!')
 
-        # Loopback0
+        # Loopback0 — set to SRv6 locator prefix (block + uSID)
         cmds.append('interface Loopback0')
         cmds.append(f'   ipv6 address {node_config.loopback_ipv6}')
         cmds.append('!')
@@ -207,24 +212,19 @@ class EOSProvisioner:
         if node_config.static_routes:
             cmds.append('!')
 
-        # SRv6 configuration (EOS 4.32+ uSID F3216)
+        # SRv6 configuration (EOS 4.32+ router srv6 syntax)
         if node_config.srv6_locator:
-            locator_name = f'LOC-{node_config.hostname.upper()}'
-            cmds.append('router segment-routing')
-            cmds.append('   srv6')
-            cmds.append('      encapsulation source-address Loopback0')
-            cmds.append(f'      locator {locator_name}')
-            cmds.append(f'         prefix {node_config.srv6_locator}')
-            cmds.append('         micro-segment behavior uN')
+            cmds.append('router srv6')
+            cmds.append('   vrf default')
+            if node_config.srv6_encap_source:
+                cmds.append(f'      local address {node_config.srv6_encap_source}')
             cmds.append('      !')
-            cmds.append('   !')
-            cmds.append('!')
-
-        # SRv6 transit (enables uSID pop-and-shift forwarding)
-        if node_config.srv6_transit:
-            cmds.append('segment-routing')
-            cmds.append('   srv6')
-            cmds.append('      transit')
+            cmds.append(f'      micro-segment domain {node_config.srv6_domain}')
+            cmds.append(f'         block {node_config.srv6_block}')
+            cmds.append('      !')
+            cmds.append(f'      locator {node_config.srv6_locator_name}')
+            usid_hex = f'0x{node_config.srv6_usid:02x}' if node_config.srv6_usid else '0x0'
+            cmds.append(f'         prefix micro-segment domain {node_config.srv6_domain} end usid {usid_hex}')
             cmds.append('!')
 
         # Static routes to all remote SRv6 locator prefixes

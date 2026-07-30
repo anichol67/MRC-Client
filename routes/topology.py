@@ -34,6 +34,14 @@ def topology_builder_page():
     return render_template('topology_builder.html')
 
 
+@topology_bp.route('/configuration')
+def configuration_page():
+    gen = _topology_state.get('generator')
+    topo_data = gen.to_dict() if gen else None
+    return render_template('configuration.html', topo=topo_data)
+
+
+@topology_bp.route('/')
 @topology_bp.route('/topology')
 def topology_page():
     gen = _topology_state.get('generator')

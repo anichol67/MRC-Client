@@ -84,6 +84,10 @@
 | 68 | Phase 1: SRv6 base address configurable per plane or both planes | §68 |
 | 69 | Phase 1: uSID derivation modes — per-plane base, per-layer-per-plane base, or individual | §69 |
 | 70 | Phase 1: Push config to single switch or all switches via eAPI | §70 |
+| 71 | Phase 1: Simplified 4-tab sidebar (Topology, Configuration, Simulator, Traffic) | §71 |
+| 72 | Phase 1: Correct EOS SRv6 CLI syntax (`router srv6`, micro-segment domain MRC) | §72 |
+| 73 | Phase 1: Host config fixed — only SRv6 overlay changes, controller updates in-memory state | §73 |
+| 74 | Phase 1: Configuration tab — SRv6 block, uSID values, encapsulation source block | §74 |
 
 ---
 
@@ -914,6 +918,99 @@ Push uses eAPI (JSON-RPC over HTTPS) to the switch's management IP with admin/ad
 
 **Why**: Per-switch push enables incremental testing. Push-all enables bulk reconfiguration.
 
+### 71. Simplified 4-Tab Sidebar
+**Decision**: Phase 1 GUI has four main tabs in the sidebar, replacing the previous 14-link navigation.
+
+```
+ARISTA
+MRC emu
+
+─── Main ───
+  Topology
+  Configuration
+  Simulator
+  Traffic
+```
+
+| Tab | Purpose |
+|-----|---------|
+| **Topology** | Read-only view of the fixed 2-plane fabric — nodes, links, IPv6, SRv6, uSIDs |
+| **Configuration** | Edit SRv6 block, uSID values, encapsulation source; push to switches via eAPI |
+| **Simulator** | Offline simulation — flow definition, topology SVG with path highlighting, EV state, event log |
+| **Traffic** | Live traffic generation — NCCL collectives, packet spraying, real packet I/O to hosts |
+
+Previous sub-pages (EV Profiles, Queue Pairs, Packets, CC, Probing, Faults, Host Config, Network) become sub-sections or features within these four tabs.
+
+**Why**: Four focused tabs reduce navigation complexity and match the phase 1 workflow: view topology → configure SRv6 → simulate offline → generate live traffic.
+
+### 72. Correct EOS SRv6 CLI Syntax
+**Decision**: Use the current Arista EOS `router srv6` syntax with micro-segment domain, replacing the old `router segment-routing` / `srv6` syntax.
+
+Per-switch SRv6 configuration:
+
+```
+router srv6
+   vrf default
+      local address 2001:db8:0:10::1           ◄── encapsulation source (global IPv6)
+      !
+      micro-segment domain MRC
+         block fc00:42::/32                      ◄── SRv6 base address
+      !
+      locator LOC1
+         prefix micro-segment domain MRC end usid 0x10   ◄── node uSID value
+!
+interface Loopback0
+   ipv6 address fc00:42:10::/48                 ◄── derived: block + uSID = locator prefix
+!
+ipv6 route fc00:42:20::/48 fd00:0:20:10::0     ◄── static routes to peer uN uSIDs
+ipv6 route fc00:42:21::/48 fd00:0:21:10::0
+```
+
+Key elements:
+- **Domain name**: `MRC` (fixed)
+- **Block**: SRv6 base address per plane (e.g., `fc00:42::/32`)
+- **`end usid`**: per-node uSID value — locator = block + uSID as `/48`
+- **`local address`**: encapsulation source — globally routable IPv6, separate from SRv6 block
+- **Loopback0**: set to the locator prefix (`fc00:42:10::/48`)
+- **Static routes**: to each peer's locator prefix via P2P next-hop
+- **No `transit` block required**
+
+**Why**: This is the current Arista EOS 4.32+ SRv6 uSID CLI syntax. The old `router segment-routing` syntax is incorrect.
+
+### 73. Host Config Fixed — SRv6 Overlay Only
+**Decision**: In phase 1, host P2P IPv6 addresses are fixed and never change. Only the SRv6 overlay configuration changes.
+
+- Host startup scripts (`configs/host*startup.sh`) are static — `fd00::/32` P2P addresses don't change
+- When the user edits SRv6 block/uSID in the Configuration tab, the controller updates its **in-memory topology state**
+- The Simulator and Traffic tabs read the current SRv6 mappings from the controller's state to construct packets with correct SRv6 encapsulation
+- No host reconfiguration is needed — hosts craft SRv6 packets using the controller's current mappings
+
+**Why**: Decouples the SRv6 overlay from the underlay addressing. The underlay (P2P links) is stable; only the overlay (SRv6 locators, uSIDs) needs to be flexible for testing.
+
+### 74. Configuration Tab — Editable Fields
+**Decision**: The Configuration tab provides four configurable blocks:
+
+| Field | Scope | Description |
+|-------|-------|-------------|
+| **SRv6 block** | Per plane or both | The micro-segment domain block address (e.g., `fc00:42::/32`) |
+| **uSID values** | Per-plane base, per-layer-per-plane base, or individual | Node uSID assignment strategy |
+| **Encapsulation source block** | Per node (derived from base) | Global IPv6 for `local address` in `router srv6` |
+| **P2P interface addresses** | Fixed in phase 1 | `fd00::/32` — displayed read-only |
+
+uSID derivation modes:
+- **Per-plane base**: one base uSID for all nodes in a plane, derive sequentially
+- **Per-layer-per-plane base**: separate spine base and leaf base per plane
+- **Individual**: manually set each node's uSID
+
+When confirmed, the controller:
+1. Recomputes all SRv6 locator prefixes from block + uSID
+2. Recomputes static routes to peer locators
+3. Updates in-memory topology state for Simulator/Traffic
+4. Generates EOS config commands for affected switches
+5. User pushes to single switch or all switches
+
+**Why**: Covers the full range of SRv6 configuration scenarios needed for MRC testing — from simple single-base setups to complex per-node uSID assignments.
+
 ---
 
 ## Conversation Log
@@ -1095,6 +1192,15 @@ Push uses eAPI (JSON-RPC over HTTPS) to the switch's management IP with admin/ad
 - uSID derivation: per-plane base, per-layer-per-plane base (different base for spines vs leafs), or individual per-node
 - Push config to single switch or all switches via eAPI
 - Requirements expanded to 70 total
+
+### 2026-07-30 — Phase 1 implementation: sidebar, SRv6 syntax, config tab
+- Simplified sidebar to 4 tabs: Topology, Configuration, Simulator, Traffic
+- Corrected EOS SRv6 CLI syntax: `router srv6` with micro-segment domain MRC, `end usid` locators
+- Encapsulation source as separate global IPv6 (`local address` in `router srv6`)
+- Loopback0 set to SRv6 locator prefix (block + uSID = `/48`)
+- Host config fixed — only SRv6 overlay changes, controller updates in-memory state
+- Configuration tab: SRv6 block, uSID values, encapsulation source block, P2P addresses (read-only)
+- Requirements expanded to 74 total
 
 ---
 

@@ -50,7 +50,9 @@ class TopologyConfig:
     spines_per_plane: int = 2
     hosts_per_leaf: int = 1
     ipv6_base: str = 'fd00::/32'
-    srv6_base: str = 'fcbb::/32'
+    srv6_base: str = 'fc00:42::/32'
+    srv6_base_plane1: str = 'fc00:43::/32'
+    srv6_encap_base: str = '2001:db8::/32'
     ceos_image: str = 'arista/ceos:latest'
     mrc_image: str = 'ghcr.io/anichol67/mrc-emu:latest'
     management_network: str = '172.20.0.0/24'
@@ -575,6 +577,9 @@ class TopologyGenerator:
             if node.role == 'host':
                 continue
             srv6_routes = self.get_srv6_locator_routes(node.name)
+            srv6_block = self.config.srv6_base if node.plane == 0 else self.config.srv6_base_plane1
+            rid = self._role_id(node.role, node.index)
+            encap_source = f'2001:db8:{node.plane}:{rid:02x}::1'
             configs.append({
                 'hostname': node.name,
                 'role': node.role,
@@ -583,8 +588,10 @@ class TopologyGenerator:
                 'loopback_ipv6': node.loopback_ipv6,
                 'interfaces': dict(node.interfaces),
                 'static_routes': [],
+                'srv6_block': srv6_block,
                 'srv6_locator': node.srv6_locator,
                 'srv6_usid': node.usid,
+                'srv6_encap_source': encap_source,
                 'srv6_locator_routes': srv6_routes,
             })
         return configs

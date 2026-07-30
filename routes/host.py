@@ -3,7 +3,6 @@ from flask import Blueprint, render_template, request, jsonify, current_app
 host_bp = Blueprint('host', __name__)
 
 
-@host_bp.route('/')
 @host_bp.route('/host')
 def host_config():
     net = current_app.net_manager

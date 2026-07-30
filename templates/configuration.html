@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% block title %}Configuration — MRC emu{% endblock %}
+{% block content %}
+<div class="page-header">Network Configuration</div>
+
+<div class="tabs-bar" style="max-width:400px;">
+    <button class="tab-btn active" onclick="switchTab(this,'tab-view')">View</button>
+    <button class="tab-btn" onclick="switchTab(this,'tab-edit')">Edit</button>
+</div>
+
+<!-- View Tab — read-only topology view -->
+<div class="tab-pane" id="tab-view">
+    <div class="panel">
+        <h3>Fabric Nodes</h3>
+        <table class="data-table" id="nodes-table">
+            <thead>
+                <tr>
+                    <th>Node</th><th>Role</th><th>Plane</th>
+                    <th>Loopback (SRv6 Locator)</th><th>uSID</th>
+                    <th>SRv6 Block</th><th>Encap Source</th>
+                </tr>
+            </thead>
+            <tbody id="nodes-body">
+                <tr><td colspan="7" class="text-muted" style="text-align:center">Loading topology...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="panel">
+        <h3>Links</h3>
+        <div style="max-height:300px; overflow-y:auto;">
+            <table class="data-table" id="links-table">
+                <thead>
+                    <tr><th>Node A</th><th>Interface</th><th>IPv6</th><th>Node B</th><th>Interface</th><th style="text-align:right">IPv6</th></tr>
+                </thead>
+                <tbody id="links-body">
+                    <tr><td colspan="6" class="text-muted" style="text-align:center">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Tab — modify SRv6 configuration -->
+<div class="tab-pane" id="tab-edit" style="display:none;">
+    <div class="grid grid-sidebar">
+        <div>
+            <!-- SRv6 Block Configuration -->
+            <div class="panel">
+                <h3>SRv6 Block</h3>
+                <div class="field">
+                    <label>Plane 0 SRv6 Block</label>
+                    <input type="text" id="srv6-block-p0" value="fc00:42::/32">
+                </div>
+                <div class="field">
+                    <label>Plane 1 SRv6 Block</label>
+                    <input type="text" id="srv6-block-p1" value="fc00:43::/32">
+                </div>
+                <label class="field-check mt-2">
+                    <input type="checkbox" id="srv6-same-block" onchange="toggleSameBlock()">
+                    Same block for both planes
+                </label>
+            </div>
+
+            <!-- Encapsulation Source -->
+            <div class="panel">
+                <h3>Encapsulation Source</h3>
+                <div class="field">
+                    <label>Source IPv6 Base</label>
+                    <input type="text" id="encap-base" value="2001:db8::/32">
+                    <div class="hint">Global IPv6 block for SRv6 encapsulation source addresses</div>
+                </div>
+            </div>
+
+            <!-- uSID Mode -->
+            <div class="panel">
+                <h3>uSID Assignment</h3>
+                <div class="field">
+                    <label>Mode</label>
+                    <select id="usid-mode" onchange="toggleUsidMode()">
+                        <option value="per-layer">Per-layer-per-plane base</option>
+                        <option value="per-plane">Per-plane base</option>
+                        <option value="individual">Individual</option>
+                    </select>
+                </div>
+
+                <div id="usid-per-layer">
+                    <div class="field-row mt-2">
+                        <div class="field">
+                            <label>P0 Spine Base</label>
+                            <input type="text" id="usid-p0-spine" value="0x10">
+                        </div>
+                        <div class="field">
+                            <label>P0 Leaf Base</label>
+                            <input type="text" id="usid-p0-leaf" value="0x20">
+                        </div>
+                    </div>
+                    <div class="field-row">
+                        <div class="field">
+                            <label>P1 Spine Base</label>
+                            <input type="text" id="usid-p1-spine" value="0x10">
+                        </div>
+                        <div class="field">
+                            <label>P1 Leaf Base</label>
+                            <input type="text" id="usid-p1-leaf" value="0x20">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="usid-per-plane" style="display:none;">
+                    <div class="field-row mt-2">
+                        <div class="field">
+                            <label>Plane 0 Base uSID</label>
+                            <input type="text" id="usid-p0-base" value="0x10">
+                        </div>
+                        <div class="field">
+                            <label>Plane 1 Base uSID</label>
+                            <input type="text" id="usid-p1-base" value="0x10">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="usid-individual" style="display:none;">
+                    <div class="note-box mt-2">Set individual uSID values in the table below after clicking Preview.</div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="panel">
+                <div class="action-bar">
+                    <button class="btn-primary" onclick="previewConfig()">Preview Changes</button>
+                    <button class="btn-secondary" onclick="resetConfig()">Reset to Defaults</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview / Push -->
+        <div>
+            <div class="panel" id="preview-panel" style="display:none;">
+                <h3>Configuration Preview</h3>
+                <table class="data-table" id="preview-table">
+                    <thead>
+                        <tr><th>Node</th><th>uSID</th><th>SRv6 Locator</th><th>Encap Source</th><th>Status</th></tr>
+                    </thead>
+                    <tbody id="preview-body"></tbody>
+                </table>
+                <div class="action-bar mt-2">
+                    <button class="btn-accent" onclick="pushAll()">Push to All Switches</button>
+                    <div class="field-row" style="align-items:center;">
+                        <div class="field" style="margin:0;">
+                            <select id="push-target"></select>
+                        </div>
+                        <button class="btn-ghost btn-sm" onclick="pushSingle()">Push Selected</button>
+                    </div>
+                </div>
+                <div id="push-status" class="mt-2" style="font-size:12px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function switchTab(btn, paneId) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
+    btn.classList.add('active');
+    document.getElementById(paneId).style.display = '';
+}
+
+function toggleSameBlock() {
+    const same = document.getElementById('srv6-same-block').checked;
+    const p1 = document.getElementById('srv6-block-p1');
+    if (same) {
+        p1.value = document.getElementById('srv6-block-p0').value;
+        p1.disabled = true;
+    } else {
+        p1.disabled = false;
+    }
+}
+
+function toggleUsidMode() {
+    const mode = document.getElementById('usid-mode').value;
+    document.getElementById('usid-per-layer').style.display = mode === 'per-layer' ? '' : 'none';
+    document.getElementById('usid-per-plane').style.display = mode === 'per-plane' ? '' : 'none';
+    document.getElementById('usid-individual').style.display = mode === 'individual' ? '' : 'none';
+}
+
+async function loadTopology() {
+    try {
+        const r = await apiCall('/api/topology/addressing');
+        if (!r || !r.nodes) return;
+
+        let nodesHtml = '';
+        r.nodes.filter(n => n.role !== 'host').forEach(n => {
+            const usid = n.usid != null ? '0x' + n.usid.toString(16).toUpperCase() : '-';
+            nodesHtml += `<tr>
+                <td><strong>${n.name}</strong></td>
+                <td><span class="badge ${n.role === 'spine' ? 'badge-info' : 'badge-success'}">${n.role}</span></td>
+                <td>${n.plane}</td>
+                <td><code>${n.loopback_ipv6 || '-'}</code></td>
+                <td><code>${usid}</code></td>
+                <td><code>${n.srv6_locator || '-'}</code></td>
+                <td><code>${n.encap_source || '-'}</code></td>
+            </tr>`;
+        });
+        document.getElementById('nodes-body').innerHTML = nodesHtml || '<tr><td colspan="7" class="text-muted" style="text-align:center">No switch nodes</td></tr>';
+
+        let linksHtml = '';
+        (r.links || []).forEach(l => {
+            linksHtml += `<tr>
+                <td>${l.node_a}</td><td>${l.iface_a}</td><td><code>${l.addr_a}</code></td>
+                <td>${l.node_b}</td><td>${l.iface_b}</td><td style="text-align:right"><code>${l.addr_b}</code></td>
+            </tr>`;
+        });
+        document.getElementById('links-body').innerHTML = linksHtml || '<tr><td colspan="6" class="text-muted" style="text-align:center">No links</td></tr>';
+    } catch(e) {
+        document.getElementById('nodes-body').innerHTML = '<tr><td colspan="7" class="text-muted" style="text-align:center">Topology not generated</td></tr>';
+    }
+}
+
+function previewConfig() {
+    const blockP0 = document.getElementById('srv6-block-p0').value;
+    const blockP1 = document.getElementById('srv6-same-block').checked ? blockP0 : document.getElementById('srv6-block-p1').value;
+    const encapBase = document.getElementById('encap-base').value;
+    const mode = document.getElementById('usid-mode').value;
+
+    const nodes = [
+        {name:'p0spine0', role:'spine', plane:0, index:0},
+        {name:'p0spine1', role:'spine', plane:0, index:1},
+        {name:'p0leaf0', role:'leaf', plane:0, index:0},
+        {name:'p0leaf1', role:'leaf', plane:0, index:1},
+        {name:'p0leaf2', role:'leaf', plane:0, index:2},
+        {name:'p0leaf3', role:'leaf', plane:0, index:3},
+        {name:'p1spine0', role:'spine', plane:1, index:0},
+        {name:'p1spine1', role:'spine', plane:1, index:1},
+        {name:'p1leaf0', role:'leaf', plane:1, index:0},
+        {name:'p1leaf1', role:'leaf', plane:1, index:1},
+        {name:'p1leaf2', role:'leaf', plane:1, index:2},
+        {name:'p1leaf3', role:'leaf', plane:1, index:3},
+    ];
+
+    let html = '';
+    const pushSelect = document.getElementById('push-target');
+    pushSelect.innerHTML = '';
+
+    nodes.forEach(n => {
+        let usid;
+        if (mode === 'per-layer') {
+            const spineBase = parseInt(n.plane === 0 ? document.getElementById('usid-p0-spine').value : document.getElementById('usid-p1-spine').value);
+            const leafBase = parseInt(n.plane === 0 ? document.getElementById('usid-p0-leaf').value : document.getElementById('usid-p1-leaf').value);
+            usid = (n.role === 'spine' ? spineBase : leafBase) + n.index;
+        } else if (mode === 'per-plane') {
+            const base = parseInt(n.plane === 0 ? document.getElementById('usid-p0-base').value : document.getElementById('usid-p1-base').value);
+            usid = base + (n.role === 'spine' ? 0 : 2) + n.index;
+        } else {
+            usid = (n.role === 'spine' ? 0x10 : 0x20) + n.index;
+        }
+
+        const block = n.plane === 0 ? blockP0 : blockP1;
+        const blockPrefix = block.split('::/')[0];
+        const locator = `${blockPrefix}:${usid.toString(16)}::/48`;
+        const encapPrefix = encapBase.split('::/')[0];
+        const encapSrc = `${encapPrefix}:${n.plane}:${usid.toString(16)}::1`;
+
+        html += `<tr>
+            <td><strong>${n.name}</strong></td>
+            <td><code>0x${usid.toString(16).toUpperCase()}</code></td>
+            <td><code>${locator}</code></td>
+            <td><code>${encapSrc}</code></td>
+            <td><span class="badge badge-muted">pending</span></td>
+        </tr>`;
+        pushSelect.innerHTML += `<option value="${n.name}">${n.name}</option>`;
+    });
+
+    document.getElementById('preview-body').innerHTML = html;
+    document.getElementById('preview-panel').style.display = '';
+}
+
+function resetConfig() {
+    document.getElementById('srv6-block-p0').value = 'fc00:42::/32';
+    document.getElementById('srv6-block-p1').value = 'fc00:43::/32';
+    document.getElementById('srv6-same-block').checked = false;
+    document.getElementById('srv6-block-p1').disabled = false;
+    document.getElementById('encap-base').value = '2001:db8::/32';
+    document.getElementById('usid-mode').value = 'per-layer';
+    toggleUsidMode();
+    document.getElementById('usid-p0-spine').value = '0x10';
+    document.getElementById('usid-p0-leaf').value = '0x20';
+    document.getElementById('usid-p1-spine').value = '0x10';
+    document.getElementById('usid-p1-leaf').value = '0x20';
+    document.getElementById('preview-panel').style.display = 'none';
+}
+
+async function pushAll() {
+    document.getElementById('push-status').innerHTML = '<span class="warn-box" style="display:inline-block">Pushing to all switches...</span>';
+    try {
+        const r = await apiCall('/api/topology/provision', 'POST', {
+            action: 'provision', target: 'all',
+            username: 'admin', password: 'admin',
+        });
+        document.getElementById('push-status').innerHTML = '<span class="success-msg" style="display:inline-block">Push complete</span>';
+    } catch(e) {
+        document.getElementById('push-status').innerHTML = `<span class="error-msg" style="display:inline-block">Error: ${e.message}</span>`;
+    }
+}
+
+async function pushSingle() {
+    const target = document.getElementById('push-target').value;
+    document.getElementById('push-status').innerHTML = `<span class="warn-box" style="display:inline-block">Pushing to ${target}...</span>`;
+    try {
+        const r = await apiCall('/api/topology/provision', 'POST', {
+            action: 'provision', target: target,
+            username: 'admin', password: 'admin',
+        });
+        document.getElementById('push-status').innerHTML = `<span class="success-msg" style="display:inline-block">Pushed to ${target}</span>`;
+    } catch(e) {
+        document.getElementById('push-status').innerHTML = `<span class="error-msg" style="display:inline-block">Error: ${e.message}</span>`;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadTopology);
+</script>
+{% endblock %}

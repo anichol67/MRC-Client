@@ -43,23 +43,11 @@
             </span>
         </a>
         <ul class="sidebar-nav">
-            <li class="sidebar-nav-section">Fabric</li>
-            <li><a href="{{ request.script_root }}/topology_builder" class="{% if request.path == '/topology_builder' %}active{% endif %}">Topology Builder</a></li>
-            <li><a href="{{ request.script_root }}/topology" class="{% if request.path == '/topology' %}active{% endif %}">Topology</a></li>
-            <li><a href="{{ request.script_root }}/topology_viz" class="{% if request.path == '/topology_viz' %}active{% endif %}">Fabric View</a></li>
+            <li class="sidebar-nav-section">Main</li>
+            <li><a href="{{ request.script_root }}/topology" class="{% if request.path == '/' or request.path == '/topology' %}active{% endif %}">Topology</a></li>
+            <li><a href="{{ request.script_root }}/configuration" class="{% if request.path == '/configuration' %}active{% endif %}">Configuration</a></li>
             <li><a href="{{ request.script_root }}/simulation" class="{% if request.path == '/simulation' %}active{% endif %}">Simulator</a></li>
-            <li class="sidebar-nav-section">Endpoint</li>
-            <li><a href="{{ request.script_root }}/host" class="{% if request.path == '/' or request.path == '/host' %}active{% endif %}">Host Config</a></li>
-            <li><a href="{{ request.script_root }}/network" class="{% if request.path == '/network' %}active{% endif %}">Network</a></li>
-            <li><a href="{{ request.script_root }}/ev" class="{% if request.path == '/ev' %}active{% endif %}">EV Profiles</a></li>
-            <li><a href="{{ request.script_root }}/qp" class="{% if request.path == '/qp' %}active{% endif %}">Queue Pairs</a></li>
-            <li class="sidebar-nav-section">Transport</li>
-            <li><a href="{{ request.script_root }}/packets" class="{% if request.path == '/packets' %}active{% endif %}">Packets</a></li>
-            <li><a href="{{ request.script_root }}/cc" class="{% if request.path == '/cc' %}active{% endif %}">Congestion Ctrl</a></li>
-            <li><a href="{{ request.script_root }}/probing" class="{% if request.path == '/probing' %}active{% endif %}">Probing</a></li>
-            <li class="sidebar-nav-section">Testing</li>
             <li><a href="{{ request.script_root }}/traffic" class="{% if request.path == '/traffic' %}active{% endif %}">Traffic</a></li>
-            <li><a href="{{ request.script_root }}/faults" class="{% if request.path == '/faults' %}active{% endif %}">Faults</a></li>
         </ul>
     </nav>
 
