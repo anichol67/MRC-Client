@@ -84,7 +84,7 @@
 | 68 | Phase 1: SRv6 base address configurable per plane or both planes | §68 |
 | 69 | Phase 1: uSID derivation modes — per-plane base, per-layer-per-plane base, or individual | §69 |
 | 70 | Phase 1: Push config to single switch or all switches via eAPI | §70 |
-| 71 | Phase 1: Simplified 4-tab sidebar (Topology, Configuration, Simulator, Traffic) | §71 |
+| 71 | Phase 1: Simplified 3-tab sidebar (Topology, Configuration, Simulator) | §71 |
 | 72 | Phase 1: Correct EOS SRv6 CLI syntax (`router srv6`, micro-segment domain MRC) | §72 |
 | 73 | Phase 1: Host config fixed — only SRv6 overlay changes, controller updates in-memory state | §73 |
 | 74 | Phase 1: Configuration tab — SRv6 block, uSID values, encapsulation source block | §74 |
@@ -929,19 +929,21 @@ MRC emu
   Topology
   Configuration
   Simulator
-  Traffic
 ```
 
 | Tab | Purpose |
 |-----|---------|
 | **Topology** | Read-only view of the fixed 2-plane fabric — nodes, links, IPv6, SRv6, uSIDs |
 | **Configuration** | Edit SRv6 block, uSID values, encapsulation source; push to switches via eAPI |
-| **Simulator** | Offline simulation — flow definition, topology SVG with path highlighting, EV state, event log |
-| **Traffic** | Live traffic generation — NCCL collectives, packet spraying, real packet I/O to hosts |
+| **Simulator** | Unified simulation page with Offline/Live toggle — same UI for both modes |
 
-Previous sub-pages (EV Profiles, Queue Pairs, Packets, CC, Probing, Faults, Host Config, Network) become sub-sections or features within these four tabs.
+The Simulator page has a pill toggle (Offline / Live):
+- **Offline**: in-memory simulation with simulated CC feedback (no real packets)
+- **Live**: real SRv6 packets via scapy through the cEOS fabric, real SACK/NACK responses
 
-**Why**: Four focused tabs reduce navigation complexity and match the phase 1 workflow: view topology → configure SRv6 → simulate offline → generate live traffic.
+Both modes share the same controls, topology SVG, EV state table, metrics bar, and event log.
+
+**Why**: Three focused tabs reduce navigation complexity. Merging Simulator and Traffic into one page with a mode toggle avoids duplicating the same UI.
 
 ### 72. Correct EOS SRv6 CLI Syntax
 **Decision**: Use the current Arista EOS `router srv6` syntax with micro-segment domain, replacing the old `router segment-routing` / `srv6` syntax.
@@ -1205,6 +1207,10 @@ When confirmed, the controller:
 - Configuration page: single-page layout with collapsible sections (Fabric Nodes, Links, Hosts, Edit SRv6)
 - Edit inputs persist in localStorage across tab navigation
 - Hosts table shows per-plane IPv6 addresses
+- Merged Simulator and Traffic into single page with Offline/Live pill toggle
+- Sidebar reduced from 4 tabs to 3: Topology, Configuration, Simulator
+- Live mode starts real flows on remote hosts via controller API, polls for aggregated state
+- Offline mode unchanged — in-memory simulation with simulated CC feedback
 - Requirements expanded to 74 total
 
 ---

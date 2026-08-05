@@ -14,8 +14,13 @@
 {% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-between align-center">
-    Simulation <span id="run-indicator"></span>
-    <span>
+    Simulator <span id="run-indicator"></span>
+    <span class="d-flex align-center gap-2">
+        <div class="pill-toggle" id="mode-toggle">
+            <button class="pill-btn active" onclick="setSimMode('offline',this)">Offline</button>
+            <button class="pill-btn" onclick="setSimMode('live',this)">Live</button>
+        </div>
+        <span id="mode-status" style="font-size:11px;color:var(--text3)">In-memory simulation</span>
         <button class="panel-maximize" onclick="cycleCtrlText()" title="Controls text size">Aa</button>
         <button class="collapse-btn" onclick="document.getElementById('ctrl-bar').style.display = document.getElementById('ctrl-bar').style.display==='none'?'':'none'">Controls ▾</button>
     </span>
@@ -149,6 +154,13 @@
     };
     function getC() { return document.documentElement.getAttribute('data-theme') === 'dark' ? C_DARK : C_LIGHT; }
     let C = getC();
+    let simMode = 'offline';
+    window.setSimMode = function(mode, btn) {
+        simMode = mode;
+        document.querySelectorAll('#mode-toggle .pill-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('mode-status').textContent = mode === 'live' ? 'Real packets on wire' : 'In-memory simulation';
+    };
     const tileSizes = [
         { w: 120, h: 48, name: 11, role: 8.5, usid: 8, nameY: 17, roleY: 29, usidY: 40, stripe: 4, dotR: 4 },
         { w: 160, h: 60, name: 13, role: 10,  usid: 9.5, nameY: 20, roleY: 35, usidY: 49, stripe: 5, dotR: 5 },
@@ -673,61 +685,84 @@
         const dst = document.getElementById('sim-dst').value;
         if (src && dst && src !== dst && !selectedSrc) { await showSimPaths(); }
         document.getElementById('btn-start').disabled=true; document.getElementById('btn-stop').disabled=false;
-        document.getElementById('run-indicator').innerHTML='<span class="badge badge-success running-pulse" style="margin-left:8px">RUNNING</span>';
-        // Set probe mode on simulator
+        const modeLabel = simMode === 'live' ? 'LIVE' : 'OFFLINE';
+        document.getElementById('run-indicator').innerHTML=`<span class="badge ${simMode==='live'?'badge-info':'badge-success'} running-pulse" style="margin-left:8px">${modeLabel}</span>`;
         const probeMode = document.getElementById('probe-mode').value;
         try { await apiCall('/api/traffic/set_probe_mode', 'POST', {probe_mode: probeMode}); } catch(e) {}
-        // Expand event log when simulation starts
         const logBody = document.getElementById('panel-eventlog-body');
         if (logBody && logBody.style.display === 'none') { logBody.style.display = ''; document.getElementById('panel-eventlog-btn').textContent = '−'; }
-        log(`Started: ${totalSteps} steps, ${r.total_flows||'?'} flows, probes=${probeMode}`);
+        log(`Started (${modeLabel}): ${totalSteps} steps, ${r.total_flows||'?'} flows, probes=${probeMode}`);
         const interval=parseInt(document.getElementById('sim-interval').value)||500;
         const duration=parseInt(document.getElementById('sim-duration').value)||30;
         const endTime=Date.now()+duration*1000;
-        simTimer=setInterval(async()=>{
-            if (Date.now()>endTime) { stopSimulation(); return; }
+
+        if (simMode === 'live') {
+            // Live mode — start real flows on remote hosts via controller API
             try {
-                const sr=await apiCall('/api/traffic/simulate_step','POST');
-                if (sr.completed) {
-                    // Plan exhausted — restart from step 0, preserving EV state and counters
-                    await apiCall('/api/traffic/restart_plan','POST');
-                    log('<span style="color:#0065A3">Plan cycle complete — restarting</span>');
-                    return;
-                }
-                if (sr.error) { stopSimulation(); log('Error: ' + (sr.error || 'unknown')); return; }
-                stepCount++; updateMetrics(sr.state, sr.step_result);
-                // Update EV states, packet counts, and RTT from simulator (authoritative during simulation)
-                if (sr.state && sr.state.ev_states) {
-                    sr.state.ev_states.forEach(ev => {
-                        let ps = pathStates.find(s => s.ev_value_int === ev.value);
-                        if (ps) {
-                            ps.state = ev.state;
-                            ps.packet_count = ev.packet_count || 0;
-                        }
-                        evPacketCounts[ev.value] = ev.packet_count || 0;
-                    });
-                }
-                // Also update RTT and ECN rate from per-flow results
-                const flowResults = sr.step_result?.flows || [];
-                flowResults.forEach(f => {
-                    const ps = pathStates.find(s => s.ev_value_int === f.ev_value);
-                    if (ps) {
-                        if (f.ev_state_after) ps.state = f.ev_state_after;
-                        if (f.rtt_us) ps.rtt_us = f.rtt_us;
-                        if (f.fault_decision && f.fault_decision.ecn_marked) {
-                            ps.ecn_rate = Math.min(1.0, (ps.ecn_rate || 0) + 0.1);
-                        }
-                    }
+                const src = document.getElementById('sim-src').value;
+                const dst = document.getElementById('sim-dst').value;
+                await apiCall('/api/controller/start_flow', 'POST', {
+                    src_host: src, dst_host: dst,
+                    bidirectional: document.getElementById('flow-mode').value === 'bidirectional',
+                    message_size: parseInt(document.getElementById('sim-msgsize').value),
+                    duration: duration,
                 });
-                // Render MRC event log from simulator
-                if (sr.state && sr.state.event_log) { updateEventLog(sr.state.event_log); }
-                drawPaths(); updateEVTable();
-            } catch(e) { log('Error: '+e.message); }
-        }, interval);
+                log('<span style="color:#0065A3">Live flows started on remote hosts</span>');
+            } catch(e) { log('Live start error: ' + e.message); }
+            // Poll controller for aggregated state
+            simTimer=setInterval(async()=>{
+                if (Date.now()>endTime) { stopSimulation(); return; }
+                try {
+                    const sr=await apiCall('/api/controller/aggregate_state');
+                    if (sr) { stepCount++; updateMetrics(sr, null); }
+                    const events=await apiCall('/api/controller/aggregate_events');
+                    if (events && events.events) { updateEventLog(events.events); }
+                    drawPaths(); updateEVTable();
+                } catch(e) {}
+            }, interval);
+        } else {
+            // Offline mode — in-memory simulation
+            simTimer=setInterval(async()=>{
+                if (Date.now()>endTime) { stopSimulation(); return; }
+                try {
+                    const sr=await apiCall('/api/traffic/simulate_step','POST');
+                    if (sr.completed) {
+                        await apiCall('/api/traffic/restart_plan','POST');
+                        log('<span style="color:#0065A3">Plan cycle complete — restarting</span>');
+                        return;
+                    }
+                    if (sr.error) { stopSimulation(); log('Error: ' + (sr.error || 'unknown')); return; }
+                    stepCount++; updateMetrics(sr.state, sr.step_result);
+                    if (sr.state && sr.state.ev_states) {
+                        sr.state.ev_states.forEach(ev => {
+                            let ps = pathStates.find(s => s.ev_value_int === ev.value);
+                            if (ps) { ps.state = ev.state; ps.packet_count = ev.packet_count || 0; }
+                            evPacketCounts[ev.value] = ev.packet_count || 0;
+                        });
+                    }
+                    const flowResults = sr.step_result?.flows || [];
+                    flowResults.forEach(f => {
+                        const ps = pathStates.find(s => s.ev_value_int === f.ev_value);
+                        if (ps) {
+                            if (f.ev_state_after) ps.state = f.ev_state_after;
+                            if (f.rtt_us) ps.rtt_us = f.rtt_us;
+                            if (f.fault_decision && f.fault_decision.ecn_marked) {
+                                ps.ecn_rate = Math.min(1.0, (ps.ecn_rate || 0) + 0.1);
+                            }
+                        }
+                    });
+                    if (sr.state && sr.state.event_log) { updateEventLog(sr.state.event_log); }
+                    drawPaths(); updateEVTable();
+                } catch(e) { log('Error: '+e.message); }
+            }, interval);
+        }
     };
 
-    window.stopSimulation = function() {
+    window.stopSimulation = async function() {
         if (simTimer) { clearInterval(simTimer); simTimer=null; }
+        if (simMode === 'live') {
+            try { await apiCall('/api/controller/stop_flow', 'POST'); } catch(e) {}
+        }
         document.getElementById('btn-start').disabled=false; document.getElementById('btn-stop').disabled=true;
         document.getElementById('run-indicator').innerHTML='<span class="badge badge-muted" style="margin-left:8px">STOPPED</span>';
         log('Stopped');
