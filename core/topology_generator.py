@@ -494,10 +494,9 @@ class TopologyGenerator:
     def get_srv6_locator_routes(self, node_name: str) -> list[dict]:
         """Compute SRv6 locator routes for a switch node.
 
-        Each switch needs static routes to every other switch's SRv6
-        locator prefix.  The next-hop is determined by the direct P2P
-        link between the two nodes (or via the connected spine/leaf for
-        non-adjacent nodes).
+        Leafs get routes to directly connected spines + downstream host.
+        Spines get routes to directly connected leafs.
+        No cross-plane routes. No leaf-to-leaf routes.
 
         Returns a list of ``{'prefix': ..., 'next_hop': ...}`` dicts.
         """
@@ -506,25 +505,45 @@ class TopologyGenerator:
             return []
 
         routes: list[dict] = []
-        seen_prefixes: set[str] = set()
 
-        for other in self.nodes:
-            if other.name == node_name or other.role == 'host':
-                continue
-            if not other.srv6_locator:
-                continue
-            if other.srv6_locator in seen_prefixes:
+        for link in self.links:
+            peer_name = None
+            next_hop = None
+            if link.node_a == node_name:
+                peer_name = link.node_b
+                next_hop = link.addr_b.split('/')[0] if '/' in link.addr_b else link.addr_b
+            elif link.node_b == node_name:
+                peer_name = link.node_a
+                next_hop = link.addr_a.split('/')[0] if '/' in link.addr_a else link.addr_a
+
+            if peer_name is None:
                 continue
 
-            next_hop = self._find_next_hop(node_name, other.name)
-            if next_hop:
-                routes.append({
-                    'prefix': other.srv6_locator,
-                    'next_hop': next_hop,
-                })
-                seen_prefixes.add(other.srv6_locator)
+            peer = self._node_map.get(peer_name)
+            if peer is None:
+                continue
+
+            if node.role == 'leaf' and peer.role == 'spine':
+                if peer.srv6_locator:
+                    routes.append({'prefix': peer.srv6_locator, 'next_hop': next_hop})
+            elif node.role == 'leaf' and peer.role == 'host':
+                host_locator = self._get_host_locator(peer, node.plane)
+                if host_locator:
+                    routes.append({'prefix': host_locator, 'next_hop': next_hop})
+            elif node.role == 'spine' and peer.role == 'leaf':
+                if peer.srv6_locator:
+                    routes.append({'prefix': peer.srv6_locator, 'next_hop': next_hop})
 
         return routes
+
+    def _get_host_locator(self, host_node, plane: int) -> str:
+        """Derive SRv6 locator prefix for a host on a given plane."""
+        pi = host_node.plane_interfaces.get(str(plane)) or host_node.plane_interfaces.get(plane)
+        if pi and pi.get('usid'):
+            block = self.config.srv6_base if plane == 0 else self.config.srv6_base_plane1
+            block_prefix = block.split('::/')[0]
+            return f'{block_prefix}:{pi["usid"]:x}::/48'
+        return ''
 
     def _find_next_hop(self, from_node: str, to_node: str) -> str:
         """Find the IPv6 next-hop address from *from_node* to *to_node*.

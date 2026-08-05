@@ -108,6 +108,20 @@
     <div class="ctx-menu-item danger" onclick="clearFailures()">Clear All Failures</div>
 </div>
 
+<!-- Failure Panel -->
+<div class="panel" style="margin-top:12px;">
+    <div class="panel-header">
+        <span>Failure Injection</span>
+        <button class="btn-danger btn-sm" onclick="clearFailures()">Reset All</button>
+    </div>
+    <div style="max-height:150px; overflow-y:auto; padding:8px;">
+        <div class="d-flex flex-wrap gap-2" id="failure-controls">
+            <span class="text-muted text-sm">Click a link or node in the topology to inject a failure, or use the controls below:</span>
+        </div>
+        <div id="failure-list" class="mt-2" style="font-size:12px;"></div>
+    </div>
+</div>
+
 <!-- Bottom panels: EV state (expanded) + Event log (minimised) -->
 <div class="bottom-panels">
     <div class="panel" id="panel-evstate" style="flex:1;">
@@ -142,14 +156,14 @@
         spine:'#d0e4f7', spine_stripe:'#0065A3', spine_text:'#003d66',
         leaf:'#daf0dc', leaf_stripe:'#3d7a28', leaf_text:'#2d5a1e',
         host:'#d0f0f5', host_stripe:'#0891b2', host_text:'#065666',
-        link:'#dde0e8', failed:'#dc2626',
+        link:'#8b8fa8', failed:'#dc2626',
         GOOD:'#3d7a28', SKIP:'#b8860b', DENIED:'#6b7294', ASSUMED_BAD:'#dc2626',
     };
     const C_DARK = {
         spine:'#0d2240', spine_stripe:'#4da6e0', spine_text:'#a3d4f5',
         leaf:'#1a3a2a', leaf_stripe:'#7ed95c', leaf_text:'#a8e8a0',
         host:'#0e2838', host_stripe:'#30b0d0', host_text:'#80d8e8',
-        link:'#2a3554', failed:'#fca5a5',
+        link:'#4a5568', failed:'#fca5a5',
         GOOD:'#7ed95c', SKIP:'#f59e0b', DENIED:'#6b7294', ASSUMED_BAD:'#fca5a5',
     };
     function getC() { return document.documentElement.getAttribute('data-theme') === 'dark' ? C_DARK : C_LIGHT; }
@@ -366,7 +380,20 @@
             const failed = !!failedLinks[key];
             const cls = failed ? 'topo-link link-failed link-failed-pulse link-failed-dash' : 'topo-link';
             const tipData = encodeURIComponent(JSON.stringify({node_a:l.node_a, node_b:l.node_b, iface_a:l.iface_a||'-', iface_b:l.iface_b||'-', addr_a:l.addr_a||'-', addr_b:l.addr_b||'-'}));
-            svg += `<line class="${cls}" x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${failed?C.failed:C.link}" data-key="${key}" data-link-id="${l.node_a}↔${l.node_b}" data-tip="${tipData}" onmouseenter="simViz.showTip(event,this,'link')" onmouseleave="simViz.hideTip()" oncontextmenu="simViz.ctxMenu(event,'link','${l.node_a}↔${l.node_b}')"/>`;
+            // Transparent wider hitbox for easier clicking
+            svg += `<line class="topo-link" x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="transparent" stroke-width="12" data-key="${key}" data-link-id="${l.node_a}↔${l.node_b}" data-tip="${tipData}" onmouseenter="simViz.showTip(event,this,'link')" onmouseleave="simViz.hideTip()" oncontextmenu="simViz.ctxMenu(event,'link','${l.node_a}↔${l.node_b}')"/>`;
+            // Visible link line (no event handlers — hitbox above handles them)
+            svg += `<line class="${cls}" x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${failed?C.failed:C.link}" stroke-width="4" data-key="${key}" data-link-id="${l.node_a}↔${l.node_b}" pointer-events="none"/>`;
+            // Port labels at each end of the link
+            const midX = (pa.x + pb.x) / 2;
+            const midY = (pa.y + pb.y) / 2;
+            const dx = pb.x - pa.x;
+            const dy = pb.y - pa.y;
+            const len = Math.sqrt(dx*dx + dy*dy) || 1;
+            const offsetX = -dy/len * 8;
+            const offsetY = dx/len * 8;
+            svg += `<text x="${pa.x + (pb.x-pa.x)*0.15 + offsetX}" y="${pa.y + (pb.y-pa.y)*0.15 + offsetY}" font-size="8" fill="var(--text3)" text-anchor="middle" pointer-events="none">${l.iface_a||''}</text>`;
+            svg += `<text x="${pa.x + (pb.x-pa.x)*0.85 + offsetX}" y="${pa.y + (pb.y-pa.y)*0.85 + offsetY}" font-size="8" fill="var(--text3)" text-anchor="middle" pointer-events="none">${l.iface_b||''}</text>`;
         });
         svg += '</g><g id="sg-paths"></g><g id="sg-nodes">';
 
@@ -409,6 +436,7 @@
         const existingSvg = container.querySelector('svg');
         if (existingSvg) existingSvg.remove();
         container.insertAdjacentHTML('afterbegin', svg);
+        buildFailurePanel();
     }
 
     function flashFailure(names) {
@@ -444,7 +472,9 @@
             }
 
             // Animated flow dots on active paths while simulation is running
-            if (isRunning && isActive && points.length >= 2) {
+            const showDots = isRunning && isActive && points.length >= 2;
+            const livePkts = simMode === 'live' ? (ps ? ps.packet_count || 0 : 0) : 1;
+            if (showDots && livePkts > 0) {
                 const dur = (1.5 + pidx * 0.3).toFixed(1);
 
                 // Forward dots: source → destination (bright white)
@@ -841,6 +871,62 @@
         renderFabric(); drawPaths(); updateEVTable();
         document.getElementById('fail-status').innerHTML='<span style="color:#3d7a28">Cleared</span>';
         log('<span style="color:#3d7a28">All failures cleared — paths restored</span>');
+    };
+
+    function buildFailurePanel() {
+        if (!topoData) return;
+        let html = '<div class="d-flex flex-wrap gap-2">';
+        // Node failure buttons
+        topoData.nodes.filter(n => n.role !== 'host').forEach(n => {
+            const isFailed = Object.keys(failedLinks).some(k => k.includes(n.name));
+            html += `<button class="${isFailed ? 'btn-danger' : 'btn-secondary'} btn-sm" onclick="failNode('${n.name}')" title="Fail ${n.name}">${n.name}</button>`;
+        });
+        html += '</div><div class="d-flex flex-wrap gap-2 mt-1">';
+        // Link failure buttons
+        topoData.links.forEach(l => {
+            const key = [l.node_a, l.node_b].sort().join('||');
+            const isFailed = !!failedLinks[key];
+            html += `<button class="${isFailed ? 'btn-danger' : 'btn-secondary'} btn-sm" onclick="failLink('${l.node_a}','${l.node_b}')" title="${l.node_a}↔${l.node_b}" style="font-size:10px">${l.iface_a||'?'}↔${l.iface_b||'?'}</button>`;
+        });
+        html += '</div>';
+        const el = document.getElementById('failure-controls');
+        if (el) el.innerHTML = html;
+    }
+
+    window.failNode = async function(name) {
+        ctxTarget = { type: 'node', id: name };
+        await ctxAction('fail');
+        // Push real shutdown to switch
+        try {
+            await apiCall('/api/topology/provision', 'POST', {
+                action: 'shutdown_node', target: name,
+                username: 'admin', password: 'admin',
+            });
+        } catch(e) {}
+        buildFailurePanel();
+    };
+
+    window.failLink = async function(nodeA, nodeB) {
+        ctxTarget = { type: 'link', id: nodeA + '↔' + nodeB };
+        const key = [nodeA, nodeB].sort().join('||');
+        if (failedLinks[key]) {
+            await ctxAction('restore');
+            try {
+                await apiCall('/api/topology/provision', 'POST', {
+                    action: 'restore_link', node_a: nodeA, node_b: nodeB,
+                    username: 'admin', password: 'admin',
+                });
+            } catch(e) {}
+        } else {
+            await ctxAction('fail');
+            try {
+                await apiCall('/api/topology/provision', 'POST', {
+                    action: 'shutdown_link', node_a: nodeA, node_b: nodeB,
+                    username: 'admin', password: 'admin',
+                });
+            } catch(e) {}
+        }
+        buildFailurePanel();
     };
 
     window.onThemeChange = function() { C = getC(); renderFabric(); drawPaths(); };

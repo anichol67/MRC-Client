@@ -1208,9 +1208,21 @@ When confirmed, the controller:
 - Edit inputs persist in localStorage across tab navigation
 - Hosts table shows per-plane IPv6 addresses
 - Merged Simulator and Traffic into single page with Offline/Live pill toggle
-- Sidebar reduced from 4 tabs to 3: Topology, Configuration, Simulator
+- Sidebar reduced to 3 tabs: Simulator (top/default), Topology, Configuration
+- Root route (/) now serves Simulator page
 - Live mode starts real flows on remote hosts via controller API, polls for aggregated state
 - Offline mode unchanged — in-memory simulation with simulated CC feedback
+- Fixed leaf static routes: 3 routes per leaf (2 upstream spines + 1 downstream host uSID)
+- Fixed spine static routes: 4 routes per spine (each leaf in plane, already correct)
+- Host uSIDs assigned: 0x30-0x33 (role=3), SRv6 locator routes added to leaf configs
+- Updated route generation logic in topology generator for correct leaf/spine/host routing
+- Topology SVG link colors: darker grey for physical links, green for active path overlays
+- Port labels (eth1, eth2, etc.) displayed on topology SVG links
+- Larger click targets on SVG links (transparent 12px hitbox)
+- Failure injection panel below topology with per-node and per-link fail/restore buttons
+- Real failure injection via eAPI: `shutdown`/`no shutdown` on switch interfaces
+- Reset All Failures button in failure panel
+- Live mode: no animated flow dots unless traffic confirmed via packet counts
 - Requirements expanded to 74 total
 
 ---

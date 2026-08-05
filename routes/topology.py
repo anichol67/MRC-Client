@@ -48,7 +48,6 @@ def configuration_page():
     return render_template('configuration.html', topo=topo_data)
 
 
-@topology_bp.route('/')
 @topology_bp.route('/topology')
 def topology_page():
     gen = _get_or_create_generator()
@@ -64,6 +63,7 @@ def topology_viz_page():
     return render_template('topology_viz.html', topo=topo_data, path_states=None)
 
 
+@topology_bp.route('/')
 @topology_bp.route('/simulation')
 def simulation_page():
     from core.collectives import CollectiveType
