@@ -15,4 +15,5 @@ ip link set eth2 mtu 9216
 ip -6 route add default via fd00:1:23:ff::0 dev eth2 metric 101
 
 /usr/sbin/sshd
+cd /app && LISTEN_PORT=5001 python3 app.py &
 echo "Host configuration complete"

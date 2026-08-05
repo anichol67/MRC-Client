@@ -1223,6 +1223,10 @@ When confirmed, the controller:
 - Real failure injection via eAPI: `shutdown`/`no shutdown` on switch interfaces
 - Reset All Failures button in failure panel
 - Live mode: no animated flow dots unless traffic confirmed via packet counts
+- Host containers now run Flask MRC emulator on port 5001 (started in startup scripts)
+- Controller auto-registers hosts with fixed management IPs and port 5001
+- Controller auto-discovers host reachability on first Live mode flow start
+- `/api/controller/stop_flow` endpoint added for simulator stop button
 - Requirements expanded to 74 total
 
 ---

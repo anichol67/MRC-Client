@@ -18,7 +18,12 @@ logger = logging.getLogger(__name__)
 controller_bp = Blueprint('controller', __name__)
 
 _controller_state = {
-    'hosts': {},
+    'hosts': {
+        'host0': {'mgmt_ip': '172.20.0.51', 'status': 'registered', 'port': 5001},
+        'host1': {'mgmt_ip': '172.20.0.52', 'status': 'registered', 'port': 5001},
+        'host2': {'mgmt_ip': '172.20.0.53', 'status': 'registered', 'port': 5001},
+        'host3': {'mgmt_ip': '172.20.0.54', 'status': 'registered', 'port': 5001},
+    },
     'mode': 'offline',
 }
 
@@ -157,6 +162,14 @@ def api_start_flow():
     src = data.get('src_host', '')
     dst = data.get('dst_host', '')
 
+    # Auto-discover hosts if not yet reachable
+    for name, info in _controller_state['hosts'].items():
+        if info['status'] != 'reachable':
+            resp = _host_api_call(info['mgmt_ip'], '/api/host/state',
+                                  port=info.get('port', 5001))
+            if 'error' not in resp:
+                info['status'] = 'reachable'
+
     src_info = _controller_state['hosts'].get(src)
     if not src_info or src_info['status'] != 'reachable':
         return jsonify({'error': f'Source host {src} not reachable'}), 400
@@ -195,6 +208,7 @@ def api_start_flow():
     return jsonify(result)
 
 
+@controller_bp.route('/api/controller/stop_flow', methods=['POST'])
 @controller_bp.route('/api/controller/stop_all', methods=['POST'])
 def api_stop_all():
     """Stop all flows on all hosts."""

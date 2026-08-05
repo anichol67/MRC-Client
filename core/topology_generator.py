@@ -654,6 +654,7 @@ class TopologyGenerator:
             lines.append('')
 
         lines.append('/usr/sbin/sshd')
+        lines.append('cd /app && LISTEN_PORT=5001 python3 app.py &')
         lines.append('echo "Host configuration complete"')
         lines.append('')
         return '\n'.join(lines)
